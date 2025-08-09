@@ -7,7 +7,7 @@ export const actions: Actions = {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'http://localhost:5173/2kN2p-admin-login-2025/callback'
+        redirectTo: 'https://gotarchive.up.railway.app/2kN2p-admin-login-2025/callback'
       }
     });
 

@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD CONSTRAINT "users_supabase_fk" FOREIGN KEY ("supabase_id") REFERENCES "auth"."users"("id") ON DELETE no action ON UPDATE no action;

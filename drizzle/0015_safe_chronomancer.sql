@@ -1,0 +1,2 @@
+ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE POLICY "Enable users to view their own data only" ON "users" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((select auth.uid())="users"."supabase_id");

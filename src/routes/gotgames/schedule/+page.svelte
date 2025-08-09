@@ -180,7 +180,7 @@
 						{#each displayBlock.animeList ?? [] as anime}
 							<div class={['flex flex-col gap-1', 'max-sm:flex-col']}>
 								<a
-									href={`/anime/${anime.animeId}`}
+									href={`/gotgames/anime/${anime.animeId}`}
 									class="dark:text-primary-50 hover:text-accent-400 text-xl font-bold transition-colors duration-150"
 								>
 									<span>{anime.titleEnglish ?? anime.titleRomaji ?? anime.titleNative}</span>

@@ -23,6 +23,7 @@
 		CookieConsent
 	} from '$lib/components/ui/';
 	import { Toaster } from '$lib/components/ui/toaster';
+	import { Button, LinkButton } from '$lib/components/forms';
 	import { invalidate } from '$app/navigation';
 	import { getAnonymousUUIDStore } from '$lib/stores';
 
@@ -104,24 +105,10 @@
 	<FeedbackModal formData={data.feedbackForm} bind:open={feedbackOpen} />
 	<Footer>
 		<DarkModeToggle />
-		<FeedbackModalToggle bind:open={feedbackOpen} />
-		<a
-			href="/privacy"
-			class={[
-				'dark:text-primary-50 text-primary-900 border-primary-900 dark:border-primary-50 border',
-				'flex items-center justify-center rounded-full p-2',
-				'transition-all duration-150'
-			]}>Privacy policy</a
+		<Button variant="primary" shape="pill" onclick={(_) => (feedbackOpen = !feedbackOpen)}
+			>Feedback</Button
 		>
-		<a
-			href="/tos"
-			class={[
-				'dark:text-primary-50 text-primary-900 border-primary-900 dark:border-primary-50 border',
-				'flex items-center justify-center rounded-full p-2',
-				'transition-all duration-150'
-			]}
-		>
-			Terms of Service
-		</a>
+		<LinkButton href="/privacy" variant="primary" shape="pill">Privacy</LinkButton>
+		<LinkButton href="/tos" variant="primary" shape="pill">Terms</LinkButton>
 	</Footer>
 </div>

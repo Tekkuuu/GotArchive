@@ -3,7 +3,7 @@
 	import _ from 'lodash';
 	import type { ClassValue } from 'svelte/elements';
 
-	type Variant = 'submit' | 'warning' | 'danger' | 'info' | 'default';
+	type Variant = 'submit' | 'warning' | 'danger' | 'info' | 'default' | 'primary';
 	type Shape = 'rect' | 'pill' | 'circle' | 'rounded';
 
 	interface Props {
@@ -53,8 +53,14 @@
 		default: [
 			'border-primary-200 hover:bg-primary-400 active:bg-primary-200',
 			'dark:border-primary-700 dark:hover:bg-primary-700 dark:active:bg-primary-700',
-			'bg-transparent text-primary-200 hover:bg-primary-200 hover:text-primary-900 active:bg-primary-300 active:border-primary-300',
+			'bg-transparent text-primary-200 hover:text-primary-900 active:border-primary-300',
 			'dark:bg-transparent dark:text-primary-700 dark:hover:bg-primary-700 dark:hover:text-primary-900 dark:active:bg-primary-800 dark:active:border-primary-800'
+		],
+		primary: [
+			'border-primary-900 hover:border-primary-800 hover:bg-primary-800 active:border-primary-700 active:bg-primary-700',
+			'bg-transparent text-primary-900 hover:text-primary-50',
+			'dark:border-primary-50 dark:hover:border-primary-100 dark:hover:bg-primary-100 dark:active:border-primary-200 dark:active:bg-primary-200',
+			'dark:bg-transparent dark:text-primary-50 dark:hover:text-primary-900'
 		]
 	};
 
@@ -75,6 +81,10 @@
 		default: [
 			'bg-primary-200 border-primary-200 text-primary-900 hover:bg-primary-300 hover:border-primary-300 active:bg-primary-200 active:border-primary-200',
 			'dark:bg-primary-700 dark:border-primary-700 dark:text-primary-900 dark:hover:bg-primary-800 dark:hover:border-primary-800 dark:active:bg-primary-700 dark:active:border-primary-700'
+		],
+		primary: [
+			'bg-primary-900 border-primary-900 text-primary-50 hover:bg-primary-700 hover:border-primary-700 active:bg-primary-500 active:border-primary-500',
+			'dark:bg-primary-50 dark:border-primary-50 dark:text-primary-900 dark:hover:bg-primary-200 dark:hover:border-primary-200 dark:active:bg-primary-400 dark:active:border-primary-400'
 		]
 	};
 

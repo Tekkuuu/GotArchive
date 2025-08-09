@@ -81,7 +81,7 @@
 					</NavLi>
 					<NavLi target="_blank" href="https://www.twitch.tv/gotgames_tb">Twitch</NavLi>
 					<NavLi target="_blank" href="https://x.com/GOTGAMES_TB">X (Twitter)</NavLi>
-					<NavLi target="_blank" href="discord.gg/MXTebs9yb2">Discord</NavLi>
+					<NavLi target="_blank" href="https://discord.gg/MXTebs9yb2">Discord</NavLi>
 				</NavDropdown>
 			</NavLi>
 			<NavLi href="/about"><Info />About</NavLi>

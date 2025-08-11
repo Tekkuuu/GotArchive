@@ -24,6 +24,7 @@ export type CoverImage = {
   id: number;
   coverImage: {
     extraLarge: string;
+    medium: string;
   };
   bannerImage: string | null;
   expDate: Date;

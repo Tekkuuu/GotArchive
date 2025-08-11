@@ -26,9 +26,20 @@ export async function updateAnimeImagesStore(data?: string[] | number[]) {
   const existingImages = localStore.value;
   const existingImageIds = new Set(existingImages.map(img => img.id));
 
-  const expiredIds = existingImages
-    .filter(img => img.expDate < now)
-    .map(img => img.id);
+  const REQUIRED_IMAGE_PATHS = [
+    'id',
+    'coverImage.extraLarge',
+    'coverImage.medium',
+    'bannerImage',
+    'expDate'
+  ];
+
+  const expiredOrIncompleteIds = _.map(
+    _.filter(existingImages, img =>
+      img.expDate < now || !_.every(REQUIRED_IMAGE_PATHS, path => _.has(img, path))
+    ),
+    'id'
+  );
 
   let newIdsToFetch: number[] = [];
   if (data) {
@@ -41,19 +52,21 @@ export async function updateAnimeImagesStore(data?: string[] | number[]) {
     }
   }
 
-  const allIdsToFetch = [...new Set([...expiredIds, ...newIdsToFetch])];
+  const allIdsToFetch = _.uniq([...expiredOrIncompleteIds, ...newIdsToFetch]);
 
   if (allIdsToFetch.length === 0) {
     return;
   }
 
-  const fetchedImages = await s.fetchAnimeImages(allIdsToFetch);
+  const imagesChunkResult = await Promise.all(
+    _.chunk(allIdsToFetch, 50).map(chunk => s.fetchAnimeImages(chunk))
+  );
+
+  const fetchedImages = _.flatten(imagesChunkResult);
 
   localStore.update(currentImages => {
     const fetchedImageIds = new Set(fetchedImages.map(img => img.id));
-
     const upToDateImages = currentImages.filter(img => !fetchedImageIds.has(img.id));
-
     return [...upToDateImages, ...fetchedImages];
   });
 }

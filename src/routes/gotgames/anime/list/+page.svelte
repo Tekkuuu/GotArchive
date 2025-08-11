@@ -23,6 +23,17 @@
 	let modalOpen = $state(false);
 	let modalData = $state<AnimeCard | null>(null);
 
+	let mediumLoaded: Record<number, boolean> = $state({});
+	let extraLargeLoaded: Record<number, boolean> = $state({});
+
+	function handleMediumLoad(id: number) {
+		mediumLoaded = { ...mediumLoaded, [id]: true };
+	}
+
+	function handleExtraLargeLoad(id: number) {
+		extraLargeLoaded = { ...extraLargeLoaded, [id]: true };
+	}
+
 	function filterAnime(anime: Array<AnimeCard>): Array<AnimeCard> {
 		const normalizedInput = _.deburr(searchInput);
 
@@ -59,18 +70,42 @@
 	<div class="dark:bg-primary-700 bg-primary-200 relative flex h-60 rounded-xl">
 		<a
 			href={details.mainSeason}
-			class="relative flex h-full items-center max-md:absolute max-md:top-0 max-md:left-0 max-md:w-full md:p-2"
+			class="relative flex h-60 items-center max-md:absolute max-md:top-0 max-md:left-0 max-md:w-full md:p-2"
 			target="_blank"
 		>
 			{#if images.value.find((x) => x.id)}
-				<img
-					class="block h-full w-full rounded-lg object-cover"
-					src={mqBannerImage.current
-						? images.value.find((x) => x.id === extractId(details.mainSeason))?.bannerImage || ''
-						: images.value.find((x) => x.id === extractId(details.mainSeason))?.coverImage
-								.extraLarge || ''}
-					alt={`Cover image for ${details.titleEnglish}`}
-				/>
+				{#key extractId(details.mainSeason)}
+					{#if !extraLargeLoaded[extractId(details.mainSeason) ?? 0]}
+						<img
+							class="block h-56 rounded-lg object-cover min-md:blur-xs"
+							loading="lazy"
+							alt={`Medium cover image for ${details.titleEnglish || details.titleRomaji || details.titleNative}`}
+							src={mqBannerImage.current
+								? images.value.find((x) => x.id === extractId(details.mainSeason))?.bannerImage ||
+									''
+								: images.value.find((x) => x.id === extractId(details.mainSeason))?.coverImage
+										.medium || ''}
+							onload={() => handleMediumLoad(extractId(details.mainSeason) ?? 0)}
+						/>
+					{/if}
+					{#if mediumLoaded[extractId(details.mainSeason) ?? 0]}
+						<img
+							loading="lazy"
+							class="block h-full w-full rounded-lg object-cover {extraLargeLoaded[
+								extractId(details.mainSeason) ?? 0
+							]
+								? 'opacity-100'
+								: 'absolute opacity-0'}"
+							src={mqBannerImage.current
+								? images.value.find((x) => x.id === extractId(details.mainSeason))?.bannerImage ||
+									''
+								: images.value.find((x) => x.id === extractId(details.mainSeason))?.coverImage
+										.extraLarge || ''}
+							alt={`Cover image for ${details.titleEnglish}`}
+							onload={() => handleExtraLargeLoad(extractId(details.mainSeason) ?? 0)}
+						/>
+					{/if}
+				{/key}
 			{:else}
 				<Suspense.Image />
 			{/if}
@@ -129,6 +164,7 @@
 		<div class="flex h-full items-center">
 			{#if images.value.find((x) => x.id)}
 				<img
+					loading="lazy"
 					class="absolute top-0 left-0 block h-full w-full rounded-lg object-cover"
 					src={images.value.find((x) => x.id === extractId(details.mainSeason))?.bannerImage || ''}
 					alt={`Cover image for ${details.titleEnglish}`}

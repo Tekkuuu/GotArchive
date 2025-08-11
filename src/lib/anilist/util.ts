@@ -8,7 +8,7 @@ import _ from 'lodash';
  */
 export function anilistImageQueryBuilder(ids: Array<number>): string {
   const blocks = ids.map((id, i) => {
-    return `cover${i}: Media(id: ${id}) { id coverImage { extraLarge } bannerImage }`
+    return `cover${i}: Media(id: ${id}) { id coverImage { extraLarge medium } bannerImage }`
   });
 
   return `query { ${blocks.join(', ')} }`

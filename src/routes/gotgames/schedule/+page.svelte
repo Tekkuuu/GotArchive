@@ -15,6 +15,8 @@
 		endOfISOWeek,
 		getISODay
 	} from 'date-fns';
+	import { enGB } from 'date-fns/locale/en-GB';
+	import { formatInTimeZone } from 'date-fns-tz';
 	import { onMount } from 'svelte';
 	import _ from 'lodash';
 	import { format } from 'date-fns';
@@ -114,12 +116,25 @@
       "
 		>
 			{#if entryGroup.time}
-				{_.capitalize(entryGroup.type)} — {format(
-					new Date(`2000-01-01T${entryGroup.time}`),
-					'HH:mm'
+				{_.capitalize(entryGroup.type)} —
+				{formatInTimeZone(new Date(`${entryGroup.date}T${entryGroup.time}Z`), 'UTC', 'HH:mm')} UTC (
+				{formatInTimeZone(
+					new Date(`${entryGroup.date}T${entryGroup.time}Z`),
+					Intl.DateTimeFormat().resolvedOptions().timeZone,
+					'HH:mm zzz',
+					{ locale: enGB }
 				)}
+				{#if formatInTimeZone(new Date(`${entryGroup.date}T${entryGroup.time}Z`), 'UTC', 'yyyy-MM-dd') !== formatInTimeZone(new Date(`${entryGroup.date}T${entryGroup.time}Z`), Intl.DateTimeFormat().resolvedOptions().timeZone, 'yyyy-MM-dd')}
+					{formatInTimeZone(
+						new Date(`${entryGroup.date}T${entryGroup.time}Z`),
+						Intl.DateTimeFormat().resolvedOptions().timeZone,
+						'eee, d MMM zzz',
+						{ locale: enGB }
+					)}
+				{/if}
+				)
 			{:else}
-				{_.capitalize(entryGroup.type)}
+				{_.capitalize(entryGroup.type)} ( Time TBA )
 			{/if}
 		</div>
 		{#each groupEntriesForDisplay([entryGroup]) as displayBlock}

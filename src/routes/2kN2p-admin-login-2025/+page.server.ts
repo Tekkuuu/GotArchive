@@ -1,13 +1,14 @@
 import { redirect } from '@sveltejs/kit';
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
+import { LOGIN_REDIRECT_URL } from '$env/static/private';
 
 export const actions: Actions = {
   login: async ({ request, locals: { supabase } }) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://gotarchive.up.railway.app/2kN2p-admin-login-2025/callback'
+        redirectTo: LOGIN_REDIRECT_URL
       }
     });
 

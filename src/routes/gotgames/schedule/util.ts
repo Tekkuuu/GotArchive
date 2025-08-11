@@ -37,7 +37,7 @@ export function groupScheduleEntries(scheduleEntries: ScheduleEntry[]): MultiAni
       platformUrl: anime.platformUrl
     });
   }
-  
+
   return Array.from(groupMap.values());
 }
 

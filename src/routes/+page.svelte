@@ -24,6 +24,17 @@
 	let cardEl: HTMLDivElement | null = $state(null);
 	let slider: ReturnType<typeof setInterval>;
 
+	let mediumLoaded: Record<number, boolean> = $state({});
+	let extraLargeLoaded: Record<number, boolean> = $state({});
+
+	function handleMediumLoad(id: number) {
+		mediumLoaded = { ...mediumLoaded, [id]: true };
+	}
+
+	function handleExtraLargeLoad(id: number) {
+		extraLargeLoaded = { ...extraLargeLoaded, [id]: true };
+	}
+
 	function startSlider() {
 		clearInterval(slider);
 		slider = setInterval(() => {
@@ -79,22 +90,38 @@
 </svelte:head>
 
 {#snippet card(entry: WatchingWeek[number])}
-	{@const src = images.value.find((i) => i.id === extractId(entry.anilistLink))?.coverImage
-		.extraLarge}
+	{@const anilistId = extractId(entry.anilistLink)}
+	{@const srcMedium = images.value.find((i) => i.id === anilistId)?.coverImage.medium}
+	{@const srcExtraLarge = images.value.find((i) => i.id === anilistId)?.coverImage.extraLarge}
 	<div
 		class="text-primary-50 relative flex w-68 flex-col items-center justify-center rounded-xl bg-transparent p-4"
 	>
-		{#if src}
-			<img
-				{src}
-				alt={entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
-				class="block aspect-[3/4] w-68 rounded-lg object-cover"
-			/>
-		{:else}
-			<div class="block aspect-[3/4] h-88 w-68 rounded-lg object-cover">
-				<Suspense.Image />
-			</div>
-		{/if}
+		{#key anilistId}
+			{#if srcMedium}
+				<img
+					loading="lazy"
+					onload={() => handleMediumLoad(anilistId || 0)}
+					src={srcMedium}
+					alt={entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
+					class="block aspect-[3/4] w-68 rounded-lg object-cover {extraLargeLoaded[anilistId || 0]
+						? 'hidden'
+						: ''}"
+				/>
+				<img
+					loading="lazy"
+					onload={() => handleExtraLargeLoad(anilistId || 0)}
+					src={srcExtraLarge}
+					alt={entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
+					class="block aspect-[3/4] w-68 rounded-lg object-cover {extraLargeLoaded[anilistId || 0]
+						? 'opacity-100'
+						: 'absolute opacity-0'}"
+				/>
+			{:else}
+				<div class="block aspect-[3/4] h-88 w-68 rounded-lg object-cover">
+					<Suspense.Image />
+				</div>
+			{/if}
+		{/key}
 		<div
 			class="absolute bottom-4 left-1/2 z-20 flex w-60 -translate-x-1/2 flex-col items-center rounded-b-lg bg-black/75 p-4"
 		>

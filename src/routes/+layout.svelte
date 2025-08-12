@@ -57,6 +57,7 @@
 				<NavLi id="admin">
 					<Database />Admin
 					<NavDropdown trigger="#admin">
+						<NavLi href="/admin/feedback">Feedbacks</NavLi>
 						<NavLi href="/admin/new/anime">New anime</NavLi>
 						<NavLi href="/admin/new/anime/bulk">New anime bulk</NavLi>
 						<NavLi href="/admin/new/season">New season</NavLi>

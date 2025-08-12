@@ -6,6 +6,7 @@ import { feedbackSchema } from "$lib/api";
 import _ from 'lodash';
 import type { RequestHandler } from "@sveltejs/kit";
 import { rateLimit } from "$lib/server/redis";
+import type { Tables } from '$lib/database.types';
 
 export const POST: RequestHandler = async ({ request, locals, url }) => {
   const form = await superValidate(request, zod4(feedbackSchema));
@@ -27,7 +28,9 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
     let { error } = await locals.supabase.from('feedback').insert(
       {
         anonymous_uuid: form.data.anonymousUUID,
-        text: form.data.text
+        text: form.data.text,
+        tag: form.data.tag as Tables<'feedback'>['tag'] || undefined,
+        contact_info: form.data.contactInfo
       }
     );
 

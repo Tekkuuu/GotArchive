@@ -1,0 +1,1 @@
+ALTER TABLE "feedback" RENAME COLUMN "tags" TO "tag";

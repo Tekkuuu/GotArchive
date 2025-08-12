@@ -204,8 +204,8 @@ export const services = {
       schema.feedback,
       'feedback',
       idConfig(
-        z.object({ feedback_id: z.number().int().positive() }),
-        { feedback_id: schema.feedback.feedbackId }
+        z.object({ feedbackId: z.number().int().positive() }),
+        { feedbackId: schema.feedback.feedbackId }
       )
     ),
     'feedbackService'

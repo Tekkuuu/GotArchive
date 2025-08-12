@@ -283,18 +283,30 @@ export type Database = {
       feedback: {
         Row: {
           anonymous_uuid: string | null
+          contact_info: string | null
           feedback_id: number
+          status: Database["public"]["Enums"]["typeFeedbackStatus"]
+          tag: Database["public"]["Enums"]["typeFeedbackTags"]
           text: string
+          timestamp: string
         }
         Insert: {
           anonymous_uuid?: string | null
+          contact_info?: string | null
           feedback_id?: number
+          status?: Database["public"]["Enums"]["typeFeedbackStatus"]
+          tag?: Database["public"]["Enums"]["typeFeedbackTags"]
           text: string
+          timestamp?: string
         }
         Update: {
           anonymous_uuid?: string | null
+          contact_info?: string | null
           feedback_id?: number
+          status?: Database["public"]["Enums"]["typeFeedbackStatus"]
+          tag?: Database["public"]["Enums"]["typeFeedbackTags"]
           text?: string
+          timestamp?: string
         }
         Relationships: []
       }
@@ -494,6 +506,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      typeFeedbackStatus: "open" | "inprogress" | "closed" | "wontfix"
+      typeFeedbackTags: "bug" | "feature request" | "question" | "other"
       typeFormat:
         | "TV"
         | "TV_SHORT"
@@ -633,6 +647,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      typeFeedbackStatus: ["open", "inprogress", "closed", "wontfix"],
+      typeFeedbackTags: ["bug", "feature request", "question", "other"],
       typeFormat: ["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"],
       typeScheduleEntry: ["anime", "hololive", "game", "event", "sponsored"],
       typeSeason: ["WINTER", "SPRING", "SUMMER", "FALL"],

@@ -120,6 +120,27 @@
       "when": 1753717066761,
       "tag": "0016_nebulous_loa",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1754997911301,
+      "tag": "0017_little_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1754999407310,
+      "tag": "0018_chunky_human_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1755006547059,
+      "tag": "0019_fuzzy_bloodstorm",
+      "breakpoints": true
     }
   ]
 }

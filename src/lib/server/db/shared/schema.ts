@@ -12,6 +12,8 @@ export const typeFormat = pgEnum('typeFormat', ['TV', 'TV_SHORT', 'MOVIE', 'SPEC
 export const typeScheduleEntry = pgEnum('typeScheduleEntry', ['anime', 'hololive', 'game', 'event', 'sponsored']);
 export const typeAnimeSeasonStatus = pgEnum('typeSeasonStatus', ['On hold', 'Dropped']);
 export const typeUserRole = pgEnum('typeUserRole', ['user', 'admin']);
+export const typeFeedbackTags = pgEnum('typeFeedbackTags', ['bug', 'feature request', 'question', 'other'])
+export const typeFeedbackStatus = pgEnum('typeFeedbackStatus', ['open', 'inprogress', 'closed', 'wontfix']);
 
 // Policies
 const adminCRUD = (name: string) => pgPolicy(name, {
@@ -305,7 +307,11 @@ export const changelog = pgTable('changelog', {
 export const feedback = pgTable('feedback', {
   feedbackId: serial('feedback_id').primaryKey(),
   anonymousUUID: uuid('anonymous_uuid'),
-  text: varchar('text', { length: 1000 }).notNull()
+  text: varchar('text', { length: 1000 }).notNull(),
+  timestamp: timestamp('timestamp', { withTimezone: true }).notNull().defaultNow(),
+  tag: typeFeedbackTags('tag').default('other').notNull(),
+  status: typeFeedbackStatus('status').default('open').notNull(),
+  contact_info: varchar('contact_info', { length: 200 }),
 }, (table) => [
   pgPolicy('Enable insert for any user', {
     as: 'permissive',

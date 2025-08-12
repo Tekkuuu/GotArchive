@@ -1,3 +1,3 @@
 export type * from './types';
 export * from './util';
-export { feedbackSchema } from './feedback/schema';
+export * from './feedback/schema';

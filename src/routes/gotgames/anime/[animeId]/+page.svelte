@@ -22,6 +22,17 @@
 
 	let modalOpen = $state(false);
 
+	let mediumLoaded: Record<number, boolean> = $state({});
+	let extraLargeLoaded: Record<number, boolean> = $state({});
+
+	function handleMediumLoad(id: number) {
+		mediumLoaded = { ...mediumLoaded, [id]: true };
+	}
+
+	function handleExtraLargeLoad(id: number) {
+		extraLargeLoaded = { ...extraLargeLoaded, [id]: true };
+	}
+
 	onMount(() => {
 		const ids = seasons.map((s) => extractId(s.anilistLink)).filter((s) => s !== null);
 		updateAnimeImagesStore(ids).catch((error) => {
@@ -45,6 +56,7 @@
 		<div class="flex max-h-96 items-center overflow-hidden rounded-xl md:m-2">
 			{#if images.value.find((x) => x.id)}
 				<img
+					loading="lazy"
 					class="w-full object-cover"
 					src={images.value.find((x) => x.id === extractId(details.mainSeason))?.bannerImage || ''}
 					alt=""
@@ -104,14 +116,38 @@
 	>
 		<div class="flex flex-shrink-0 items-center md:w-40 md:p-2">
 			{#if images.value.find((x) => x.id)}
-				<img
-					class="block h-full w-full rounded-lg object-cover max-md:absolute max-md:top-0 max-md:left-0"
-					src={mqBannerImage.current
-						? images.value.find((x) => x.id === extractId(details.anilistLink))?.bannerImage || ''
-						: images.value.find((x) => x.id === extractId(details.anilistLink))?.coverImage
-								.extraLarge || ''}
-					alt=""
-				/>
+				{#key extractId(details.anilistLink)}
+					{#if !extraLargeLoaded[extractId(details.anilistLink) ?? 0]}
+						<img
+							class="block h-56 rounded-lg object-cover min-md:blur-xs"
+							loading="lazy"
+							alt={`Medium cover image for ${details.titleEnglish || details.titleRomaji || details.titleNative}`}
+							src={mqBannerImage.current
+								? images.value.find((x) => x.id === extractId(details.anilistLink))?.bannerImage ||
+									''
+								: images.value.find((x) => x.id === extractId(details.anilistLink))?.coverImage
+										.medium || ''}
+							onload={() => handleMediumLoad(extractId(details.anilistLink) ?? 0)}
+						/>
+					{/if}
+					{#if mediumLoaded[extractId(details.anilistLink) ?? 0]}
+						<img
+							loading="lazy"
+							class="block h-full w-full rounded-lg object-cover {extraLargeLoaded[
+								extractId(details.anilistLink) ?? 0
+							]
+								? 'opacity-100'
+								: 'absolute opacity-0'}"
+							src={mqBannerImage.current
+								? images.value.find((x) => x.id === extractId(details.anilistLink))?.bannerImage ||
+									''
+								: images.value.find((x) => x.id === extractId(details.anilistLink))?.coverImage
+										.extraLarge || ''}
+							alt={`Cover image for ${details.titleEnglish}`}
+							onload={() => handleExtraLargeLoad(extractId(details.anilistLink) ?? 0)}
+						/>
+					{/if}
+				{/key}
 			{:else}
 				<Suspense.Image />
 			{/if}

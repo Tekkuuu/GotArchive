@@ -1,6 +1,9 @@
 import { db } from '$lib/server/db';
 import { eq, and, sql } from 'drizzle-orm';
 import { schema, services } from '$lib/server/db';
+import type * as DB from '$lib/server/db';
+import type { ScheduleEntry } from './types';
+import _ from 'lodash';
 
 /**
  * Retrieves schedule information and its entries for a given `datecode`.
@@ -32,8 +35,12 @@ import { schema, services } from '$lib/server/db';
  * }
  */
 export async function useSchedule(
-  datecode: string
-) {
+  datecode: string,
+  options?: { watchedAfter?: boolean }
+): Promise<{
+  scheduleInfo: DB.Schedule | undefined;
+  scheduleEntries: ScheduleEntry[]
+}> {
   // Check if id has a vaild structure
   if (datecode.length < 6) {
     throw new Error('Invalid datecode');
@@ -52,41 +59,67 @@ export async function useSchedule(
     throw new Error('Invalid datecode');
   }
 
+  type AnimeSelect = {
+    animeId: typeof schema.animeSeason.animeId;
+    sequence: typeof schema.animeSeason.sequence;
+    titleEnglish: typeof schema.animeSeason.titleEnglish;
+    titleNative: typeof schema.animeSeason.titleNative;
+    titleRomaji: typeof schema.animeSeason.titleRomaji;
+    episodes: ReturnType<typeof sql<Array<number>>>;
+    watchedAfter?: typeof schema.scheduleAnimeDetail.watchedAfter;
+  };
+
+  let animeSelect: AnimeSelect = {
+    animeId: schema.animeSeason.animeId,
+    sequence: schema.animeSeason.sequence,
+    titleEnglish: schema.animeSeason.titleEnglish,
+    titleNative: schema.animeSeason.titleNative,
+    titleRomaji: schema.animeSeason.titleRomaji,
+    episodes: sql<Array<number>>`ARRAY_AGG(${schema.animeEpisode.episodeNumber} ORDER BY ${schema.animeEpisode.episodeNumber})`,
+  };
+
+  if (options?.watchedAfter) {
+    _.set(animeSelect, 'watchedAfter', schema.scheduleAnimeDetail.watchedAfter);
+  }
+
+  const scheduleInfo = _.head(
+    _.sortBy(
+      (await services.schedule.select(db, and(eq(schema.schedule.year, year), eq(schema.schedule.week, week)))),
+      ['year', 'week'], ['desc', 'desc']
+    )
+  );
+
+  if (scheduleInfo === undefined) {
+    // Cannot find schedule entry in the database, reutrn empty result
+    return { scheduleInfo: undefined, scheduleEntries: [] };
+  }
+
   let result = await db
     .select({
       scheduleEntry: {
-        id: schema.scheduleEntry.scheduleEntryId,
+        scheduleEntryId: schema.scheduleEntry.scheduleEntryId,
         type: schema.scheduleEntry.type,
         date: schema.scheduleEntry.date,
         time: schema.scheduleEntry.time,
         note: schema.scheduleEntry.note,
+        platformId: schema.scheduleEntryPlatform.platformId,
       },
-      anime: {
-        animeId: schema.animeSeason.animeId,
-        sequence: schema.animeSeason.sequence,
-        titleEnglish: schema.animeSeason.titleEnglish,
-        titleNative: schema.animeSeason.titleNative,
-        titleRomaji: schema.animeSeason.titleRomaji,
-        episodes: sql<Array<number>>`ARRAY_AGG(${schema.animeEpisode.episodeNumber} ORDER BY ${schema.animeEpisode.episodeNumber})`,
-        platformName: schema.platform.name,
-        platformUrl: schema.platform.url,
-      }
+      anime: animeSelect,
     })
     .from(schema.scheduleEntry)
-    .innerJoin(schema.platform, eq(schema.platform.platformId, schema.scheduleEntry.platformId))
-    .innerJoin(schema.scheduleAnimeDetail, eq(schema.scheduleAnimeDetail.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
-    .innerJoin(schema.scheduleAnimeEpisode, eq(schema.scheduleAnimeEpisode.scheduleAnimeDetailId, schema.scheduleAnimeDetail.scheduleAnimeDetailId))
-    .innerJoin(schema.animeEpisode, eq(schema.animeEpisode.animeEpisodeId, schema.scheduleAnimeEpisode.animeEpisodeId))
-    .innerJoin(schema.animeSeason, and(eq(schema.animeSeason.animeId, schema.animeEpisode.animeId), eq(schema.animeSeason.sequence, schema.animeEpisode.sequence)))
-    .innerJoin(schema.schedule, eq(schema.schedule.scheduleId, schema.scheduleEntry.scheduleId))
-    .where(and(eq(schema.schedule.year, year), eq(schema.schedule.week, week)))
+    .innerJoin(schema.scheduleEntryPlatform, eq(schema.scheduleEntryPlatform.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
+    .leftJoin(schema.scheduleAnimeDetail, eq(schema.scheduleAnimeDetail.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
+    .leftJoin(schema.scheduleAnimeEpisode, eq(schema.scheduleAnimeEpisode.scheduleAnimeDetailId, schema.scheduleAnimeDetail.scheduleAnimeDetailId))
+    .leftJoin(schema.animeEpisode, eq(schema.animeEpisode.animeEpisodeId, schema.scheduleAnimeEpisode.animeEpisodeId))
+    .leftJoin(schema.animeSeason, and(eq(schema.animeSeason.animeId, schema.animeEpisode.animeId), eq(schema.animeSeason.sequence, schema.animeEpisode.sequence)))
+    .where(eq(schema.scheduleEntry.scheduleId, scheduleInfo.scheduleId))
     .groupBy(
       schema.scheduleEntry.scheduleEntryId,
       schema.scheduleEntry.type,
       schema.scheduleEntry.date,
       schema.scheduleEntry.time,
-      schema.platform.name,
-      schema.platform.url,
+      ...(options?.watchedAfter ? [schema.scheduleAnimeDetail.watchedAfter] : []),
+      schema.scheduleEntryPlatform.platformId,
       schema.animeSeason.animeId,
       schema.animeSeason.sequence,
       schema.animeSeason.titleEnglish,
@@ -95,10 +128,5 @@ export async function useSchedule(
     )
     .orderBy(schema.scheduleEntry.date, schema.scheduleEntry.time, schema.animeSeason.animeId, schema.animeSeason.sequence)
 
-  const scheduleInfo = await services.schedule.select(
-    db,
-    and(eq(schema.schedule.year, year), eq(schema.schedule.week, week))
-  );
-
-  return { scheduleInfo: scheduleInfo?.[0] || { scheduleId: -1, week, year, note: null }, scheduleEntries: result };
+  return { scheduleInfo: scheduleInfo, scheduleEntries: result };
 };

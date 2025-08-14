@@ -188,6 +188,17 @@ export const services = {
     ),
     'scheduleEntryService'
   ),
+  scheduleEntryPlatform: withErrorOrigin(
+    createService(
+      schema.scheduleEntryPlatform,
+      'schedule_entry_platform',
+      idConfig(
+        z.object({ scheduleEntryId: z.number().int().positive(), platformId: z.number().int().positive() }),
+        { scheduleEntryId: schema.scheduleEntryPlatform.scheduleEntryId, platformId: schema.scheduleEntryPlatform.platformId }
+      )
+    ),
+    'scheduleEntryPlatformService'
+  ),
   changelog: withErrorOrigin(
     createService(
       schema.changelog,

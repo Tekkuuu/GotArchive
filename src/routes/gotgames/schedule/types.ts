@@ -1,6 +1,6 @@
-import type { Schedule } from '$lib/hooks';
+import type { ApiSchedule } from '$lib/hooks';
 
-export type ScheduleEntry = Schedule['scheduleEntries'][number];
+export type ScheduleEntry = ApiSchedule['scheduleEntries'][number];
 
 export type MultiAnimeScheduleGroup = {
   type: string;

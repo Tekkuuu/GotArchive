@@ -188,7 +188,6 @@ export const scheduleEntry = pgTable('schedule_entry', {
   type: typeScheduleEntry('type').notNull(),
   date: date('date').notNull(),
   time: time('time'),
-  platformId: integer('platform_id'),
   note: text('note'),
 }, (table) => [
   foreignKey({
@@ -197,18 +196,31 @@ export const scheduleEntry = pgTable('schedule_entry', {
     foreignColumns: [schedule.scheduleId],
   })
     .onDelete('cascade'),
+  adminCRUD('Enable CRUD for admin user'),
+  anyoneSelect('Enable select for any user'),
+]);
+
+export const scheduleEntryPlatform = pgTable('schedule_entry_platform', {
+  scheduleEntryId: integer('schedule_entry_id').notNull(),
+  platformId: integer('platform_id').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.scheduleEntryId, table.platformId] }),
+  foreignKey({
+    name: 'schedule_entry_fk',
+    columns: [table.scheduleEntryId],
+    foreignColumns: [scheduleEntry.scheduleEntryId],
+  }),
   foreignKey({
     name: 'platform_fk',
     columns: [table.platformId],
-    foreignColumns: [platform.platformId]
-  }),
-  adminCRUD('Enable CRUD for admin user'),
-  anyoneSelect('Enable select for any user'),
+    foreignColumns: [platform.platformId],
+  })
 ]);
 
 export const scheduleAnimeDetail = pgTable('schedule_anime_detail', {
   scheduleAnimeDetailId: serial('schedule_anime_detail_id').primaryKey(),
   scheduleEntryId: integer('schedule_entry_id').notNull(),
+  watchedAfter: timestamp('watched_after', { withTimezone: true }).notNull(),
 }, (table) => [
   foreignKey({
     name: 'schedule_entry_fk',

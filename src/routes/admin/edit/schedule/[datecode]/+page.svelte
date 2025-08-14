@@ -10,11 +10,30 @@
 	import { Table } from '$lib/components/table';
 	import { Button, Input, DateInput, TimeInput, Select } from '$lib/components/forms';
 	import { Modal } from '$lib/components/ui';
-	import { X, Pencil, Loader } from 'lucide-svelte';
+	import { X, Pencil, Loader, Clock } from 'lucide-svelte';
 	import type { ApiErrorResponse } from '$lib/api';
 	import { formatWeekRange } from '$lib/util';
+	import { LucideIcon } from '$lib/components/util';
+	import { computeDurationStringFromWatchedAfter } from '$lib/util/schedule';
 
 	let { data }: PageProps = $props();
+	let entries = $derived.by(() => {
+		const grouped = _.groupBy(
+			data.schedule.scheduleEntries,
+			(e) => e.scheduleEntry.scheduleEntryId
+		);
+		const result = _.map(grouped, (group) => {
+			const { platformId, ...rest } = group[0].scheduleEntry;
+			return {
+				scheduleEntry: {
+					...rest,
+					platformIds: group.map((r) => r.scheduleEntry.platformId)
+				},
+				anime: group[0].anime
+			};
+		});
+		return result;
+	});
 
 	let episodes: AnimeEpisodeDetails[] = $state([]);
 
@@ -115,7 +134,7 @@
 	});
 
 	async function setModal(id: number) {
-		const entry = data.schedule.scheduleEntries.find((e) => e.scheduleEntry.id === id);
+		const entry = entries.find((e) => e.scheduleEntry.scheduleEntryId === id);
 
 		if (entry === undefined) {
 			toast.error('Entry not found');
@@ -123,10 +142,9 @@
 		}
 
 		// General
-		$updateForm.scheduleEntryId = entry.scheduleEntry.id;
+		$updateForm.scheduleEntryId = entry.scheduleEntry.scheduleEntryId;
 		$updateForm.type = entry.scheduleEntry.type;
-		$updateForm.platformId =
-			data.platforms.find((x) => x.name === entry.anime.platformName)?.platformId || -1;
+		$updateForm.platformIds = entry.scheduleEntry.platformIds;
 		$updateForm.date = entry.scheduleEntry.date;
 		$updateForm.time = entry.scheduleEntry.time;
 		$updateForm.note = entry.scheduleEntry.note;
@@ -136,6 +154,12 @@
 		if (entry.scheduleEntry.type === 'anime') {
 			$updateForm.data = {
 				animeId: entry.anime.animeId,
+				watchedAfter:
+					computeDurationStringFromWatchedAfter(
+						entry.scheduleEntry.date,
+						entry.scheduleEntry.time,
+						entry.anime.watchedAfter
+					) || '',
 				animeEpisodeIds: episodes
 					.filter(
 						(e) =>
@@ -192,15 +216,20 @@
 	<Table
 		sortable
 		filterable
-		data={data.schedule.scheduleEntries.map((e) => {
+		data={entries.map((e) => {
 			return {
-				scheduleEntryId: e.scheduleEntry.id,
+				scheduleEntryId: e.scheduleEntry.scheduleEntryId,
+				platforms: data.platforms
+					.filter((p) => e.scheduleEntry.platformIds.includes(p.platformId))
+					.map((p) => p.name)
+					.join(', '),
 				date: format(
 					new Date(
-						`${e.scheduleEntry.date}${e.scheduleEntry.time !== null ? 'T' + e.scheduleEntry.time : ''}`
+						`${e.scheduleEntry.date}${e.scheduleEntry.time !== null ? 'T' + e.scheduleEntry.time : ''}Z`
 					),
 					`EEEE, yyyy-MM-dd${e.scheduleEntry.time !== null ? ' HH:mm' : ''}`
 				),
+				watchedAfter: format(new Date(e.anime.watchedAfter!), 'EEEE, yyyy-MM-dd HH:mm:ss'),
 				anime: e.anime.titleEnglish || e.anime.titleRomaji || e.anime.titleNative,
 				episodes: e.anime.episodes.join(', ')
 			};
@@ -234,6 +263,7 @@
 			<input type="hidden" name="scheduleId" bind:value={$createForm.scheduleId} />
 			<div class="grid w-full grid-cols-2 gap-1">
 				<Select
+					rounded
 					placeholder="Entry type"
 					options={data.scheduleEntryType.map((t) => ({ label: t, value: t }))}
 					bind:selected={
@@ -245,18 +275,23 @@
 					}
 				/>
 				<Select
-					placeholder="Select platform"
+					allowMultiple
+					rounded
+					placeholder="Select platforms"
 					options={data.platforms.map((p) => ({ label: p.name, value: p.platformId }))}
 					bind:selected={
-						() => ({
-							value: $createForm.platformId,
-							label: data.platforms.find((p) => p.platformId === $createForm.platformId)?.name || ''
-						}),
-						(v) => ($createForm.platformId = v.value)
+						() =>
+							$createForm.platformIds.map((pId) => ({
+								value: pId,
+								label:
+									data.platforms.find((p) => p.platformId === pId)?.name || 'An error has occurred'
+							})),
+						(v) => ($createForm.platformIds = v.map((p) => p.value))
 					}
 				/>
-				<DateInput bind:value={$createForm.date} />
+				<DateInput bind:value={$createForm.date} rounded />
 				<TimeInput
+					rounded
 					showSecond={false}
 					bind:value={
 						() => $createForm.time ?? undefined,
@@ -264,6 +299,7 @@
 					}
 				/>
 				<Input
+					rounded="lg"
 					appendClass="col-span-2"
 					placeholder="Note"
 					type="text"
@@ -276,6 +312,7 @@
 			{#if $createForm.type === 'anime'}
 				<div class="grid w-full grid-cols-2 gap-1">
 					<Select
+						rounded
 						search
 						options={data.anime.map((a) => ({ value: a.animeId, label: getSelectTitleLabel(a) }))}
 						bind:selected={
@@ -292,6 +329,7 @@
 						}}
 					/>
 					<Select
+						rounded
 						search
 						allowMultiple
 						disabled={$createForm.data.animeId <= 0}
@@ -314,8 +352,18 @@
 						}
 					/>
 				</div>
+				<Input
+					rounded="lg"
+					appendClass="col-span-2"
+					placeholder="Watch delay"
+					type="text"
+					bind:value={$createForm.data.watchedAfter}
+				>
+					<LucideIcon icon={Clock} />
+				</Input>
 			{/if}
 			<Button
+				shape="rounded"
 				variant="submit"
 				filled
 				fullWidth
@@ -341,6 +389,7 @@
 		<form method="POST" action="?/update" use:updateEnhance class="flex w-full flex-col gap-1">
 			<div class="grid w-full grid-cols-2 gap-1">
 				<Select
+					rounded
 					placeholder="Entry type"
 					options={data.scheduleEntryType.map((t) => ({ label: t, value: t }))}
 					disabled
@@ -353,18 +402,23 @@
 					}
 				/>
 				<Select
-					placeholder="Select platform"
+					allowMultiple
+					rounded
+					placeholder="Select platforms"
 					options={data.platforms.map((p) => ({ label: p.name, value: p.platformId }))}
 					bind:selected={
-						() => ({
-							value: $updateForm.platformId,
-							label: data.platforms.find((p) => p.platformId === $updateForm.platformId)?.name || ''
-						}),
-						(v) => ($updateForm.platformId = v.value)
+						() =>
+							$updateForm.platformIds.map((pId) => ({
+								value: pId,
+								label:
+									data.platforms.find((p) => p.platformId === pId)?.name || 'An error has occurred'
+							})),
+						(v) => ($updateForm.platformIds = v.map((p) => p.value))
 					}
 				/>
-				<DateInput bind:value={$updateForm.date} />
+				<DateInput rounded bind:value={$updateForm.date} />
 				<TimeInput
+					rounded
 					showSecond={false}
 					bind:value={
 						() => $updateForm.time ?? undefined,
@@ -372,6 +426,7 @@
 					}
 				/>
 				<Input
+					rounded="lg"
 					appendClass="col-span-2"
 					placeholder="Note"
 					type="text"
@@ -384,6 +439,7 @@
 			{#if $updateForm.type === 'anime'}
 				<div class="grid w-full grid-cols-2 gap-1">
 					<Select
+						rounded
 						search
 						options={data.anime.map((a) => ({ value: a.animeId, label: getSelectTitleLabel(a) }))}
 						bind:selected={
@@ -400,6 +456,7 @@
 						}}
 					/>
 					<Select
+						rounded
 						search
 						allowMultiple
 						disabled={$updateForm.data.animeId <= 0}
@@ -422,8 +479,17 @@
 						}
 					/>
 				</div>
+				<Input
+					rounded="lg"
+					appendClass="col-span-2"
+					placeholder="Watch delay"
+					type="text"
+					bind:value={$updateForm.data.watchedAfter}
+				>
+					<LucideIcon icon={Clock} />
+				</Input>
 			{/if}
-			<Button variant="warning" type="submit" filled fullWidth>
+			<Button variant="warning" type="submit" filled fullWidth shape="rounded">
 				<span class="font-bold">Submit</span>
 			</Button>
 		</form>

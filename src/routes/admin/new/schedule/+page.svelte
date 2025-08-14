@@ -6,10 +6,9 @@
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { toast } from '$lib/components/ui/toaster';
 	import { Input, Label, Button, Select, TimeInput, DateInput } from '$lib/components/forms';
-	import { Minus, Plus, Text } from 'lucide-svelte';
-	import { addWeeks, getWeek, getYear } from 'date-fns';
+	import { Clock, Minus, Plus, Text } from 'lucide-svelte';
+	import { add, addDays, addWeeks, getWeek, getYear, parseISO, isValid } from 'date-fns';
 	import { formatWeekRange } from '$lib/util/';
-	import _ from 'lodash';
 	import type { AnimeEpisodeDetails } from '$lib/server/db';
 	import { LucideIcon } from '$lib/components/util';
 	import type { ApiErrorResponse } from '$lib/api';
@@ -24,7 +23,7 @@
 			if (result.type === 'success') {
 				toast.success('Schedule create successfully');
 			} else if (result.type === 'error' || result.type === 'failure') {
-				toast.error('iled to create schedule');
+				toast.error('Failed to create schedule');
 			}
 		}
 	});
@@ -82,7 +81,10 @@
 				name="schedule-note"
 				id="schedule-note"
 				rounded="lg"
-				bind:value={() => $form.schedule.note || '', (v) => ($form.schedule.note = v)}
+				bind:value={
+					() => $form.schedule.note || '',
+					(v) => (v === '' ? ($form.schedule.note = null) : ($form.schedule.note = v))
+				}
 			>
 				<LucideIcon icon={Text} />
 			</Input>
@@ -128,17 +130,18 @@
 					}
 				/>
 				<Select
+					allowMultiple
 					rounded
-					placeholder="Select platform"
+					placeholder="Select platforms"
 					options={data.platforms.map((p) => ({ label: p.name, value: p.platformId }))}
 					bind:selected={
-						() => ({
-							value: $form.entries[index].platformId,
-							label:
-								data.platforms.find((p) => p.platformId === $form.entries[index].platformId)
-									?.name || ''
-						}),
-						(v) => ($form.entries[index].platformId = v.value)
+						() =>
+							$form.entries[index].platformIds.map((pId) => ({
+								value: pId,
+								label:
+									data.platforms.find((p) => p.platformId === pId)?.name || 'An error has occurred'
+							})),
+						(v) => ($form.entries[index].platformIds = v.map((p) => p.value))
 					}
 				/>
 				<DateInput bind:value={$form.entries[index].date} rounded />
@@ -162,7 +165,7 @@
 				/>
 			</div>
 			{#if $form.entries[index].type === 'anime'}
-				<div class="col-span-3 grid grid-cols-2 gap-1">
+				<div class="grid grid-cols-3 gap-1">
 					<Select
 						appendClass="max-lg:col-span-2"
 						placeholder="Select anime"
@@ -210,6 +213,15 @@
 							(v) => ($form.entries[index].data.animeEpisodeIds = v.map((e) => e.value))
 						}
 					/>
+					<Input
+						type="text"
+						placeholder="Watch delay"
+						rounded="lg"
+						disabled={!($form.entries[index].date && $form.entries[index].time)}
+						bind:value={$form.entries[index].data.watchedAfter}
+					>
+						<LucideIcon icon={Clock} />
+					</Input>
 				</div>
 			{/if}
 		{/each}
@@ -223,14 +235,15 @@
 					$form.entries = [
 						...$form.entries,
 						{
-							platformId: 0,
+							platformIds: [],
 							date: '',
 							time: null,
 							note: '',
 							type: 'anime',
 							data: {
 								animeEpisodeIds: [],
-								animeId: -1
+								animeId: -1,
+								watchedAfter: ''
 							}
 						}
 					];

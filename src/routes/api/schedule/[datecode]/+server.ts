@@ -1,4 +1,4 @@
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { useSchedule } from '$lib/hooks/useSchedule';
 import { handleApiError } from '$lib/api';
 import { AppError } from '$lib/errors';
@@ -19,6 +19,10 @@ export const GET: RequestHandler = async ({ params, locals, url, request, setHea
       });
 
       const data = await useSchedule(params.datecode);
+
+      if (!data.scheduleInfo) {
+        error(404, "Schedule not found for give year and week");
+      }
 
       // Set cache control headers
       // Default to 1 hour

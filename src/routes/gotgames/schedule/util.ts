@@ -1,3 +1,4 @@
+import type { Platform } from "$lib/server/db";
 import type {
   ScheduleEntry,
   MultiAnimeScheduleGroup,
@@ -6,15 +7,22 @@ import type {
 import { addDays, format, startOfWeek } from 'date-fns';
 import _ from 'lodash';
 
-export function groupScheduleEntries(scheduleEntries: ScheduleEntry[]): MultiAnimeScheduleGroup[] {
-  // Group by type + date + time (multi-anime stream, multi-season, multi-platform)
+export function groupScheduleEntries(
+  scheduleEntries: ScheduleEntry[],
+  platforms: Platform[]
+): MultiAnimeScheduleGroup[] {
+  const platformMap = _.keyBy(platforms, 'platformId');
+
+  // Group by type + date + time
   const groupMap = new Map<string, MultiAnimeScheduleGroup>();
 
   for (const entry of scheduleEntries) {
     const anime = entry.anime;
     const schedule = entry.scheduleEntry;
-    // Use date and time as grouping keys
     const key = `${schedule.type}|${schedule.date}|${schedule.time ?? '[NO_TIME]'}`;
+
+    // Lookup platform details
+    const platform = schedule.platformId ? platformMap[schedule.platformId] : undefined;
 
     if (!groupMap.has(key)) {
       groupMap.set(key, {
@@ -26,15 +34,15 @@ export function groupScheduleEntries(scheduleEntries: ScheduleEntry[]): MultiAni
     }
 
     groupMap.get(key)!.entries.push({
-      scheduleEntryId: schedule.id,
+      scheduleEntryId: schedule.scheduleEntryId,
       animeId: anime.animeId,
       titleEnglish: anime.titleEnglish,
       titleNative: anime.titleNative,
       titleRomaji: anime.titleRomaji,
       sequence: anime.sequence,
       episodes: anime.episodes,
-      platformName: anime.platformName,
-      platformUrl: anime.platformUrl
+      platformName: platform?.name ?? '',
+      platformUrl: platform?.url ?? '',
     });
   }
 

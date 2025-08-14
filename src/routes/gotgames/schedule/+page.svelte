@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { MediaQuery } from 'svelte/reactivity';
 	import type { MultiAnimeScheduleGroup, WeekdayScheduleGroup } from './types';
 	import type { Schedule } from '$lib/hooks';
@@ -25,6 +26,9 @@
 	import { ChevronDown, ChevronLeft, ChevronRight, Link2 } from 'lucide-svelte';
 	import { toast } from '$lib/components/ui/toaster';
 	import type { ApiErrorResponse } from '$lib/api';
+
+	let { data }: PageProps = $props();
+	let { platforms } = data;
 
 	const maxSmallMq = new MediaQuery('max-width: 39.999rem'); // 640px
 
@@ -54,11 +58,14 @@
 		if (response.ok) {
 			const data: Schedule = await response.json();
 
-			if (data.scheduleInfo.scheduleId <= 0) {
+			if (data.scheduleInfo.scheduleId <= 0 || data.scheduleEntries.length === 0) {
 				toast.info('No schedule found for this week.');
 			}
+
 			scheduleDate = { year: data.scheduleInfo.year, week: data.scheduleInfo.week };
 			schedules = [...schedules, data];
+		} else if (response.status === 404) {
+			toast.info('No schedule found for this week.');
 		} else {
 			try {
 				const errorPayload: ApiErrorResponse = await response.json();
@@ -315,7 +322,7 @@
 			);
 		})?.scheduleEntries}
 		{#if s}
-			{#each groupByWeekdaysObjects(groupScheduleEntries(s)) as entries}
+			{#each groupByWeekdaysObjects(groupScheduleEntries(s, platforms)) as entries}
 				{@render weekday(entries)}
 			{/each}
 		{/if}

@@ -1,19 +1,28 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail } from '@sveltejs/kit';
+import { fail, error } from '@sveltejs/kit';
 import { db, schema, services } from '$lib/server/db';
 import { AppError, ERROR_CODES, FormError, ServiceError } from '$lib/errors';
-import logger from '$lib/logger';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { updateFormSchema, createFormSchema, deleteFormSchema } from './util';
-import { useSchedule } from '$lib/hooks';
+import { useSchedule, type Schedule } from '$lib/hooks';
 import _ from 'lodash';
 import { eq, inArray } from 'drizzle-orm';
 import { type SentryLoggerOptions, sentry } from '$lib/sentry';
-import { url } from 'zod/v4';
+import { computeWatchedAfterDate } from '$lib/util/schedule';
 
 export const load: PageServerLoad = async ({ params }) => {
-  const schedule = await useSchedule(params.datecode);
+  const rawSchedule = await useSchedule(params.datecode, { watchedAfter: true });
+
+  if (!rawSchedule.scheduleInfo) {
+    error(404, "Schedule not found for the given year and week.");
+  }
+
+  const schedule: Schedule = {
+    scheduleInfo: rawSchedule.scheduleInfo,
+    scheduleEntries: rawSchedule.scheduleEntries,
+  }
+
   const scheduleEntryType = schema.typeScheduleEntry.enumValues;
   const anime = await services.anime.select(db);
   const platforms = await services.platform.select(db);
@@ -39,13 +48,49 @@ export const actions: Actions = {
 
     try {
       await db.transaction(async (tx) => {
-        // Update the schedule entry
-        const scheduleEntryData = _.omit(form.data, ['data', 'scheduleEntryId', 'type']);
+        // Update the schedule entry (minus data, scheduleEntryId, type, platformIds)
+        const scheduleEntryData = _.omit(form.data, ['data', 'scheduleEntryId', 'type', 'platformIds']);
         await services.scheduleEntry.update(tx, scheduleEntryData, { scheduleEntryId: form.data.scheduleEntryId });
 
-        // If type is 'anime'
+        // --- PLATFORM UPDATES ---
+        // Get current platforms
+        const currentPlatforms = await services.scheduleEntryPlatform.select(
+          tx,
+          eq(schema.scheduleEntryPlatform.scheduleEntryId, form.data.scheduleEntryId)
+        );
+        const currentPlatformIds = currentPlatforms.map(p => p.platformId);
+
+        const newPlatformIds = form.data.platformIds;
+
+        // Find platforms to add/remove
+        const platformsToAdd = _.difference(newPlatformIds, currentPlatformIds);
+        const platformsToRemove = _.difference(currentPlatformIds, newPlatformIds);
+
+        // Remove old platform associations
+        if (platformsToRemove.length > 0) {
+          await services.scheduleEntryPlatform.delete(
+            tx,
+            platformsToRemove.map(platformId => ({
+              scheduleEntryId: form.data.scheduleEntryId,
+              platformId,
+            }))
+          );
+        }
+
+        // Add new platform associations
+        if (platformsToAdd.length > 0) {
+          await services.scheduleEntryPlatform.insert(
+            tx,
+            platformsToAdd.map(platformId => ({
+              scheduleEntryId: form.data.scheduleEntryId,
+              platformId,
+            }))
+          );
+        }
+
+        // --- ANIME TYPE LOGIC ---
         if (form.data.type === 'anime') {
-          // Get orignal anime schedule detail (for scheduleAnimeDetailId)
+          // Get original anime schedule detail (for scheduleAnimeDetailId)
           const originalScheduleAnimeDetail = await services.scheduleAnimeDetail.select(
             tx,
             eq(schema.scheduleAnimeDetail.scheduleEntryId, form.data.scheduleEntryId)
@@ -55,15 +100,24 @@ export const actions: Actions = {
             throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
           }
 
+          // Update watchedAfter if changed
+          const watchedAfter = computeWatchedAfterDate(form.data.date, form.data.time, form.data.data.watchedAfter);
+          if (!watchedAfter) {
+            throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED);
+          }
+          if (watchedAfter && watchedAfter !== originalScheduleAnimeDetail[0].watchedAfter) {
+            await services.scheduleAnimeDetail.update(
+              tx,
+              { watchedAfter },
+              { scheduleAnimeDetailId: originalScheduleAnimeDetail[0].scheduleAnimeDetailId }
+            );
+          }
+
           // Get original schedule anime episodes (for animeEpisodeId)
           const originalScheduleAnimeEpisodes = await services.scheduleAnimeEpisode.select(
             tx,
             eq(schema.scheduleAnimeEpisode.scheduleAnimeDetailId, originalScheduleAnimeDetail[0].scheduleAnimeDetailId)
           );
-
-          if (originalScheduleAnimeEpisodes.length === 0) {
-            throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
-          }
 
           // Get actual animeEpisode row matching animeEpisodeIds from schjeduleAnimeEpisodes
           const originalEpisodes = await services.animeEpisode.select(
@@ -78,8 +132,7 @@ export const actions: Actions = {
           }
 
           if (originalEpisodes[0].animeId !== form.data.data.animeId) {
-            // Anime was changed
-            // If form contains episodes from old anime, fail
+            // Anime was changed: verify and update
             const newAnimeEpisodes = await services.animeEpisode.select(
               tx,
               inArray(schema.animeEpisode.animeEpisodeId, form.data.data.animeEpisodeIds)
@@ -93,7 +146,7 @@ export const actions: Actions = {
               throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
             }
 
-            // New episodes are correct, delete old episodes, insert new episodes
+            // Remove all old, insert all new
             await services.scheduleAnimeEpisode.delete(
               tx,
               originalScheduleAnimeEpisodes
@@ -107,14 +160,13 @@ export const actions: Actions = {
               }))
             );
           } else {
-            // Anime was not changed, check if episodes were added or deleted
+            // Anime not changed: diff and update
             const originalIds = originalEpisodes.map(ep => ep.animeEpisodeId);
             const newIds = form.data.data.animeEpisodeIds;
             const deleted = _.difference(originalIds, newIds);
             const added = _.difference(newIds, originalIds);
 
             if (deleted.length > 0) {
-              // Delete old episodes
               await services.scheduleAnimeEpisode.delete(
                 tx,
                 deleted.map(deleteEpId => ({
@@ -124,7 +176,6 @@ export const actions: Actions = {
               );
             }
 
-            // Add new episodes
             if (added.length > 0) {
               await services.scheduleAnimeEpisode.insert(
                 tx,
@@ -135,7 +186,7 @@ export const actions: Actions = {
               );
             }
 
-            // If after delete/add the entry has no episodes, return fail, potentialy prompt to delete entry
+            // If after delete/add the entry has no episodes, return fail
             const newState = await services.scheduleAnimeEpisode.select(
               tx,
               eq(schema.scheduleAnimeEpisode.scheduleAnimeDetailId, originalScheduleAnimeDetail[0].scheduleAnimeDetailId)
@@ -177,40 +228,68 @@ export const actions: Actions = {
     }
 
     try {
-      db.transaction(async (tx) => {
-        const scheduleEntryInserted = await services.scheduleEntry.insert(tx, {
-          ..._.omit(form.data, ['data']),
-        });
+      await db.transaction(async (tx) => {
+        // 1. Insert schedule entry (base row)
+        const [scheduleEntryInserted] = await services.scheduleEntry.insert(tx, [{
+          scheduleId: form.data.scheduleId,
+          type: form.data.type,
+          date: form.data.date,
+          time: form.data.time,
+          note: form.data.note
+        }]);
 
-        if (scheduleEntryInserted.length !== 1) {
+        if (!scheduleEntryInserted) {
           throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'create-schedule-entry' });
         }
 
-        if (form.data.type === 'anime') {
-          const scheduleAnimeDetailInserted = await services.scheduleAnimeDetail.insert(tx, {
-            scheduleEntryId: scheduleEntryInserted[0].scheduleEntryId
-          });
+        // 2. Insert platform associations (join table)
+        if (form.data.platformIds.length > 0) {
+          const scheduleEntryPlatformRows = form.data.platformIds.map(platformId => ({
+            scheduleEntryId: scheduleEntryInserted.scheduleEntryId,
+            platformId
+          }));
+          await services.scheduleEntryPlatform.insert(tx, scheduleEntryPlatformRows);
+        }
 
-          if (scheduleAnimeDetailInserted.length !== 1) {
+        // 3. If type is anime, insert detail and episode info
+        if (form.data.type === 'anime') {
+          const watchedAfter = computeWatchedAfterDate(
+            form.data.date,
+            form.data.time,
+            form.data.data.watchedAfter
+          );
+
+          if (!watchedAfter) {
+            throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED, { form: 'create-schedule-entry' });
+          }
+
+          // Insert anime detail
+          const [animeDetailInserted] = await services.scheduleAnimeDetail.insert(tx, [{
+            scheduleEntryId: scheduleEntryInserted.scheduleEntryId,
+            watchedAfter
+          }]);
+
+          if (!animeDetailInserted) {
             throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'create-schedule-entry' });
           }
 
+          // Validate all episode IDs exist
           const animeEpisodes = await services.animeEpisode.select(
             tx,
             inArray(schema.animeEpisode.animeEpisodeId, form.data.data.animeEpisodeIds)
           );
-
           if (animeEpisodes.length !== form.data.data.animeEpisodeIds.length) {
             throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'create-schedule-entry' });
           }
 
-          await services.scheduleAnimeEpisode.insert(
-            tx,
-            animeEpisodes.map(ep => ({
-              animeEpisodeId: ep.animeEpisodeId,
-              scheduleAnimeDetailId: scheduleAnimeDetailInserted[0].scheduleAnimeDetailId
-            }))
-          );
+          // Insert anime episodes join rows
+          const animeEpisodeRows = animeEpisodes.map(ep => ({
+            animeEpisodeId: ep.animeEpisodeId,
+            scheduleAnimeDetailId: animeDetailInserted.scheduleAnimeDetailId
+          }));
+          if (animeEpisodeRows.length > 0) {
+            await services.scheduleAnimeEpisode.insert(tx, animeEpisodeRows);
+          }
         }
       });
 
@@ -219,7 +298,7 @@ export const actions: Actions = {
       let context: SentryLoggerOptions = {
         tags: {
           url: url.pathname,
-          form: 'create-schedule',
+          form: 'create-schedule-entry',
         }
       }
       const userId = locals.session?.user.id;

@@ -4,7 +4,7 @@
 	import type { ClassNameValue } from 'tailwind-merge';
 
 	interface Props {
-		value: string | number;
+		value?: string | number;
 		type?: 'text' | 'email' | 'password' | 'number';
 		placeholder?: string;
 		id?: string;

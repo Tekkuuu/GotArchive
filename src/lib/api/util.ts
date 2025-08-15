@@ -22,10 +22,9 @@ export function handleApiError(
   tags: { source: string, [key: string]: string }
 ) {
   if (error instanceof AppError) {
-    let user = locals.session?.user.id ? { id: locals.session.user.id } : undefined;
     tags.page = `API: ${url.pathname}`;
 
-    const errorId = sentry.logServer(error, { tags, user });
+    const errorId = sentry.logServer(error, { tags });
 
     const payload: ApiErrorResponse = {
       error: {

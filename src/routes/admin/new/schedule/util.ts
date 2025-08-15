@@ -1,4 +1,6 @@
 import * as z from 'zod/v4';
+import _ from 'lodash';
+import { getISOWeek } from 'date-fns';
 
 export const schedule = z.object({
   note: z.string().nullable(),
@@ -8,7 +10,8 @@ export const schedule = z.object({
 
 export const scheduleAnimeDetail = z.object({
   animeId: z.number().int().positive(),
-  animeEpisodeIds: z.array(z.number())
+  animeEpisodeIds: z.array(z.number()),
+  watchedAfter: z.string()
 });
 
 export const scheduleEntry = z.discriminatedUnion("type", [
@@ -16,7 +19,7 @@ export const scheduleEntry = z.discriminatedUnion("type", [
     type: z.enum(['anime', 'hololive', 'game', 'event', 'sponsored']),
     date: z.iso.date(),
     time: z.iso.time().nullable(),
-    platformId: z.number().int().positive(),
+    platformIds: z.array(z.number().int().positive()),
     note: z.string().nullable(),
     data: scheduleAnimeDetail,
   })
@@ -25,4 +28,19 @@ export const scheduleEntry = z.discriminatedUnion("type", [
 export const formSchema = z.object({
   schedule: schedule,
   entries: z.array(scheduleEntry)
-});
+}).refine(data => {
+  return _.every(data.entries, (e) => {
+    const d = new Date(`${e.date}T${e.time ? e.time : '00:00'}Z`);
+    return getISOWeek(d) === data.schedule.week && d.getUTCFullYear() === data.schedule.year;
+  })
+})
+
+export function uniqueKey(data: z.infer<typeof scheduleEntry>) {
+  const generalKey = `${data.type}|${data.date}|${data.time ?? 'NULL'}`;
+  switch (data.type) {
+    case 'anime':
+      return `${generalKey}|${data.data.animeId}|${_.sortBy(data.data.animeEpisodeIds).join('|')}`;
+    default:
+      return generalKey;
+  }
+}

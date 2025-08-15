@@ -176,8 +176,6 @@ export const actions = {
             form: 'new-anime-bulk',
           }
         }
-        const userId = locals.session?.user.id;
-        if (userId) _.set(context, 'user.id', userId);
         sentry.logServer(err, context);
       }
 

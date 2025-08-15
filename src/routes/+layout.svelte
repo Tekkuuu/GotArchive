@@ -18,18 +18,17 @@
 		NavLi,
 		Footer,
 		FeedbackModal,
-		FeedbackModalToggle,
 		DarkModeToggle,
 		CookieConsent
 	} from '$lib/components/ui/';
 	import { Toaster } from '$lib/components/ui/toaster';
 	import { Button, LinkButton } from '$lib/components/forms';
 	import { invalidate } from '$app/navigation';
-	import { getAnonymousUUIDStore } from '$lib/stores';
+	import { getAnonymousUUIDStore, getCookieConsentStore } from '$lib/stores';
+	import { onMount } from 'svelte';
 
 	let { children, data }: LayoutProps = $props();
 	let { session, supabase } = $derived(data);
-	let anonymousUUID = getAnonymousUUIDStore();
 	let feedbackOpen = $state(false);
 
 	$effect(() => {
@@ -44,6 +43,10 @@
 				authListener?.subscription.unsubscribe();
 			};
 		}
+	});
+
+	onMount(() => {
+		getAnonymousUUIDStore();
 	});
 </script>
 

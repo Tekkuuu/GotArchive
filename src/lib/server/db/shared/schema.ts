@@ -188,7 +188,6 @@ export const scheduleEntry = pgTable('schedule_entry', {
   type: typeScheduleEntry('type').notNull(),
   date: date('date').notNull(),
   time: time('time'),
-  platformId: integer('platform_id'),
   note: text('note'),
 }, (table) => [
   foreignKey({
@@ -197,18 +196,33 @@ export const scheduleEntry = pgTable('schedule_entry', {
     foreignColumns: [schedule.scheduleId],
   })
     .onDelete('cascade'),
+  adminCRUD('Enable CRUD for admin user'),
+  anyoneSelect('Enable select for any user'),
+]);
+
+export const scheduleEntryPlatform = pgTable('schedule_entry_platform', {
+  scheduleEntryId: integer('schedule_entry_id').notNull(),
+  platformId: integer('platform_id').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.scheduleEntryId, table.platformId] }),
+  foreignKey({
+    name: 'schedule_entry_fk',
+    columns: [table.scheduleEntryId],
+    foreignColumns: [scheduleEntry.scheduleEntryId],
+  })
+    .onDelete('cascade'),
   foreignKey({
     name: 'platform_fk',
     columns: [table.platformId],
-    foreignColumns: [platform.platformId]
+    foreignColumns: [platform.platformId],
   }),
   adminCRUD('Enable CRUD for admin user'),
-  anyoneSelect('Enable select for any user'),
 ]);
 
 export const scheduleAnimeDetail = pgTable('schedule_anime_detail', {
   scheduleAnimeDetailId: serial('schedule_anime_detail_id').primaryKey(),
   scheduleEntryId: integer('schedule_entry_id').notNull(),
+  watchedAfter: timestamp('watched_after', { withTimezone: true }).notNull(),
 }, (table) => [
   foreignKey({
     name: 'schedule_entry_fk',
@@ -306,7 +320,6 @@ export const changelog = pgTable('changelog', {
 
 export const feedback = pgTable('feedback', {
   feedbackId: serial('feedback_id').primaryKey(),
-  anonymousUUID: uuid('anonymous_uuid'),
   text: varchar('text', { length: 1000 }).notNull(),
   timestamp: timestamp('timestamp', { withTimezone: true }).notNull().defaultNow(),
   tag: typeFeedbackTags('tag').default('other').notNull(),
@@ -349,4 +362,11 @@ export const users = pgTable('users', {
     to: authenticatedRole,
     using: sql`${authUid}=${table.supabaseId}`
   })
+]);
+
+export const dailyUsers = pgTable('daily_users', {
+  date: date('date').primaryKey(),
+  count: integer('count').notNull(),
+}, (table) => [
+  adminCRUD('Enable CRUD for admin user'),
 ]);

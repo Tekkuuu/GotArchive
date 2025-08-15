@@ -101,10 +101,6 @@ const authGuard: Handle = async ({ event, resolve }) => {
 export const handleError: HandleServerError = ({ error, event }) => {
   let context: SentryLoggerOptions = {};
 
-  if (event.locals.session?.user.id) {
-    _.set(context, 'user.id', event.locals.session.user.id);
-  }
-
   _.set(context, 'tags.url', event.url.pathname);
 
   return sentryLogger.logServer(error, context);

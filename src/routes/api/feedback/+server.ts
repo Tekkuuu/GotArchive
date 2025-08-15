@@ -27,7 +27,6 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
     sentry.addBreadcrumb({ message: 'Inserting feedback', data: form.data });
     let { error } = await locals.supabase.from('feedback').insert(
       {
-        anonymous_uuid: form.data.anonymousUUID,
         text: form.data.text,
         tag: form.data.tag as Tables<'feedback'>['tag'] || undefined,
         contact_info: form.data.contactInfo

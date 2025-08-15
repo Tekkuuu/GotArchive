@@ -1,6 +1,7 @@
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { superValidate } from 'sveltekit-superforms';
-import { formSchema } from './util';
+import { formSchema, uniqueKey } from './util';
+import { computeWatchedAfterDate } from '$lib/util/schedule';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { db, schema, services } from '$lib/server/db';
 import { ERROR_CODES, FormError, AppError } from '$lib/errors';
@@ -20,7 +21,7 @@ export const load: PageServerLoad = async ({ request }) => {
   return { anime, platforms, scheduleEntryType, form };
 }
 
-export const actions = {
+export const actions: Actions = {
   create: async ({ request, url, locals }) => {
     const form = await superValidate(request, zod4(formSchema));
 
@@ -28,9 +29,20 @@ export const actions = {
       return fail(422, { form, text: ERROR_CODES.forms.VALIDATION_FAILED });
     }
 
+    // 1. DE-DUPLICATE entries first
+    const entries = _.uniqBy(form.data.entries, uniqueKey);
+
+    // 2. Fail early if duplicates found
+    if (entries.length !== form.data.entries.length) {
+      return fail(422, { form, text: "Found duplicate entries in schedule form." });
+    }
+
+    // 3. Sort for stable mapping
+    const sortedEntries = _.sortBy(entries, ['type', 'date', 'time']);
+
     try {
       await db.transaction(async (tx) => {
-        // Insert schedule and get the id back
+        // 4. Insert schedule and get the id back
         const scheduleInsertedRows = await services.schedule.insert(tx, form.data.schedule);
         const scheduleId = scheduleInsertedRows.at(0)?.scheduleId;
 
@@ -38,71 +50,88 @@ export const actions = {
           throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
         }
 
-        let scheduleEntryData: typeof schema.scheduleEntry.$inferInsert[] = [];
+        // 5. Insert schedule entries
+        const scheduleEntryData = sortedEntries.map(entry => ({
+          scheduleId,
+          type: entry.type,
+          date: entry.date,
+          time: entry.time,
+          note: entry.note
+        }));
 
-        // Prepare sorted data to insert schedule entry
-        const sortedEntries = _.sortBy(form.data.entries, ['type', 'datetime', 'platformId'])
+        const scheduleEntryInsertedRows = await services.scheduleEntry.insert(tx, scheduleEntryData);
 
-        for (let entry of sortedEntries) {
-          scheduleEntryData.push({
-            scheduleId: scheduleId,
-            type: entry.type,
-            date: entry.date,
-            time: entry.time,
-            platformId: entry.platformId,
-            note: entry.note
-          });
-        }
+        // 6. Map uniqueKey -> inserted row for robust pairing
+        const entryKeyToInsertedRow = new Map(
+          sortedEntries.map((entry, i) => [uniqueKey(entry), scheduleEntryInsertedRows[i]])
+        );
 
-        let scheduleEntryInsertedRows = await services.scheduleEntry.insert(tx, scheduleEntryData);
-
-        // Sort received data the same way as scheduleEntryData
-        scheduleEntryInsertedRows = _.sortBy(scheduleEntryInsertedRows, ['type', 'datetime', 'platformId']);
-
-        if (sortedEntries.length !== scheduleEntryInsertedRows.length) {
-          throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
-        }
-
-        let scheduleAnimeDetailData: Array<typeof schema.scheduleAnimeDetail.$inferInsert> = [];
-        for (let i = 0; i < sortedEntries.length; i++) {
-          scheduleAnimeDetailData.push({
-            scheduleEntryId: scheduleEntryInsertedRows[i].scheduleEntryId,
-          })
-        }
-
-        const scheduleAnimeDetailInsertedRows = await services.scheduleAnimeDetail.insert(tx, scheduleAnimeDetailData);
-
-        let scheduleAnimeEpisodeData: Array<typeof schema.scheduleAnimeEpisode.$inferInsert> = [];
-
-        // Iterate through sorted entries to maintain the same order
-        for (let i = 0; i < sortedEntries.length; i++) {
-          const entry = sortedEntries[i];
-
-          // Find the corresponding scheduleAnimeDetail row by matching both animeId and scheduleEntryId
-          const scheduleAnimeDetail = scheduleAnimeDetailInsertedRows.find(
-            detail =>
-              detail.scheduleEntryId === scheduleEntryInsertedRows[i].scheduleEntryId // Match scheduleEntryId as additional criteria
-          );
-
-          // Fail if no matching scheduleAnimeDetail is found
-          if (!scheduleAnimeDetail) {
+        // 7. Insert scheduleEntryPlatform (join table)
+        const scheduleEntryPlatformData: typeof schema.scheduleEntryPlatform.$inferInsert[] = [];
+        for (const entry of sortedEntries) {
+          const inserted = entryKeyToInsertedRow.get(uniqueKey(entry));
+          if (!inserted) {
             throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
           }
-
-          // Add animeEpisodeIds for the matched scheduleAnimeDetailId
-          for (let ep of entry.data.animeEpisodeIds) {
-            scheduleAnimeEpisodeData.push({
-              scheduleAnimeDetailId: scheduleAnimeDetail.scheduleAnimeDetailId, // Use the matched scheduleAnimeDetailId
-              animeEpisodeId: ep,
+          for (const platformId of entry.platformIds) {
+            scheduleEntryPlatformData.push({
+              scheduleEntryId: inserted.scheduleEntryId,
+              platformId,
             });
           }
         }
+        if (scheduleEntryPlatformData.length > 0) {
+          await services.scheduleEntryPlatform.insert(tx, scheduleEntryPlatformData);
+        }
 
-        // Insert the scheduleAnimeEpisode data
-        const scheduleAnimeEpisodeInsertedRows = await services.scheduleAnimeEpisode.insert(
-          tx,
-          scheduleAnimeEpisodeData
+        // 8. Handle anime-specific details and episodes
+        const scheduleAnimeDetailData: Array<typeof schema.scheduleAnimeDetail.$inferInsert> = [];
+        for (const entry of sortedEntries) {
+          if (entry.type === 'anime') {
+            const watchedAfter = computeWatchedAfterDate(entry.date, entry.time, entry.data.watchedAfter);
+            if (!watchedAfter) throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED, { form: 'new-schedule' });
+            const scheduleEntry = entryKeyToInsertedRow.get(uniqueKey(entry));
+            if (!scheduleEntry) {
+              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
+            }
+            scheduleAnimeDetailData.push({
+              scheduleEntryId: scheduleEntry.scheduleEntryId,
+              watchedAfter,
+            });
+          }
+        }
+        const scheduleAnimeDetailInsertedRows = scheduleAnimeDetailData.length > 0
+          ? await services.scheduleAnimeDetail.insert(tx, scheduleAnimeDetailData)
+          : [];
+
+        // 9. Map scheduleEntryId -> animeDetail for episode association
+        const entryIdToAnimeDetail = new Map(
+          scheduleAnimeDetailInsertedRows.map((row) => [row.scheduleEntryId, row])
         );
+
+        // 10. Insert anime episodes
+        const scheduleAnimeEpisodeData: Array<typeof schema.scheduleAnimeEpisode.$inferInsert> = [];
+        for (const entry of sortedEntries) {
+          if (entry.type === 'anime') {
+            const scheduleEntry = entryKeyToInsertedRow.get(uniqueKey(entry));
+            if (!scheduleEntry) {
+              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
+            }
+            const animeDetail = entryIdToAnimeDetail.get(scheduleEntry.scheduleEntryId);
+            if (!animeDetail) {
+              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
+            }
+            for (const ep of entry.data.animeEpisodeIds) {
+              scheduleAnimeEpisodeData.push({
+                scheduleAnimeDetailId: animeDetail.scheduleAnimeDetailId,
+                animeEpisodeId: ep,
+              });
+            }
+          }
+        }
+        if (scheduleAnimeEpisodeData.length > 0) {
+          await services.scheduleAnimeEpisode.insert(tx, scheduleAnimeEpisodeData);
+        }
 
         return { form }
       });
@@ -114,8 +143,6 @@ export const actions = {
             form: 'new-schedule',
           }
         }
-        const userId = locals.session?.user.id;
-        if (userId) _.set(context, 'user.id', userId);
         sentry.logServer(err, context);
       }
 

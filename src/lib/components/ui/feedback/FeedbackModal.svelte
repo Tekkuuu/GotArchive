@@ -16,7 +16,7 @@
 
 	let { formData, open = $bindable() }: Props = $props();
 
-	let { form, enhance, errors } = superForm(formData, {
+	let { form, enhance, errors, submit } = superForm(formData, {
 		dataType: 'json',
 		resetForm: false,
 		validators: zod4Client(feedbackSchema),
@@ -34,15 +34,6 @@
 	});
 
 	let uuid = getAnonymousUUIDStore();
-	let includeUUID = $state(true);
-
-	$effect(() => {
-		if (includeUUID) {
-			$form.anonymousUUID = uuid.value;
-		} else {
-			$form.anonymousUUID = undefined;
-		}
-	});
 </script>
 
 {#if open}
@@ -55,23 +46,7 @@
 	>
 		<h1 class="dark:text-primary-50 text-primary-900 px-4 pt-4 text-3xl font-bold">Feedback</h1>
 		<form method="POST" action="/api/feedback" use:enhance class="flex w-full flex-col gap-1 p-4">
-			<div class="grid grid-cols-[1fr_auto] gap-1">
-				<Input
-					fullWidth
-					rounded="lg"
-					name="uuid"
-					type="text"
-					disabled
-					placeholder="UUID (optional)"
-					bind:value={
-						() => $form.anonymousUUID || '',
-						(v) => (v === '' ? ($form.anonymousUUID = undefined) : ($form.anonymousUUID = v))
-					}
-				>
-					<LucideIcon icon={Fingerprint} />
-				</Input>
-				<Checkbox shape="rounded" bind:value={includeUUID} />
-			</div>
+			<input type="hidden" name="anonymousUUID" bind:value={$form.anonymousUUID} />
 			<Select
 				rounded
 				options={feedbackTags.map((f) => ({ value: f, label: f }))}
@@ -114,7 +89,16 @@
 				bind:value={$form.honeypot}
 				class="hidden"
 			/>
-			<Button type="submit" variant="submit" shape="rounded" filled fullWidth>
+			<Button
+				variant="submit"
+				shape="rounded"
+				filled
+				fullWidth
+				onclick={() => {
+					$form.anonymousUUID = uuid.value;
+					submit();
+				}}
+			>
 				<span class="font-bold">Send Feedback</span>
 			</Button>
 			<span
@@ -125,21 +109,15 @@
 				]}
 			>
 				<p>
-					<a href="/privacy" class="text-success cursor-pointer font-bold underline">UUID</a> is optional
-					and anonymous.
-				</p>
-				<p>It helps us track feedback and issues from the same user over time.</p>
-				<p>Opt-out via checkbox</p>
-				<p>
-					If you want us to contact you back about the feedback, leave your email/discord id so we
-					can reach out to you!
+					If you’d like us to contact you about your feedback, please leave your email or Discord ID
+					(optional).
 				</p>
 				<p>
-					Text text area supports <a
+					The feedback text area supports <a
 						class="text-info hover:text-info-light underline transition-all duration-150"
 						href="https://www.markdownguide.org/basic-syntax/"
-						target="_blank">markdown</a
-					> ;)
+						target="_blank">Markdown</a
+					> formatting! &#128521;
 				</p>
 			</span>
 		</form>

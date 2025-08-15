@@ -1,1 +1,1 @@
-export { rateLimit } from './redis';
+export { rateLimit, updateDAU, getDAU } from './redis';

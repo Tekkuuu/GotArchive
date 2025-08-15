@@ -1,5 +1,7 @@
 import { Redis } from '@upstash/redis';
 import { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } from '$env/static/private';
+import { addDays } from 'date-fns';
+import * as z from 'zod/v4';
 
 export const redis = new Redis({
   url: UPSTASH_REDIS_REST_URL,
@@ -26,4 +28,30 @@ export async function rateLimit(
   }
 
   return count <= limit;
+}
+
+/**
+ * Adds the given user UUID to today's Daily Active Users (DAU) set in Redis.
+ * The set is keyed by the current date (YYYY-MM-DD) and will expire after 7 days.
+ *
+ * @param uuid - The unique identifier of the user to record as active today.
+ */
+export async function updateDAU(uuid: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  await redis.sadd(`dau:${today}`, uuid);
+  await redis.expire(`dau:${today}`, 24 * 60 * 60 * 7); // 1 day expiration
+}
+
+export async function getDAU(date: string): Promise<number | null> {
+  const validDate = z.iso.date().safeParse(date);
+  if (!validDate.success) {
+    return null;
+  }
+
+  try {
+    const dau = await redis.scard(`dau:${validDate.data}`);
+    return dau;
+  } catch (err) {
+    return null;
+  }
 }

@@ -24,11 +24,11 @@
 	import { Toaster } from '$lib/components/ui/toaster';
 	import { Button, LinkButton } from '$lib/components/forms';
 	import { invalidate } from '$app/navigation';
-	import { getAnonymousUUIDStore } from '$lib/stores';
+	import { getAnonymousUUIDStore, getCookieConsentStore } from '$lib/stores';
+	import { onMount } from 'svelte';
 
 	let { children, data }: LayoutProps = $props();
 	let { session, supabase } = $derived(data);
-	let anonymousUUID = getAnonymousUUIDStore();
 	let feedbackOpen = $state(false);
 
 	$effect(() => {
@@ -44,6 +44,10 @@
 			};
 		}
 	});
+
+	onMount(() => {
+		getAnonymousUUIDStore();
+	});
 </script>
 
 <div class="flex min-h-screen flex-col">
@@ -56,6 +60,7 @@
 				<NavLi id="admin">
 					<Database />Admin
 					<NavDropdown trigger="#admin">
+						<NavLi href="/admin/feedback">Feedbacks</NavLi>
 						<NavLi href="/admin/new/anime">New anime</NavLi>
 						<NavLi href="/admin/new/anime/bulk">New anime bulk</NavLi>
 						<NavLi href="/admin/new/season">New season</NavLi>

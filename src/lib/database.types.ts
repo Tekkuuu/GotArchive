@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -244,6 +244,21 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_users: {
+        Row: {
+          count: number
+          date: string
+        }
+        Insert: {
+          count: number
+          date: string
+        }
+        Update: {
+          count?: number
+          date?: string
+        }
+        Relationships: []
+      }
       episode_link: {
         Row: {
           anime_episode_id: number
@@ -282,7 +297,6 @@ export type Database = {
       }
       feedback: {
         Row: {
-          anonymous_uuid: string | null
           contact_info: string | null
           feedback_id: number
           status: Database["public"]["Enums"]["typeFeedbackStatus"]
@@ -291,7 +305,6 @@ export type Database = {
           timestamp: string
         }
         Insert: {
-          anonymous_uuid?: string | null
           contact_info?: string | null
           feedback_id?: number
           status?: Database["public"]["Enums"]["typeFeedbackStatus"]
@@ -300,7 +313,6 @@ export type Database = {
           timestamp?: string
         }
         Update: {
-          anonymous_uuid?: string | null
           contact_info?: string | null
           feedback_id?: number
           status?: Database["public"]["Enums"]["typeFeedbackStatus"]
@@ -368,14 +380,17 @@ export type Database = {
         Row: {
           schedule_anime_detail_id: number
           schedule_entry_id: number
+          watched_after: string
         }
         Insert: {
           schedule_anime_detail_id?: number
           schedule_entry_id: number
+          watched_after: string
         }
         Update: {
           schedule_anime_detail_id?: number
           schedule_entry_id?: number
+          watched_after?: string
         }
         Relationships: [
           {
@@ -421,7 +436,6 @@ export type Database = {
         Row: {
           date: string
           note: string | null
-          platform_id: number | null
           schedule_entry_id: number
           schedule_id: number
           time: string | null
@@ -430,7 +444,6 @@ export type Database = {
         Insert: {
           date: string
           note?: string | null
-          platform_id?: number | null
           schedule_entry_id?: number
           schedule_id: number
           time?: string | null
@@ -439,11 +452,33 @@ export type Database = {
         Update: {
           date?: string
           note?: string | null
-          platform_id?: number | null
           schedule_entry_id?: number
           schedule_id?: number
           time?: string | null
           type?: Database["public"]["Enums"]["typeScheduleEntry"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_fk"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "schedule"
+            referencedColumns: ["schedule_id"]
+          },
+        ]
+      }
+      schedule_entry_platform: {
+        Row: {
+          platform_id: number
+          schedule_entry_id: number
+        }
+        Insert: {
+          platform_id: number
+          schedule_entry_id: number
+        }
+        Update: {
+          platform_id?: number
+          schedule_entry_id?: number
         }
         Relationships: [
           {
@@ -454,11 +489,11 @@ export type Database = {
             referencedColumns: ["platform_id"]
           },
           {
-            foreignKeyName: "schedule_fk"
-            columns: ["schedule_id"]
+            foreignKeyName: "schedule_entry_fk"
+            columns: ["schedule_entry_id"]
             isOneToOne: false
-            referencedRelation: "schedule"
-            referencedColumns: ["schedule_id"]
+            referencedRelation: "schedule_entry"
+            referencedColumns: ["schedule_entry_id"]
           },
         ]
       }

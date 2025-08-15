@@ -215,7 +215,8 @@ export const scheduleEntryPlatform = pgTable('schedule_entry_platform', {
     name: 'platform_fk',
     columns: [table.platformId],
     foreignColumns: [platform.platformId],
-  })
+  }),
+  adminCRUD('Enable CRUD for admin user'),
 ]);
 
 export const scheduleAnimeDetail = pgTable('schedule_anime_detail', {
@@ -319,7 +320,6 @@ export const changelog = pgTable('changelog', {
 
 export const feedback = pgTable('feedback', {
   feedbackId: serial('feedback_id').primaryKey(),
-  anonymousUUID: uuid('anonymous_uuid'),
   text: varchar('text', { length: 1000 }).notNull(),
   timestamp: timestamp('timestamp', { withTimezone: true }).notNull().defaultNow(),
   tag: typeFeedbackTags('tag').default('other').notNull(),
@@ -362,4 +362,11 @@ export const users = pgTable('users', {
     to: authenticatedRole,
     using: sql`${authUid}=${table.supabaseId}`
   })
+]);
+
+export const dailyUsers = pgTable('daily_users', {
+  date: date('date').primaryKey(),
+  count: integer('count').notNull(),
+}, (table) => [
+  adminCRUD('Enable CRUD for admin user'),
 ]);

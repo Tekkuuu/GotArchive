@@ -1,15 +1,33 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/forms/';
-	import { getCookieConsentStore, COOKIE_CONSENT_VERSION } from '$lib/stores/';
+	import {
+		getCookieConsentStore,
+		COOKIE_CONSENT_VERSION,
+		getAnonymousUUIDStore
+	} from '$lib/stores/';
 
 	let cookieConsent = getCookieConsentStore();
 
 	let showBanner = false;
 
 	onMount(() => {
-		if (cookieConsent.value.version === COOKIE_CONSENT_VERSION) {
-			showBanner = !cookieConsent.value.consent;
+		if (
+			cookieConsent.value.version === COOKIE_CONSENT_VERSION &&
+			cookieConsent.value.consent === true
+		) {
+			// If consent is already given, hide the banner and send dau
+			showBanner = false;
+			let uuid = getAnonymousUUIDStore();
+			if (cookieConsent.value.consent) {
+				fetch('/api/dau', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						uuid: uuid.value
+					})
+				});
+			}
 		} else {
 			showBanner = true;
 			cookieConsent.set({ version: COOKIE_CONSENT_VERSION, consent: false });
@@ -19,6 +37,18 @@
 	function acceptCookies() {
 		showBanner = false;
 		cookieConsent.set({ version: COOKIE_CONSENT_VERSION, consent: true });
+
+		// If the consent is given, send the dau
+		let uuid = getAnonymousUUIDStore();
+		if (cookieConsent.value.consent) {
+			fetch('/api/dau', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					uuid: uuid.value
+				})
+			});
+		}
 	}
 </script>
 

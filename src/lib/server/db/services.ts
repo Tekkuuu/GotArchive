@@ -220,5 +220,16 @@ export const services = {
       )
     ),
     'feedbackService'
+  ),
+  dailyUsers: withErrorOrigin(
+    createService(
+      schema.dailyUsers,
+      'daily_users',
+      idConfig(
+        z.object({ date: z.iso.date() }),
+        { date: schema.dailyUsers.date }
+      )
+    ),
+    'dailyUsersService'
   )
 };

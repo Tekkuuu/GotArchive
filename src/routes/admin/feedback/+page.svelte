@@ -179,92 +179,78 @@
 				class={['absolute top-0 left-0 h-full w-2 rounded-l-xl', borderStyle(info.status)]}
 			></div>
 
-			<!-- Header: UUID & Status -->
-			<div
-				class="flex flex-col items-start justify-between gap-2 min-md:flex-row min-md:items-center"
-			>
-				<div>
-					<div class="text-primary-500 dark:text-primary-400 mb-1 text-xs font-semibold">
-						User UUID
-					</div>
-					<div
-						class="bg-primary-300 dark:bg-primary-600 rounded-md px-2 py-1 font-mono text-xs break-all shadow-sm"
-					>
-						{info.anonymousUUID || 'N/A'}
-					</div>
-				</div>
-				<div class="mt-2 flex gap-2 min-md:mt-0">
-					<Button
-						variant="submit"
-						filled={info.status === 'open'}
-						shape="circle"
-						onclick={() => {
-							if (info.status === 'open') return;
-							$updateForm.feedbackId = info.feedbackId;
-							$updateForm.status = 'open';
-							updateSubmit();
-						}}
-					>
-						<CircleCheck />
-					</Button>
-					<Button
-						variant="info"
-						filled={info.status === 'inprogress'}
-						shape="circle"
-						onclick={() => {
-							if (info.status === 'inprogress') return;
-							$updateForm.feedbackId = info.feedbackId;
-							$updateForm.status = 'inprogress';
-							updateSubmit();
-						}}
-					>
-						<Circle />
-					</Button>
-					<Button
-						variant="warning"
-						filled={info.status === 'closed'}
-						shape="circle"
-						onclick={() => {
-							if (info.status === 'closed') return;
-							$updateForm.feedbackId = info.feedbackId;
-							$updateForm.status = 'closed';
-							updateSubmit();
-						}}
-					>
-						<CircleX />
-					</Button>
-					<Button
-						variant="danger"
-						filled={info.status === 'wontfix'}
-						shape="circle"
-						onclick={() => {
-							if (info.status === 'wontfix') return;
-							$updateForm.feedbackId = info.feedbackId;
-							$updateForm.status = 'wontfix';
-							updateSubmit();
-						}}
-					>
-						<CircleAlert />
-					</Button>
-					<Button
-						variant="danger"
-						filled
-						shape="pill"
-						onclick={() => {
-							if (
-								window.confirm(
-									'Are you sure you want to delete this feedback? This action cannot be undone.'
-								)
-							) {
-								$deleteForm.feedbackId = info.feedbackId;
-								deleteSubmit();
-							}
-						}}
-						appendClass="gap-1"
-					>
-						<LucideIcon icon={CircleOff} /><span class="font-bold">Delete</span>
-					</Button>
-				</div>
+			<!-- Header: Status Buttons Only (UUID removed) -->
+			<div class="flex justify-end gap-2">
+				<Button
+					variant="submit"
+					filled={info.status === 'open'}
+					shape="circle"
+					onclick={() => {
+						if (info.status === 'open') return;
+						$updateForm.feedbackId = info.feedbackId;
+						$updateForm.status = 'open';
+						updateSubmit();
+					}}
+				>
+					<CircleCheck />
+				</Button>
+				<Button
+					variant="info"
+					filled={info.status === 'inprogress'}
+					shape="circle"
+					onclick={() => {
+						if (info.status === 'inprogress') return;
+						$updateForm.feedbackId = info.feedbackId;
+						$updateForm.status = 'inprogress';
+						updateSubmit();
+					}}
+				>
+					<Circle />
+				</Button>
+				<Button
+					variant="warning"
+					filled={info.status === 'closed'}
+					shape="circle"
+					onclick={() => {
+						if (info.status === 'closed') return;
+						$updateForm.feedbackId = info.feedbackId;
+						$updateForm.status = 'closed';
+						updateSubmit();
+					}}
+				>
+					<CircleX />
+				</Button>
+				<Button
+					variant="danger"
+					filled={info.status === 'wontfix'}
+					shape="circle"
+					onclick={() => {
+						if (info.status === 'wontfix') return;
+						$updateForm.feedbackId = info.feedbackId;
+						$updateForm.status = 'wontfix';
+						updateSubmit();
+					}}
+				>
+					<CircleAlert />
+				</Button>
+				<Button
+					variant="danger"
+					filled
+					shape="pill"
+					onclick={() => {
+						if (
+							window.confirm(
+								'Are you sure you want to delete this feedback? This action cannot be undone.'
+							)
+						) {
+							$deleteForm.feedbackId = info.feedbackId;
+							deleteSubmit();
+						}
+					}}
+					appendClass="gap-1"
+				>
+					<LucideIcon icon={CircleOff} /><span class="font-bold">Delete</span>
+				</Button>
 			</div>
 
 			<!-- Timestamp -->

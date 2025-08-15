@@ -1,5 +1,6 @@
 import * as z from 'zod/v4';
 import _ from 'lodash';
+import { getISOWeek } from 'date-fns';
 
 export const schedule = z.object({
   note: z.string().nullable(),
@@ -27,7 +28,12 @@ export const scheduleEntry = z.discriminatedUnion("type", [
 export const formSchema = z.object({
   schedule: schedule,
   entries: z.array(scheduleEntry)
-});
+}).refine(data => {
+  return _.every(data.entries, (e) => {
+    const d = new Date(`${e.date}T${e.time ? e.time : '00:00'}Z`);
+    return getISOWeek(d) === data.schedule.week && d.getUTCFullYear() === data.schedule.year;
+  })
+})
 
 export function uniqueKey(data: z.infer<typeof scheduleEntry>) {
   const generalKey = `${data.type}|${data.date}|${data.time ?? 'NULL'}`;

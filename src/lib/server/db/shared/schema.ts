@@ -209,7 +209,8 @@ export const scheduleEntryPlatform = pgTable('schedule_entry_platform', {
     name: 'schedule_entry_fk',
     columns: [table.scheduleEntryId],
     foreignColumns: [scheduleEntry.scheduleEntryId],
-  }),
+  })
+    .onDelete('cascade'),
   foreignKey({
     name: 'platform_fk',
     columns: [table.platformId],

@@ -261,6 +261,8 @@
 		</div>
 		<form method="POST" action="?/create" use:createEnhance class="flex w-full flex-col gap-1">
 			<input type="hidden" name="scheduleId" bind:value={$createForm.scheduleId} />
+			<input type="hidden" name="year" bind:value={$createForm.year} />
+			<input type="hidden" name="week" bind:value={$createForm.week} />
 			<div class="grid w-full grid-cols-2 gap-1">
 				<Select
 					rounded
@@ -369,6 +371,8 @@
 				fullWidth
 				onclick={() => {
 					$createForm.scheduleId = data.schedule.scheduleInfo.scheduleId;
+					$createForm.year = data.schedule.scheduleInfo.year;
+					$createForm.week = data.schedule.scheduleInfo.week;
 					createSubmit();
 				}}
 			>
@@ -387,6 +391,8 @@
 			{/await}
 		</div>
 		<form method="POST" action="?/update" use:updateEnhance class="flex w-full flex-col gap-1">
+			<input type="hidden" name="year" bind:value={$updateForm.year} />
+			<input type="hidden" name="week" bind:value={$updateForm.week} />
 			<div class="grid w-full grid-cols-2 gap-1">
 				<Select
 					rounded
@@ -489,7 +495,17 @@
 					<LucideIcon icon={Clock} />
 				</Input>
 			{/if}
-			<Button variant="warning" type="submit" filled fullWidth shape="rounded">
+			<Button
+				variant="warning"
+				filled
+				fullWidth
+				shape="rounded"
+				onclick={() => {
+					$updateForm.year = data.schedule.scheduleInfo.year;
+					$updateForm.week = data.schedule.scheduleInfo.week;
+					updateSubmit();
+				}}
+			>
 				<span class="font-bold">Submit</span>
 			</Button>
 		</form>

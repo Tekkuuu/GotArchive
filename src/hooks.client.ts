@@ -13,11 +13,6 @@ Sentry.init({
 export const handleError: HandleClientError = ({ error, event }) => {
   let context: SentryLoggerOptions = {};
 
-  const anonymouseUUID = localStorage.getItem('anonymousUUID');
-  if (anonymouseUUID) {
-    _.set(context, 'user.anonymouseUUID', anonymouseUUID);
-  }
-
   _.set(context, 'tags.url', event.url.pathname);
 
   return sentryLogger.logClient(error, context);

@@ -143,8 +143,6 @@ export const actions: Actions = {
             form: 'new-schedule',
           }
         }
-        const userId = locals.session?.user.id;
-        if (userId) _.set(context, 'user.id', userId);
         sentry.logServer(err, context);
       }
 

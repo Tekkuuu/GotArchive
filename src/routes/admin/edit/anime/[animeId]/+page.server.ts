@@ -141,8 +141,6 @@ export const actions: Actions = {
             form: 'update-animeseason',
           }
         }
-        const userId = locals.session?.user.id;
-        if (userId) _.set(context, 'user.id', userId);
         sentry.logServer(err, context);
       }
 
@@ -192,8 +190,6 @@ export const actions: Actions = {
             form: 'delete-animeseason',
           }
         }
-        const userId = locals.session?.user.id;
-        if (userId) _.set(context, 'user.id', userId);
         sentry.logServer(err, context);
       }
 

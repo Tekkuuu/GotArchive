@@ -37,8 +37,6 @@ export const actions: Actions = {
           form: 'delete-feedback',
         }
       }
-      const userId = locals.session?.user.id;
-      if (userId) _.set(context, 'user.id', userId);
       sentry.logServer(err, context);
 
       if (err instanceof AppError) {
@@ -72,8 +70,6 @@ export const actions: Actions = {
           form: 'update-feedback-status',
         }
       }
-      const userId = locals.session?.user.id;
-      if (userId) _.set(context, 'user.id', userId);
       sentry.logServer(err, context);
 
       if (err instanceof AppError) {

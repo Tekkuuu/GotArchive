@@ -207,8 +207,6 @@ export const actions: Actions = {
           form: 'update-schedule-entry',
         }
       }
-      const userId = locals.session?.user.id;
-      if (userId) _.set(context, 'user.id', userId);
       sentry.logServer(err, context);
 
       if (err instanceof AppError) {
@@ -301,8 +299,6 @@ export const actions: Actions = {
           form: 'create-schedule-entry',
         }
       }
-      const userId = locals.session?.user.id;
-      if (userId) _.set(context, 'user.id', userId);
       sentry.logServer(err, context);
 
       if (err instanceof AppError) {
@@ -337,8 +333,6 @@ export const actions: Actions = {
           form: 'delete-schedule-entry',
         }
       }
-      const userId = locals.session?.user.id;
-      if (userId) _.set(context, 'user.id', userId);
       sentry.logServer(err, context);
 
       if (err instanceof AppError) {

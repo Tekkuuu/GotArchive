@@ -1,17 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/forms/';
+	import { getCookieConsentStore, COOKIE_CONSENT_VERSION } from '$lib/stores/';
+
+	let cookieConsent = getCookieConsentStore();
 
 	let showBanner = false;
 
 	onMount(() => {
-		// Check if user already accepted cookies
-		showBanner = !localStorage.getItem('got_cookie_consent');
+		if (cookieConsent.value.version === COOKIE_CONSENT_VERSION) {
+			showBanner = !cookieConsent.value.consent;
+		} else {
+			showBanner = true;
+			cookieConsent.set({ version: COOKIE_CONSENT_VERSION, consent: false });
+		}
 	});
 
 	function acceptCookies() {
-		localStorage.setItem('got_cookie_consent', 'true');
 		showBanner = false;
+		cookieConsent.set({ version: COOKIE_CONSENT_VERSION, consent: true });
 	}
 </script>
 
@@ -21,6 +28,11 @@
 	>
 		<div>
 			G.O.T Archive uses cookies for admin login only. No tracking or advertising cookies are used.
+			<a
+				href="/privacy"
+				class="text-info dark:text-info hover:text-info-light dark:hover:text-info-light underline"
+				>Read more</a
+			>
 		</div>
 		<Button variant="warning" filled shape="rounded" onclick={acceptCookies}>
 			<span class="font-bold">OK, got it!</span>

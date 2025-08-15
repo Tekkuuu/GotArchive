@@ -20,14 +20,6 @@
 					If you send feedback, we link it to a random ID (UUID) stored in your browser. This helps
 					us group feedback and error reports, but doesn’t identify you personally.
 				</li>
-				<li>
-					We also use this random ID to send automatic site error reports, which helps us find and
-					fix bugs. No personal info is included.
-				</li>
-				<li>
-					If you're logged in as an admin, your user ID is sent with error reports instead of a
-					random ID. This helps us give better support for admins.
-				</li>
 				<li>Only the admin can see feedback and error reports.</li>
 				<li>We don’t use analytics or ads, and we don’t share your data with anyone.</li>
 				<li>If you’re an admin, cookies are set to keep you logged in securely.</li>
@@ -54,7 +46,7 @@
 		<footer
 			class="border-primary-200 dark:border-primary-700 text-primary-700 dark:text-primary-200 mt-6 border-t pt-6 text-center text-sm"
 		>
-			Last updated: 2025-08-08
+			Last updated: 2025-08-15
 		</footer>
 	</section>
 </main>

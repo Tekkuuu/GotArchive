@@ -18,7 +18,6 @@
 		NavLi,
 		Footer,
 		FeedbackModal,
-		FeedbackModalToggle,
 		DarkModeToggle,
 		CookieConsent
 	} from '$lib/components/ui/';

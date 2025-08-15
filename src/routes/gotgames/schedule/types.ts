@@ -1,7 +1,3 @@
-import type { ApiSchedule } from '$lib/hooks';
-
-export type ScheduleEntry = ApiSchedule['scheduleEntries'][number];
-
 export type MultiAnimeScheduleGroup = {
   type: string;
   date: string;

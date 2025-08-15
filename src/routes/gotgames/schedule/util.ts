@@ -1,9 +1,11 @@
 import type { Platform } from "$lib/server/db";
 import type {
-  ScheduleEntry,
   MultiAnimeScheduleGroup,
   WeekdayScheduleGroup,
 } from "./types";
+import type {
+  ScheduleEntry
+} from '$lib/hooks';
 import { addDays, format, startOfWeek } from 'date-fns';
 import _ from 'lodash';
 

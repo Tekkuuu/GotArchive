@@ -18,7 +18,8 @@ import { PgTableWithColumns } from 'drizzle-orm/pg-core';
 const { DATABASE_URL_TEST } = process.env;
 if (!DATABASE_URL_TEST) throw new Error('DATABASE_URL_TEST is not set');
 
-const client = postgres(DATABASE_URL_TEST);
+// Removed db url for safety
+const client = postgres('');
 export const db = drizzle(client);
 
 let anime = [

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDurationString, computeWatchedAfterDate, computeDurationStringFromWatchedAfter } from '../../../src/lib/util/schedule';
+import { parseDurationString, computeWatchedAfterDate, computeDurationStringFromWatchedAfter } from '../../../../src/lib/util/schedule/watchAfterParser';
 
 // parseDurationString tests
 describe('parseDurationString', () => {

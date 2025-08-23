@@ -2,7 +2,8 @@
 	import type { PageProps } from './$types';
 	import { onMount } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
-	import { formSchema } from './util';
+	import { formSchema, scheduleAnimeDetail, scheduleMiscDetail } from './util';
+	import * as z from 'zod/v4';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { toast } from '$lib/components/ui/toaster';
 	import { Input, Label, Button, Select, TimeInput, DateInput } from '$lib/components/forms';
@@ -12,6 +13,9 @@
 	import type { AnimeEpisodeDetails } from '$lib/server/db';
 	import { LucideIcon } from '$lib/components/util';
 	import type { ApiErrorResponse } from '$lib/api';
+
+	type AnimeDetail = z.infer<typeof scheduleAnimeDetail>;
+	type MiscDetail = z.infer<typeof scheduleMiscDetail>;
 
 	let { data }: PageProps = $props();
 	let { form, enhance, errors } = superForm(data.form, {
@@ -23,6 +27,7 @@
 			if (result.type === 'success') {
 				toast.success('Schedule create successfully');
 			} else if (result.type === 'error' || result.type === 'failure') {
+				console.log(result);
 				toast.error('Failed to create schedule');
 			}
 		}
@@ -102,6 +107,23 @@
 					}),
 					(v) => ($form.entries[index].type = v.value)
 				}
+				onselect={() => {
+					switch ($form.entries[index].type) {
+						case 'anime':
+							$form.entries[index].data = {
+								animeEpisodeIds: [],
+								animeId: -1,
+								watchedAfter: ''
+							} as AnimeDetail;
+							break;
+						case 'misc':
+							$form.entries[index].data = {
+								title: '',
+								description: null
+							} as MiscDetail;
+							break;
+					}
+				}}
 			/>
 			<Select
 				allowMultiple
@@ -150,15 +172,17 @@
 					}))}
 					bind:selected={
 						() => ({
-							value: $form.entries[index].data.animeId,
+							value: ($form.entries[index].data as AnimeDetail).animeId,
 							label: getSelectTitleLabel(
-								data.anime.find((a) => a.animeId === $form.entries[index].data.animeId)
+								data.anime.find(
+									(a) => a.animeId === ($form.entries[index].data as AnimeDetail).animeId
+								)
 							)
 						}),
-						(v) => ($form.entries[index].data.animeId = v.value)
+						(v) => (($form.entries[index].data as AnimeDetail).animeId = v.value)
 					}
 					onselect={async () => {
-						await fetchAnimeEpisodes($form.entries[index].data.animeId);
+						await fetchAnimeEpisodes(($form.entries[index].data as AnimeDetail).animeId);
 					}}
 				/>
 				<Select
@@ -166,23 +190,24 @@
 					rounded
 					search
 					allowMultiple
-					disabled={$form.entries[index].data.animeId <= 0}
+					disabled={($form.entries[index].data as AnimeDetail).animeId <= 0}
 					options={episodes
-						.filter((e) => e.animeId === $form.entries[index].data.animeId)
+						.filter((e) => e.animeId === ($form.entries[index].data as AnimeDetail).animeId)
 						.map((e) => ({
 							value: e.animeEpisodeId,
 							label: `${e.titleEnglish ?? e.titleRomaji ?? e.titleNative}, Ep: ${e.episodeNumber.toString()}`
 						}))}
 					bind:selected={
 						() =>
-							$form.entries[index].data.animeEpisodeIds.map((e) => {
+							($form.entries[index].data as AnimeDetail).animeEpisodeIds.map((e) => {
 								const ep = episodes.find((ep) => ep.animeEpisodeId === e);
 								return {
 									value: e,
 									label: `${ep?.titleEnglish || ep?.titleRomaji || ep?.titleNative || 'Error occurred'}, Ep: ${ep?.episodeNumber || 'Error occured'}`
 								};
 							}),
-						(v) => ($form.entries[index].data.animeEpisodeIds = v.map((e) => e.value))
+						(v) =>
+							(($form.entries[index].data as AnimeDetail).animeEpisodeIds = v.map((e) => e.value))
 					}
 				/>
 				<Input
@@ -191,9 +216,37 @@
 					placeholder="Watch delay"
 					rounded="lg"
 					disabled={!($form.entries[index].date && $form.entries[index].time)}
-					bind:value={$form.entries[index].data.watchedAfter}
+					bind:value={
+						() => ($form.entries[index].data as AnimeDetail).watchedAfter,
+						(v) => (($form.entries[index].data as AnimeDetail).watchedAfter = v)
+					}
 				>
 					<LucideIcon icon={Clock} />
+				</Input>
+			</div>
+		{:else if $form.entries[index].type === 'misc'}
+			<div class="grid grid-cols-2 gap-1">
+				<Input
+					type="text"
+					rounded="lg"
+					placeholder="Title"
+					bind:value={
+						() => ($form.entries[index].data as MiscDetail).title,
+						(v) => (($form.entries[index].data as MiscDetail).title = v)
+					}
+				>
+					<LucideIcon icon={Text} />
+				</Input>
+				<Input
+					type="text"
+					rounded="lg"
+					placeholder="Description"
+					bind:value={
+						() => ($form.entries[index].data as MiscDetail).description || '',
+						(v) => (($form.entries[index].data as MiscDetail).description = v === '' ? null : v)
+					}
+				>
+					<LucideIcon icon={Text} />
 				</Input>
 			</div>
 		{/if}

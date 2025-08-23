@@ -9,7 +9,7 @@ import { sql } from 'drizzle-orm';
 // Custom types
 export const typeSeason = pgEnum('typeSeason', ['WINTER', 'SPRING', 'SUMMER', 'FALL']);
 export const typeFormat = pgEnum('typeFormat', ['TV', 'TV_SHORT', 'MOVIE', 'SPECIAL', 'OVA', 'ONA', 'MUSIC']);
-export const typeScheduleEntry = pgEnum('typeScheduleEntry', ['anime', 'hololive', 'game', 'event', 'sponsored']);
+export const typeScheduleEntry = pgEnum('typeScheduleEntry', ['anime', 'hololive', 'game', 'event', 'sponsored', 'misc']);
 export const typeAnimeSeasonStatus = pgEnum('typeSeasonStatus', ['On hold', 'Dropped']);
 export const typeUserRole = pgEnum('typeUserRole', ['user', 'admin']);
 export const typeFeedbackTags = pgEnum('typeFeedbackTags', ['bug', 'feature request', 'question', 'other'])
@@ -369,4 +369,20 @@ export const dailyUsers = pgTable('daily_users', {
   count: integer('count').notNull(),
 }, (table) => [
   adminCRUD('Enable CRUD for admin user'),
+]);
+
+export const scheduleMiscDetail = pgTable('schedule_misc_detail', {
+  scheduleMiscDetailId: serial('schedule_misc_detail_id').primaryKey(),
+  scheduleEntryId: integer('schedule_entry_id').notNull(),
+  title: varchar('title').notNull(),
+  description: text('description'),
+}, (table) => [
+  foreignKey({
+    name: 'schedule_entry_fk',
+    columns: [table.scheduleEntryId],
+    foreignColumns: [scheduleEntry.scheduleEntryId]
+  })
+    .onDelete('cascade'),
+  adminCRUD('Enable CRUD for admin user'),
+  anyoneSelect('Enable select for any user'),
 ]);

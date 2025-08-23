@@ -37,7 +37,10 @@ export default defineConfig({
             'src/**/*.{test,spec}.{js,ts}',
             'test/**/*.{test,spec}.{js,ts}'
           ],
-          exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+          exclude: [
+            'src/**/*.svelte.{test,spec}.{js,ts}',
+            'test/db/**/*.{test,spec}.{ts,js}',
+          ]
         }
       }
     ]

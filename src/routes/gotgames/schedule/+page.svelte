@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import { MediaQuery } from 'svelte/reactivity';
-	import type { MultiAnimeScheduleGroup, WeekdayScheduleGroup } from './types';
 	import type { Schedule } from '$lib/hooks';
 	import { slide } from 'svelte/transition';
 	import { sineInOut } from 'svelte/easing';
@@ -21,7 +20,13 @@
 	import { onMount } from 'svelte';
 	import _ from 'lodash';
 	import { format } from 'date-fns';
-	import { groupScheduleEntries, groupByWeekdaysObjects, groupEntriesForDisplay } from './util';
+	import {
+		groupScheduleByWeek,
+		type GroupedScheduleWeek,
+		type GroupedWeekday,
+		type GroupedAnimeEntryGroup,
+		type GroupedMiscEntryGroup
+	} from '$lib/util/';
 	import { Button, LinkButton } from '$lib/components/forms/';
 	import { ChevronDown, ChevronLeft, ChevronRight, Link2 } from 'lucide-svelte';
 	import { toast } from '$lib/components/ui/toaster';
@@ -111,7 +116,7 @@
 	</title>
 </svelte:head>
 
-{#snippet card(entryGroup: MultiAnimeScheduleGroup)}
+{#snippet card(entryGroup: GroupedAnimeEntryGroup | GroupedMiscEntryGroup)}
 	<div class="flex flex-col rounded-lg">
 		<div
 			class="
@@ -144,107 +149,131 @@
 				{_.capitalize(entryGroup.type)} ( Time TBA )
 			{/if}
 		</div>
-		{#each groupEntriesForDisplay([entryGroup]) as displayBlock}
-			{#if displayBlock.isMultiPlatformAnimeVariant}
-				<!-- Rule 1: Single anime variant, multiple platforms -->
-				<div
-					class="text-primary-900 dark:text-primary-50 grid grid-cols-[1fr_auto] gap-1 p-2 max-sm:grid-cols-1"
-				>
-					<div>
-						<a
-							href={`/gotgames/anime/${displayBlock.animeId}`}
-							class="dark:text-primary-50 hover:text-accent-400 text-xl font-bold transition-colors duration-150"
-						>
-							<span
-								>{displayBlock.titleEnglish ??
-									displayBlock.titleRomaji ??
-									displayBlock.titleNative}</span
+		{#if entryGroup.type === 'anime'}
+			{#each Object.entries(_.groupBy(entryGroup.entries, 'animeId')) as [animeId, entries]}
+				<div class="flex flex-col gap-1 p-1 min-md:grid min-md:grid-cols-[7fr_3fr]">
+					<div class="text-primary-900 dark:text-primary-50 flex flex-col gap-1">
+						{#each entries as e}
+							<a
+								href={`/gotgames/anime/${animeId}`}
+								class="hover:text-warning text-xl font-bold transition-all duration-150"
 							>
-						</a>
+								{e.titleEnglish || e.titleRomaji || e.titleNative}
+							</a>
+							<span>Episode{e.episodes.length > 1 ? 's' : ''}: {e.episodes.join(', ')}</span>
+						{/each}
 					</div>
-					<div
-						class={['row-span-2 flex justify-end gap-2', 'max-sm:order-2 max-sm:justify-center']}
-					>
-						{#each displayBlock.platforms ?? [] as platform}
+					<div class="flex items-center justify-center gap-1">
+						{#each entries[0].platformIds as platformId}
+							{@const platform = platforms.find((p) => p.platformId === platformId)}
 							<LinkButton
+								href={platform?.url || '#'}
 								variant="warning"
-								target="_blank"
 								shape="rounded"
 								filled
-								href={platform.platformUrl}
-								appendClass="gap-2"
-								fullWidth={maxSmallMq.current}
+								fullWidth
+								appendClass="flex gap-1 justify-center items-center mb-1"
 							>
 								<Link2 />
 								<span class="font-bold">
-									{#if platform.platformUrl.includes('youtube')}
+									{#if platform?.url.includes('youtube')}
 										YouTube
-									{:else if platform.platformUrl.includes('patreon')}
-										Patreon
-									{:else if platform.platformUrl.includes('twitch')}
+									{:else if platform?.url.includes('twitch')}
 										Twitch
+									{:else if platform?.url.includes('patreon')}
+										Patreon
 									{/if}
 								</span>
 							</LinkButton>
 						{/each}
 					</div>
-					<span class={['max-sm: order-1']}>Episodes: {displayBlock.episodes?.join(', ')}</span>
 				</div>
-			{:else if displayBlock.isSinglePlatformShared}
-				<!-- Rule 2 & 3: Single platform, multiple anime/variants -->
+				<!-- <div -->
+				<!-- 	class="text-primary-900 dark:text-primary-50 flex flex-col gap-1 p-1 font-medium min-md:grid min-md:grid-cols-10 min-md:grid-rows-2" -->
+				<!-- > -->
+				<!-- 	<span class="order-1 text-xl font-bold min-md:col-span-7"> -->
+				<!-- 		<a -->
+				<!-- 			href={`/gotgames/anime/${entry.animeId}`} -->
+				<!-- 			class="hover:text-warning transition-all duration-150" -->
+				<!-- 		> -->
+				<!-- 			{entry.titleEnglish ?? entry.titleRomaji ?? entry.titleNative} -->
+				<!-- 		</a> -->
+				<!-- 	</span> -->
+				<!-- 	<span -->
+				<!-- 		class="order-3 flex items-center justify-end gap-1 min-md:order-2 min-md:col-span-3 min-md:row-span-2" -->
+				<!-- 	> -->
+				<!-- 		{#each entry.platformIds as platformId} -->
+				<!-- 			{@const platform = platforms.find((p) => p.platformId === platformId)} -->
+				<!-- 			<LinkButton -->
+				<!-- 				href={platform?.url || '#'} -->
+				<!-- 				variant="warning" -->
+				<!-- 				shape="rounded" -->
+				<!-- 				filled -->
+				<!-- 				fullWidth -->
+				<!-- 				appendClass="flex gap-1 justify-center items-center" -->
+				<!-- 			> -->
+				<!-- 				<Link2 /> -->
+				<!-- 				<span class="font-bold"> -->
+				<!-- 					{#if platform?.url.includes('youtube')} -->
+				<!-- 						YouTube -->
+				<!-- 					{:else if platform?.url.includes('twitch')} -->
+				<!-- 						Twitch -->
+				<!-- 					{:else if platform?.url.includes('patreon')} -->
+				<!-- 						Patreon -->
+				<!-- 					{/if} -->
+				<!-- 				</span> -->
+				<!-- 			</LinkButton> -->
+				<!-- 		{/each} -->
+				<!-- 	</span> -->
+				<!-- 	<span class="order-2 min-md:order-3 min-md:col-span-7"> -->
+				<!-- 		Episode{entry.episodes.length > 1 ? 's' : ''}: {entry.episodes.join(', ')} -->
+				<!-- 	</span> -->
+				<!-- </div> -->
+			{/each}
+		{:else if entryGroup.type === 'misc'}
+			{#each entryGroup.entries as entry}
 				<div
-					class={[
-						'text-primary-900 dark:text-primary-50 grid grid-cols-[1fr_auto] gap-1 p-2',
-						'max-sm:grid-cols-1'
-					]}
+					class="text-primary-900 dark:text-primary-50 flex flex-col gap-1 p-1 font-medium min-md:grid min-md:grid-cols-10 min-md:grid-rows-2"
 				>
-					<div class="flex flex-col gap-1">
-						{#each displayBlock.animeList ?? [] as anime}
-							<div class={['flex flex-col gap-1', 'max-sm:flex-col']}>
-								<a
-									href={`/gotgames/anime/${anime.animeId}`}
-									class="dark:text-primary-50 hover:text-accent-400 text-xl font-bold transition-colors duration-150"
-								>
-									<span>{anime.titleEnglish ?? anime.titleRomaji ?? anime.titleNative}</span>
-								</a>
-								<span>Episodes: {anime.episodes.join(', ')}</span>
-							</div>
-						{/each}
-					</div>
-					<div
-						class={[
-							'flex flex-col justify-center *:h-full',
-							'max-sm:flex-row max-sm:justify-center'
-						]}
+					<span class="order-1 text-xl font-bold min-md:col-span-7">
+						{entry.title}
+					</span>
+					<span
+						class="order-3 row-span-2 flex items-center justify-end gap-1 min-md:order-2 min-md:col-span-3"
 					>
-						<LinkButton
-							variant="warning"
-							target="_blank"
-							shape="rounded"
-							filled
-							href={displayBlock.platformUrl}
-							appendClass="gap-2"
-							fullWidth={maxSmallMq.current}
-						>
-							<Link2 />
-							<span class="font-bold">
-								{#if displayBlock.platformUrl?.includes('youtube')}
-									YouTube
-								{:else if displayBlock.platformUrl?.includes('patreon')}
-									Patreon
-								{:else if displayBlock.platformUrl?.includes('twitch')}
-									Twitch
-								{/if}
-							</span>
-						</LinkButton>
-					</div>
+						{#each entry.platformIds as platformId}
+							{@const platform = platforms.find((p) => p.platformId === platformId)}
+							<LinkButton
+								href={platform?.url || '#'}
+								variant="warning"
+								shape="rounded"
+								filled
+								fullWidth
+								appendClass="flex gap-1 justify-center items-center"
+							>
+								<Link2 />
+								<span class="font-bold">
+									{#if platform?.url.includes('youtube')}
+										YouTube
+									{:else if platform?.url.includes('twitch')}
+										Twitch
+									{:else if platform?.url.includes('patreon')}
+										Patreon
+									{/if}
+								</span>
+							</LinkButton>
+						{/each}
+					</span>
+					<span class="order-2 min-md:order-3 min-md:col-span-7">
+						{entry.description}
+					</span>
 				</div>
-			{/if}
-		{/each}
+			{/each}
+		{/if}
 	</div>
 {/snippet}
 
-{#snippet weekday(weekday: WeekdayScheduleGroup)}
+{#snippet weekday(weekday: GroupedWeekday)}
 	<div class="flex flex-col">
 		<button
 			class="bg-warning text-primary-900 relative flex flex-1 items-center justify-center p-2 text-3xl font-bold"
@@ -320,9 +349,9 @@
 				x.scheduleInfo.week === scheduleDate.week &&
 				x.scheduleInfo.scheduleId > 0
 			);
-		})?.scheduleEntries}
+		})}
 		{#if s}
-			{#each groupByWeekdaysObjects(groupScheduleEntries(s, platforms)) as entries}
+			{#each groupScheduleByWeek(s) as entries}
 				{@render weekday(entries)}
 			{/each}
 		{/if}

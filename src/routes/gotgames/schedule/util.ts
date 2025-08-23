@@ -1,29 +1,33 @@
 import type { Platform } from "$lib/server/db";
 import type {
-  MultiAnimeScheduleGroup,
-  WeekdayScheduleGroup,
+  ScheduleEntry,
+  ScheduleTypeTimedateGroup,
+  MultiAnimeScheduleEntry,
+  WeekdayScheduleGroup
 } from "./types";
-import type {
-  ScheduleEntry
-} from '$lib/hooks';
-import { addDays, format, startOfWeek } from 'date-fns';
-import _ from 'lodash';
+import _ from "lodash";
+import { startOfWeek, addDays, format } from "date-fns";
 
-export function groupScheduleEntries(
+/**
+ * Groups schedule entries (anime and misc) by type, date, and time.
+ * Each group contains only anime OR misc entries (never both).
+ *
+ * @param scheduleEntries - Array of raw schedule entries from the DB (each entry may have 'anime' or 'misc', never both).
+ * @param platforms - Array of platforms.
+ * @returns Array of MultiAnimeScheduleGroup, with discriminated entries.
+ */
+export function groupByTypeDatetime(
   scheduleEntries: ScheduleEntry[],
   platforms: Platform[]
-): MultiAnimeScheduleGroup[] {
-  const platformMap = _.keyBy(platforms, 'platformId');
+): ScheduleTypeTimedateGroup[] {
+  const platformMap = _.keyBy(platforms, "platformId");
 
   // Group by type + date + time
-  const groupMap = new Map<string, MultiAnimeScheduleGroup>();
+  const groupMap = new Map<string, ScheduleTypeTimedateGroup>();
 
   for (const entry of scheduleEntries) {
-    const anime = entry.anime;
     const schedule = entry.scheduleEntry;
-    const key = `${schedule.type}|${schedule.date}|${schedule.time ?? '[NO_TIME]'}`;
-
-    // Lookup platform details
+    const key = `${schedule.type}|${schedule.date}|${schedule.time ?? "[NO_TIME]"}`;
     const platform = schedule.platformId ? platformMap[schedule.platformId] : undefined;
 
     if (!groupMap.has(key)) {
@@ -35,26 +39,51 @@ export function groupScheduleEntries(
       });
     }
 
-    groupMap.get(key)!.entries.push({
-      scheduleEntryId: schedule.scheduleEntryId,
-      animeId: anime.animeId,
-      titleEnglish: anime.titleEnglish,
-      titleNative: anime.titleNative,
-      titleRomaji: anime.titleRomaji,
-      sequence: anime.sequence,
-      episodes: anime.episodes,
-      platformName: platform?.name ?? '',
-      platformUrl: platform?.url ?? '',
-    });
+    // Handle anime entries
+    if (entry.anime) {
+      groupMap.get(key)!.entries.push({
+        type: "anime",
+        scheduleEntryId: schedule.scheduleEntryId,
+        animeId: entry.anime.animeId,
+        sequence: entry.anime.sequence,
+        titleEnglish: entry.anime.titleEnglish,
+        titleNative: entry.anime.titleNative,
+        titleRomaji: entry.anime.titleRomaji,
+        episodes: entry.anime.episodes,
+        watchedAfter: entry.anime.watchedAfter,
+        platformName: platform?.name ?? "",
+        platformUrl: platform?.url ?? "",
+      });
+    }
+
+    // Handle misc entries
+    if (entry.misc) {
+      groupMap.get(key)!.entries.push({
+        type: "misc",
+        scheduleEntryId: schedule.scheduleEntryId,
+        title: entry.misc.title,
+        description: entry.misc.description,
+        platformName: platform?.name ?? "",
+        platformUrl: platform?.url ?? "",
+      });
+    }
+    // If BOTH are null, skip entry
   }
 
   return Array.from(groupMap.values());
 }
 
-export function groupByWeekdaysObjects(groups: MultiAnimeScheduleGroup[]): WeekdayScheduleGroup[] {
-  // Get the Monday of the current week
-  const nearsetDatetime = `${groups.at(0)?.date}T${groups.at(0)?.time ?? '00:00:00'}`;
+/**
+ * Groups MultiAnimeScheduleGroups into weekdays.
+ * Each day's entries can include both anime and misc groups.
+ */
+export function groupByWeekdaysObjects(groups: ScheduleTypeTimedateGroup[]): WeekdayScheduleGroup[] {
+  if (!groups.length) return [];
+
+  // Get the Monday of the current week based on the first group's date+time
+  const nearsetDatetime = `${groups.at(0)?.date}T${groups.at(0)?.time ?? "00:00:00"}`;
   const monday = startOfWeek(new Date(nearsetDatetime), { weekStartsOn: 1 });
+
   // Prepare 7 weekdays
   const weekdays: WeekdayScheduleGroup[] = Array.from({ length: 7 }, (_, index) => ({
     date: format(addDays(monday, index), "yyyy-MM-dd"),
@@ -73,69 +102,75 @@ export function groupByWeekdaysObjects(groups: MultiAnimeScheduleGroup[]): Weekd
   return weekdays;
 }
 
-export function groupEntriesForDisplay(groups: MultiAnimeScheduleGroup[]) {
+export function groupEntriesForDisplay(groups: ScheduleTypeTimedateGroup[]) {
   return groups.flatMap(group =>
     processSingleEntryGroupEntries(group.entries, group.type, group.date, group.time)
   );
 }
 
 /**
- * Processes a group of schedule entries for a single type/datetime slot and organizes them
- * into display blocks according to the following rules:
- *
- * Rule 1: If there are entries with the same animeId, sequence, and episodes but different platforms,
- *         group them into a single display block with a list of platforms.
- *
- * Rule 2: For entries with the same animeId, type, datetime, and platform but different sequences/episodes,
- *         group them under the same platform, listing each anime/sequence/episodes variant.
- *
- * Rule 3: For entries with the same datetime, type, and platform but different animeIds,
- *         group them under the same platform, listing each anime and its episodes.
- *
- * If there is only a single entry for this type/datetime slot, it is treated as Rule 1 for consistent display.
- *
- * @param subEntries - The entries to process for a single type/datetime slot.
- * @param _type - The type of the schedule group (unused, but available for future logic).
- * @param _datetime - The datetime of the schedule group (unused, but available for future logic).
- * @returns An array of display blocks, each representing either a multi-platform anime variant
- *          or a single-platform group with one or more anime/variants.
+ * Processes a group of schedule entries for a single type/datetime slot.
+ * Handles both anime and misc entries.
  */
-function processSingleEntryGroupEntries(
-  subEntries: MultiAnimeScheduleGroup['entries'],
+export function processSingleEntryGroupEntries(
+  subEntries: MultiAnimeScheduleEntry[],
   _type: string,
   _date: string,
   _time: string | null
-): Array<{
-  isMultiPlatformAnimeVariant?: true;
-  animeId?: number;
-  titleEnglish?: string | null;
-  titleNative?: string;
-  titleRomaji?: string | null;
-  sequence?: number;
-  episodes?: number[];
-  platforms?: { platformUrl: string; platformName: string }[];
-
-  isSinglePlatformShared?: true;
-  platformUrl?: string;
-  platformName?: string;
-  animeList?: {
-    animeId: number;
-    titleEnglish: string | null;
-    titleNative: string;
-    titleRomaji: string | null;
-    sequence: number;
-    episodes: number[];
-  }[];
-}> {
+): Array<
+  | {
+    isMultiPlatformAnimeVariant?: true;
+    animeId?: number;
+    titleEnglish?: string | null;
+    titleNative?: string;
+    titleRomaji?: string | null;
+    sequence?: number;
+    episodes?: number[];
+    platforms?: { platformUrl: string; platformName: string }[];
+  }
+  | {
+    isSinglePlatformShared?: true;
+    platformUrl?: string;
+    platformName?: string;
+    animeList?: {
+      animeId: number;
+      titleEnglish: string | null;
+      titleNative: string;
+      titleRomaji: string | null;
+      sequence: number;
+      episodes: number[];
+    }[];
+  }
+  | {
+    isMiscEntry: true;
+    scheduleEntryId: number;
+    title: string;
+    description: string | null;
+    platformName: string;
+    platformUrl: string;
+  }
+> {
   const displayBlocks: ReturnType<typeof processSingleEntryGroupEntries> = [];
 
-  /**
-   * If there is only a single entry for this type/datetime slot,
-   * treat it as a multi-platform anime variant (Rule 1) for display purposes.
-   * This ensures consistent UI structure even for solitary entries.
-   */
-  if (subEntries.length === 1) {
-    const uniqueEntry = subEntries[0];
+  // Separate misc and anime entries
+  const miscEntries = subEntries.filter((e) => e.type === "misc") as Extract<MultiAnimeScheduleEntry, { type: "misc" }>[];
+  const animeEntries = subEntries.filter((e) => e.type === "anime") as Extract<MultiAnimeScheduleEntry, { type: "anime" }>[];
+
+  // Handle misc entries (one block per misc)
+  for (const misc of miscEntries) {
+    displayBlocks.push({
+      isMiscEntry: true,
+      scheduleEntryId: misc.scheduleEntryId,
+      title: misc.title,
+      description: misc.description,
+      platformName: misc.platformName,
+      platformUrl: misc.platformUrl,
+    });
+  }
+
+  // Handle anime entries (existing logic)
+  if (animeEntries.length === 1) {
+    const uniqueEntry = animeEntries[0];
     displayBlocks.push({
       isMultiPlatformAnimeVariant: true,
       animeId: uniqueEntry.animeId,
@@ -150,16 +185,22 @@ function processSingleEntryGroupEntries(
   }
 
   // Step 1: Identify and handle Rule 1 cases (same anime/seq/ep, multiple platforms)
-  const groupedByAnimeVariantIdentity = _.groupBy(subEntries, e => `${e.animeId}|${e.sequence}|${e.episodes.join(',')}`);
-  const entriesForRules2and3Processing: typeof subEntries = [];
+  const groupedByAnimeVariantIdentity = _.groupBy(
+    animeEntries,
+    (e) => `${e.animeId}|${e.sequence}|${e.episodes.join(",")}`
+  );
+  const entriesForRules2and3Processing: typeof animeEntries = [];
 
   for (const key in groupedByAnimeVariantIdentity) {
     const entriesInGroup = groupedByAnimeVariantIdentity[key];
     const firstEntry = entriesInGroup[0];
 
     const uniquePlatforms = _.uniqBy(
-      entriesInGroup.map(e => ({ platformUrl: e.platformUrl, platformName: e.platformName })),
-      'platformUrl'
+      entriesInGroup.map((e) => ({
+        platformUrl: e.platformUrl,
+        platformName: e.platformName,
+      })),
+      "platformUrl"
     );
 
     if (uniquePlatforms.length > 1) {
@@ -181,7 +222,7 @@ function processSingleEntryGroupEntries(
   }
 
   // Step 2: Process remaining entries for Rules 2 & 3 (group by single platform)
-  const groupedByPlatformUrl = _.groupBy(entriesForRules2and3Processing, e => e.platformUrl);
+  const groupedByPlatformUrl = _.groupBy(entriesForRules2and3Processing, (e) => e.platformUrl);
 
   for (const platformUrl in groupedByPlatformUrl) {
     const entriesSharingThisPlatform = groupedByPlatformUrl[platformUrl];
@@ -191,7 +232,7 @@ function processSingleEntryGroupEntries(
 
     // Collect all unique anime/sequence/episode combinations for this platform
     const animeListForThisPlatform = _.map(
-      _.groupBy(entriesSharingThisPlatform, e => `${e.animeId}|${e.sequence}|${e.episodes.join(',')}`),
+      _.groupBy(entriesSharingThisPlatform, (e) => `${e.animeId}|${e.sequence}|${e.episodes.join(",")}`),
       (variantEntries) => {
         const firstVariantEntry = variantEntries[0];
         return {
@@ -212,5 +253,6 @@ function processSingleEntryGroupEntries(
       animeList: animeListForThisPlatform,
     });
   }
+
   return displayBlocks;
 }

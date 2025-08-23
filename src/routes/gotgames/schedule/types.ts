@@ -1,21 +1,37 @@
-export type MultiAnimeScheduleGroup = {
+import type { RawSchedule } from '$lib/hooks';
+
+export type ScheduleEntry = RawSchedule['scheduleEntries'][number];
+
+export type MultiAnimeScheduleEntry =
+  {
+    type: 'anime';
+    scheduleEntryId: number;
+    animeId: number;
+    sequence: number;
+    titleEnglish: string;
+    titleNative: string;
+    titleRomaji: string;
+    episodes: number[];
+    watchedAfter?: Date;
+    platformName: string;
+    platformUrl: string;
+  } | {
+    type: 'misc';
+    scheduleEntryId: number;
+    title: string;
+    description: string | null;
+    platformName: string;
+    platformUrl: string;
+  };
+
+export type ScheduleTypeTimedateGroup = {
   type: string;
   date: string;
   time: string | null;
-  entries: {
-    scheduleEntryId: number;
-    animeId: number;
-    titleEnglish: string | null;
-    titleNative: string;
-    titleRomaji: string | null;
-    sequence: number;
-    episodes: number[];
-    platformName: string;
-    platformUrl: string;
-  }[];
+  entries: MultiAnimeScheduleEntry[];
 };
 
 export type WeekdayScheduleGroup = {
   date: string;
-  entries: MultiAnimeScheduleGroup[];
+  entries: ScheduleTypeTimedateGroup[];
 };

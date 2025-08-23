@@ -10,7 +10,7 @@
 	import { Table } from '$lib/components/table';
 	import { Button, Input, DateInput, TimeInput, Select } from '$lib/components/forms';
 	import { Modal } from '$lib/components/ui';
-	import { X, Pencil, Loader, Clock } from 'lucide-svelte';
+	import { X, Pencil, Loader, Clock, Text } from 'lucide-svelte';
 	import type { ApiErrorResponse } from '$lib/api';
 	import { formatWeekRange } from '$lib/util';
 	import { LucideIcon } from '$lib/components/util';
@@ -29,7 +29,8 @@
 					...rest,
 					platformIds: group.map((r) => r.scheduleEntry.platformId)
 				},
-				anime: group[0].anime
+				anime: group[0].anime,
+				misc: group[0].misc
 			};
 		});
 		return result;
@@ -143,32 +144,47 @@
 
 		// General
 		$updateForm.scheduleEntryId = entry.scheduleEntry.scheduleEntryId;
-		$updateForm.type = entry.scheduleEntry.type;
+
+		// HACK: Type guard for entry, not every entry type is valid for now
+		// This does not break anything as in the database only these two types can be seen
+		const allowed = ['anime', 'misc'] as const;
+		type Allowed = (typeof allowed)[number];
+		$updateForm.type = allowed.includes(entry.scheduleEntry.type as Allowed)
+			? (entry.scheduleEntry.type as Allowed)
+			: 'misc';
 		$updateForm.platformIds = entry.scheduleEntry.platformIds;
 		$updateForm.date = entry.scheduleEntry.date;
 		$updateForm.time = entry.scheduleEntry.time;
 		$updateForm.note = entry.scheduleEntry.note;
 
 		// Anime specific
-		await fetchAnimeEpisodes(entry.anime.animeId);
-		if (entry.scheduleEntry.type === 'anime') {
-			$updateForm.data = {
-				animeId: entry.anime.animeId,
-				watchedAfter:
-					computeDurationStringFromWatchedAfter(
-						entry.scheduleEntry.date,
-						entry.scheduleEntry.time,
-						entry.anime.watchedAfter
-					) || '',
-				animeEpisodeIds: episodes
-					.filter(
-						(e) =>
-							e.animeId === entry.anime.animeId &&
-							e.titleNative === entry.anime.titleNative &&
-							entry.anime.episodes.includes(e.episodeNumber)
-					)
-					.map((e) => e.animeEpisodeId)
-			};
+		switch (entry.scheduleEntry.type) {
+			case 'anime':
+				await fetchAnimeEpisodes(entry.anime!.animeId);
+				$updateForm.data = {
+					animeId: entry.anime!.animeId,
+					watchedAfter:
+						computeDurationStringFromWatchedAfter(
+							entry.scheduleEntry.date,
+							entry.scheduleEntry.time,
+							entry.anime!.watchedAfter
+						) || '',
+					animeEpisodeIds: episodes
+						.filter(
+							(e) =>
+								e.animeId === entry.anime!.animeId &&
+								e.titleNative === entry.anime!.titleNative &&
+								entry.anime!.episodes.includes(e.episodeNumber)
+						)
+						.map((e) => e.animeEpisodeId)
+				};
+				break;
+			case 'misc':
+				$updateForm.data = {
+					title: entry.misc!.title,
+					description: entry.misc!.description
+				};
+				break;
 		}
 	}
 </script>
@@ -216,24 +232,55 @@
 	<Table
 		sortable
 		filterable
-		data={entries.map((e) => {
-			return {
-				scheduleEntryId: e.scheduleEntry.scheduleEntryId,
-				platforms: data.platforms
-					.filter((p) => e.scheduleEntry.platformIds.includes(p.platformId))
-					.map((p) => p.name)
-					.join(', '),
-				date: format(
-					new Date(
-						`${e.scheduleEntry.date}${e.scheduleEntry.time !== null ? 'T' + e.scheduleEntry.time : ''}Z`
+		data={entries
+			.filter((e) => e.scheduleEntry.type === 'anime')
+			.map((e) => {
+				return {
+					scheduleEntryId: e.scheduleEntry.scheduleEntryId,
+					platforms: data.platforms
+						.filter((p) => e.scheduleEntry.platformIds.includes(p.platformId))
+						.map((p) => p.name)
+						.join(', '),
+					date: format(
+						new Date(
+							`${e.scheduleEntry.date}${e.scheduleEntry.time !== null ? 'T' + e.scheduleEntry.time : ''}Z`
+						),
+						`EEEE, yyyy-MM-dd${e.scheduleEntry.time !== null ? ' HH:mm' : ''}`
 					),
-					`EEEE, yyyy-MM-dd${e.scheduleEntry.time !== null ? ' HH:mm' : ''}`
-				),
-				watchedAfter: format(new Date(e.anime.watchedAfter!), 'EEEE, yyyy-MM-dd HH:mm:ss'),
-				anime: e.anime.titleEnglish || e.anime.titleRomaji || e.anime.titleNative,
-				episodes: e.anime.episodes.join(', ')
-			};
-		})}
+					watchedAfter: format(new Date(e.anime!.watchedAfter!), 'EEEE, yyyy-MM-dd HH:mm:ss'),
+					anime: e.anime!.titleEnglish || e.anime!.titleRomaji || e.anime!.titleNative,
+					episodes: e.anime!.episodes.join(', ')
+				};
+			})}
+		columns={[
+			{
+				header: 'Actions',
+				row: row
+			}
+		]}
+	/>
+	<Table
+		sortable
+		filterable
+		data={entries
+			.filter((e) => e.scheduleEntry.type === 'misc')
+			.map((e) => {
+				return {
+					scheduleEntryId: e.scheduleEntry.scheduleEntryId,
+					platforms: data.platforms
+						.filter((p) => e.scheduleEntry.platformIds.includes(p.platformId))
+						.map((p) => p.name)
+						.join(', '),
+					date: format(
+						new Date(
+							`${e.scheduleEntry.date}${e.scheduleEntry.time !== null ? 'T' + e.scheduleEntry.time : ''}Z`
+						),
+						`EEEE, yyyy-MM-dd${e.scheduleEntry.time !== null ? ' HH:mm' : ''}`
+					),
+					title: e.misc!.title,
+					description: e.misc!.description || 'N/A'
+				};
+			})}
 		columns={[
 			{
 				header: 'Actions',
@@ -363,6 +410,28 @@
 				>
 					<LucideIcon icon={Clock} />
 				</Input>
+			{:else if $createForm.type === 'misc'}
+				<div class="grid grid-cols-2 gap-1">
+					<Input
+						type="text"
+						rounded="lg"
+						placeholder="Title"
+						bind:value={() => $createForm.data.title, (v) => ($createForm.data.title = v)}
+					>
+						<LucideIcon icon={Text} />
+					</Input>
+					<Input
+						type="text"
+						rounded="lg"
+						placeholder="Description"
+						bind:value={
+							() => $createForm.data.description || '',
+							(v) => ($createForm.data.description = v === '' ? null : v)
+						}
+					>
+						<LucideIcon icon={Text} />
+					</Input>
+				</div>
 			{/if}
 			<Button
 				shape="rounded"
@@ -390,124 +459,149 @@
 				<h1>Update entry data</h1>
 			{/await}
 		</div>
-		<form method="POST" action="?/update" use:updateEnhance class="flex w-full flex-col gap-1">
-			<input type="hidden" name="year" bind:value={$updateForm.year} />
-			<input type="hidden" name="week" bind:value={$updateForm.week} />
-			<div class="grid w-full grid-cols-2 gap-1">
-				<Select
-					rounded
-					placeholder="Entry type"
-					options={data.scheduleEntryType.map((t) => ({ label: t, value: t }))}
-					disabled
-					bind:selected={
-						() => ({
-							value: $updateForm.type,
-							label: data.scheduleEntryType.find((t) => t === $updateForm.type) || ''
-						}),
-						(v) => ($updateForm.type = v.value)
-					}
-				/>
-				<Select
-					allowMultiple
-					rounded
-					placeholder="Select platforms"
-					options={data.platforms.map((p) => ({ label: p.name, value: p.platformId }))}
-					bind:selected={
-						() =>
-							$updateForm.platformIds.map((pId) => ({
-								value: pId,
-								label:
-									data.platforms.find((p) => p.platformId === pId)?.name || 'An error has occurred'
-							})),
-						(v) => ($updateForm.platformIds = v.map((p) => p.value))
-					}
-				/>
-				<DateInput rounded bind:value={$updateForm.date} />
-				<TimeInput
-					rounded
-					showSecond={false}
-					bind:value={
-						() => $updateForm.time ?? undefined,
-						(v) => (!v ? ($updateForm.time = null) : ($updateForm.time = v))
-					}
-				/>
-				<Input
-					rounded="lg"
-					appendClass="col-span-2"
-					placeholder="Note"
-					type="text"
-					bind:value={
-						() => $updateForm.note ?? '',
-						(v) => (v === '' ? ($updateForm.note = null) : ($updateForm.note = v))
-					}
-				/>
-			</div>
-			{#if $updateForm.type === 'anime'}
+		{#await loading then _}
+			<form method="POST" action="?/update" use:updateEnhance class="flex w-full flex-col gap-1">
+				<input type="hidden" name="year" bind:value={$updateForm.year} />
+				<input type="hidden" name="week" bind:value={$updateForm.week} />
 				<div class="grid w-full grid-cols-2 gap-1">
 					<Select
 						rounded
-						search
-						options={data.anime.map((a) => ({ value: a.animeId, label: getSelectTitleLabel(a) }))}
+						placeholder="Entry type"
+						options={data.scheduleEntryType.map((t) => ({ label: t, value: t }))}
+						disabled
 						bind:selected={
 							() => ({
-								value: $updateForm.data.animeId,
-								label: getSelectTitleLabel(
-									data.anime.find((a) => a.animeId === $updateForm.data.animeId)
-								)
+								value: $updateForm.type,
+								label: data.scheduleEntryType.find((t) => t === $updateForm.type) || ''
 							}),
-							(v) => ($updateForm.data.animeId = v.value)
+							(v) => ($updateForm.type = v.value)
 						}
-						onselect={async () => {
-							await fetchAnimeEpisodes($updateForm.data.animeId);
-						}}
 					/>
 					<Select
-						rounded
-						search
 						allowMultiple
-						disabled={$updateForm.data.animeId <= 0}
-						options={episodes
-							.filter((e) => e.animeId === $updateForm.data.animeId)
-							.map((e) => ({
-								value: e.animeEpisodeId,
-								label: `${e.titleEnglish ?? e.titleRomaji ?? e.titleNative}, Ep: ${e.episodeNumber.toString()}`
-							}))}
+						rounded
+						placeholder="Select platforms"
+						options={data.platforms.map((p) => ({ label: p.name, value: p.platformId }))}
 						bind:selected={
 							() =>
-								$updateForm.data.animeEpisodeIds.map((e) => {
-									const ep = episodes.find((ep) => ep.animeEpisodeId === e);
-									return {
-										value: e,
-										label: `${ep?.titleEnglish || ep?.titleRomaji || ep?.titleNative || 'Error occurred'}, Ep: ${ep?.episodeNumber || 'Error occured'}`
-									};
-								}),
-							(v) => ($updateForm.data.animeEpisodeIds = v.map((e) => e.value))
+								$updateForm.platformIds.map((pId) => ({
+									value: pId,
+									label:
+										data.platforms.find((p) => p.platformId === pId)?.name ||
+										'An error has occurred'
+								})),
+							(v) => ($updateForm.platformIds = v.map((p) => p.value))
+						}
+					/>
+					<DateInput rounded bind:value={$updateForm.date} />
+					<TimeInput
+						rounded
+						showSecond={false}
+						bind:value={
+							() => $updateForm.time ?? undefined,
+							(v) => (!v ? ($updateForm.time = null) : ($updateForm.time = v))
+						}
+					/>
+					<Input
+						rounded="lg"
+						appendClass="col-span-2"
+						placeholder="Note"
+						type="text"
+						bind:value={
+							() => $updateForm.note ?? '',
+							(v) => (v === '' ? ($updateForm.note = null) : ($updateForm.note = v))
 						}
 					/>
 				</div>
-				<Input
-					rounded="lg"
-					appendClass="col-span-2"
-					placeholder="Watch delay"
-					type="text"
-					bind:value={$updateForm.data.watchedAfter}
+				{#if $updateForm.type === 'anime'}
+					<div class="grid w-full grid-cols-2 gap-1">
+						<Select
+							rounded
+							search
+							options={data.anime.map((a) => ({ value: a.animeId, label: getSelectTitleLabel(a) }))}
+							bind:selected={
+								() => ({
+									value: $updateForm.data.animeId,
+									label: getSelectTitleLabel(
+										data.anime.find((a) => a.animeId === $updateForm.data.animeId)
+									)
+								}),
+								(v) => ($updateForm.data.animeId = v.value)
+							}
+							onselect={async () => {
+								await fetchAnimeEpisodes($updateForm.data.animeId);
+							}}
+						/>
+						<Select
+							rounded
+							search
+							allowMultiple
+							disabled={$updateForm.data.animeId <= 0}
+							options={episodes
+								.filter((e) => e.animeId === $updateForm.data.animeId)
+								.map((e) => ({
+									value: e.animeEpisodeId,
+									label: `${e.titleEnglish ?? e.titleRomaji ?? e.titleNative}, Ep: ${e.episodeNumber.toString()}`
+								}))}
+							bind:selected={
+								() =>
+									$updateForm.data.animeEpisodeIds.map((e) => {
+										const ep = episodes.find((ep) => ep.animeEpisodeId === e);
+										return {
+											value: e,
+											label: `${ep?.titleEnglish || ep?.titleRomaji || ep?.titleNative || 'Error occurred'}, Ep: ${ep?.episodeNumber || 'Error occured'}`
+										};
+									}),
+								(v) => ($updateForm.data.animeEpisodeIds = v.map((e) => e.value))
+							}
+						/>
+					</div>
+					<Input
+						rounded="lg"
+						appendClass="col-span-2"
+						placeholder="Watch delay"
+						type="text"
+						bind:value={$updateForm.data.watchedAfter}
+					>
+						<LucideIcon icon={Clock} />
+					</Input>
+				{:else if $updateForm.type === 'misc'}
+					<div class="grid grid-cols-2 gap-1">
+						<Input
+							type="text"
+							rounded="lg"
+							placeholder="Title"
+							bind:value={() => $updateForm.data.title, (v) => ($updateForm.data.title = v)}
+						>
+							<LucideIcon icon={Text} />
+						</Input>
+						<Input
+							type="text"
+							rounded="lg"
+							placeholder="Description"
+							bind:value={
+								() => $updateForm.data.description || '',
+								(v) => ($updateForm.data.description = v === '' ? null : v)
+							}
+						>
+							<LucideIcon icon={Text} />
+						</Input>
+					</div>
+				{/if}
+				<Button
+					variant="warning"
+					filled
+					fullWidth
+					shape="rounded"
+					onclick={() => {
+						$updateForm.year = data.schedule.scheduleInfo.year;
+						$updateForm.week = data.schedule.scheduleInfo.week;
+						updateSubmit();
+					}}
 				>
-					<LucideIcon icon={Clock} />
-				</Input>
-			{/if}
-			<Button
-				variant="warning"
-				filled
-				fullWidth
-				shape="rounded"
-				onclick={() => {
-					$updateForm.year = data.schedule.scheduleInfo.year;
-					$updateForm.week = data.schedule.scheduleInfo.week;
-					updateSubmit();
-				}}
-			>
-				<span class="font-bold">Submit</span>
-			</Button>
-		</form>
+					<span class="font-bold">Submit</span>
+				</Button>
+			</form>
+		{/await}
 	</Modal>
 </div>

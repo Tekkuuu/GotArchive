@@ -160,6 +160,17 @@ export const services = {
     ),
     'scheduleAnimeDetailService'
   ),
+  scheduleMiscDetail: withErrorOrigin(
+    createService(
+      schema.scheduleMiscDetail,
+      'schedule_misc_detail',
+      idConfig(
+        z.object({ scheduleMiscDetailId: z.number().int().positive() }),
+        { scheduleMiscDetailId: schema.scheduleMiscDetail.scheduleMiscDetailId }
+      )
+    ),
+    'scheduleMiscDetailService'
+  ),
   scheduleAnimeEpisode: withErrorOrigin(
     createService(
       schema.scheduleAnimeEpisode,

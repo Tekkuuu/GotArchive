@@ -89,113 +89,129 @@ export const actions: Actions = {
         }
 
         // --- ANIME TYPE LOGIC ---
-        if (form.data.type === 'anime') {
-          // Get original anime schedule detail (for scheduleAnimeDetailId)
-          const originalScheduleAnimeDetail = await services.scheduleAnimeDetail.select(
-            tx,
-            eq(schema.scheduleAnimeDetail.scheduleEntryId, form.data.scheduleEntryId)
-          );
-
-          if (originalScheduleAnimeDetail.length !== 1) {
-            throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
-          }
-
-          // Update watchedAfter if changed
-          const watchedAfter = computeWatchedAfterDate(form.data.date, form.data.time, form.data.data.watchedAfter);
-          if (!watchedAfter) {
-            throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED);
-          }
-          if (watchedAfter && watchedAfter !== originalScheduleAnimeDetail[0].watchedAfter) {
-            await services.scheduleAnimeDetail.update(
+        switch (form.data.type) {
+          case 'anime':
+            // Get original anime schedule detail (for scheduleAnimeDetailId)
+            const originalScheduleAnimeDetail = await services.scheduleAnimeDetail.select(
               tx,
-              { watchedAfter },
-              { scheduleAnimeDetailId: originalScheduleAnimeDetail[0].scheduleAnimeDetailId }
-            );
-          }
-
-          // Get original schedule anime episodes (for animeEpisodeId)
-          const originalScheduleAnimeEpisodes = await services.scheduleAnimeEpisode.select(
-            tx,
-            eq(schema.scheduleAnimeEpisode.scheduleAnimeDetailId, originalScheduleAnimeDetail[0].scheduleAnimeDetailId)
-          );
-
-          // Get actual animeEpisode row matching animeEpisodeIds from schjeduleAnimeEpisodes
-          const originalEpisodes = await services.animeEpisode.select(
-            tx,
-            inArray(schema.animeEpisode.animeEpisodeId, originalScheduleAnimeEpisodes.map(ep => ep.animeEpisodeId))
-          );
-
-          if (originalEpisodes.length === 0) {
-            throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
-          } else if (!_.every(originalEpisodes, ['animeId', originalEpisodes[0].animeId])) {
-            throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
-          }
-
-          if (originalEpisodes[0].animeId !== form.data.data.animeId) {
-            // Anime was changed: verify and update
-            const newAnimeEpisodes = await services.animeEpisode.select(
-              tx,
-              inArray(schema.animeEpisode.animeEpisodeId, form.data.data.animeEpisodeIds)
+              eq(schema.scheduleAnimeDetail.scheduleEntryId, form.data.scheduleEntryId)
             );
 
-            if (newAnimeEpisodes.length !== form.data.data.animeEpisodeIds.length) {
+            if (originalScheduleAnimeDetail.length !== 1) {
               throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
             }
 
-            if (!_.every(newAnimeEpisodes, ['animeId', form.data.data.animeId])) {
-              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
+            // Update watchedAfter if changed
+            const watchedAfter = computeWatchedAfterDate(form.data.date, form.data.time, form.data.data.watchedAfter);
+            if (!watchedAfter) {
+              throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED);
             }
-
-            // Remove all old, insert all new
-            await services.scheduleAnimeEpisode.delete(
-              tx,
-              originalScheduleAnimeEpisodes
-            );
-
-            await services.scheduleAnimeEpisode.insert(
-              tx,
-              newAnimeEpisodes.map(addedEpi => ({
-                animeEpisodeId: addedEpi.animeEpisodeId,
-                scheduleAnimeDetailId: originalScheduleAnimeDetail[0].scheduleAnimeDetailId
-              }))
-            );
-          } else {
-            // Anime not changed: diff and update
-            const originalIds = originalEpisodes.map(ep => ep.animeEpisodeId);
-            const newIds = form.data.data.animeEpisodeIds;
-            const deleted = _.difference(originalIds, newIds);
-            const added = _.difference(newIds, originalIds);
-
-            if (deleted.length > 0) {
-              await services.scheduleAnimeEpisode.delete(
+            if (watchedAfter && watchedAfter !== originalScheduleAnimeDetail[0].watchedAfter) {
+              await services.scheduleAnimeDetail.update(
                 tx,
-                deleted.map(deleteEpId => ({
-                  animeEpisodeId: deleteEpId,
-                  scheduleAnimeDetailId: originalScheduleAnimeDetail[0].scheduleAnimeDetailId
-                }))
+                { watchedAfter },
+                { scheduleAnimeDetailId: originalScheduleAnimeDetail[0].scheduleAnimeDetailId }
               );
             }
 
-            if (added.length > 0) {
-              await services.scheduleAnimeEpisode.insert(
-                tx,
-                added.map(addedEpiId => ({
-                  animeEpisodeId: addedEpiId,
-                  scheduleAnimeDetailId: originalScheduleAnimeDetail[0].scheduleAnimeDetailId
-                }))
-              );
-            }
-
-            // If after delete/add the entry has no episodes, return fail
-            const newState = await services.scheduleAnimeEpisode.select(
+            // Get original schedule anime episodes (for animeEpisodeId)
+            const originalScheduleAnimeEpisodes = await services.scheduleAnimeEpisode.select(
               tx,
               eq(schema.scheduleAnimeEpisode.scheduleAnimeDetailId, originalScheduleAnimeDetail[0].scheduleAnimeDetailId)
             );
 
-            if (newState.length === 0) {
+            // Get actual animeEpisode row matching animeEpisodeIds from schjeduleAnimeEpisodes
+            const originalEpisodes = await services.animeEpisode.select(
+              tx,
+              inArray(schema.animeEpisode.animeEpisodeId, originalScheduleAnimeEpisodes.map(ep => ep.animeEpisodeId))
+            );
+
+            if (originalEpisodes.length === 0) {
+              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
+            } else if (!_.every(originalEpisodes, ['animeId', originalEpisodes[0].animeId])) {
               throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
             }
-          }
+
+            if (originalEpisodes[0].animeId !== form.data.data.animeId) {
+              // Anime was changed: verify and update
+              const newAnimeEpisodes = await services.animeEpisode.select(
+                tx,
+                inArray(schema.animeEpisode.animeEpisodeId, form.data.data.animeEpisodeIds)
+              );
+
+              if (newAnimeEpisodes.length !== form.data.data.animeEpisodeIds.length) {
+                throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
+              }
+
+              if (!_.every(newAnimeEpisodes, ['animeId', form.data.data.animeId])) {
+                throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
+              }
+
+              // Remove all old, insert all new
+              await services.scheduleAnimeEpisode.delete(
+                tx,
+                originalScheduleAnimeEpisodes
+              );
+
+              await services.scheduleAnimeEpisode.insert(
+                tx,
+                newAnimeEpisodes.map(addedEpi => ({
+                  animeEpisodeId: addedEpi.animeEpisodeId,
+                  scheduleAnimeDetailId: originalScheduleAnimeDetail[0].scheduleAnimeDetailId
+                }))
+              );
+            } else {
+              // Anime not changed: diff and update
+              const originalIds = originalEpisodes.map(ep => ep.animeEpisodeId);
+              const newIds = form.data.data.animeEpisodeIds;
+              const deleted = _.difference(originalIds, newIds);
+              const added = _.difference(newIds, originalIds);
+
+              if (deleted.length > 0) {
+                await services.scheduleAnimeEpisode.delete(
+                  tx,
+                  deleted.map(deleteEpId => ({
+                    animeEpisodeId: deleteEpId,
+                    scheduleAnimeDetailId: originalScheduleAnimeDetail[0].scheduleAnimeDetailId
+                  }))
+                );
+              }
+
+              if (added.length > 0) {
+                await services.scheduleAnimeEpisode.insert(
+                  tx,
+                  added.map(addedEpiId => ({
+                    animeEpisodeId: addedEpiId,
+                    scheduleAnimeDetailId: originalScheduleAnimeDetail[0].scheduleAnimeDetailId
+                  }))
+                );
+              }
+
+              // If after delete/add the entry has no episodes, return fail
+              const newState = await services.scheduleAnimeEpisode.select(
+                tx,
+                eq(schema.scheduleAnimeEpisode.scheduleAnimeDetailId, originalScheduleAnimeDetail[0].scheduleAnimeDetailId)
+              );
+
+              if (newState.length === 0) {
+                throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
+              }
+            }
+            break;
+          case 'misc':
+            let smdid = await services.scheduleMiscDetail.select(tx, eq(schema.scheduleMiscDetail.scheduleEntryId, form.data.scheduleEntryId));
+            if (smdid.length !== 1) {
+              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'update-schedule-entry' })
+            }
+            await services.scheduleMiscDetail.update(
+              tx,
+              {
+                title: form.data.data.title,
+                description: form.data.data.description
+              },
+              { scheduleMiscDetailId: smdid[0].scheduleMiscDetailId }
+            );
+            break;
         }
       });
 
@@ -250,44 +266,56 @@ export const actions: Actions = {
         }
 
         // 3. If type is anime, insert detail and episode info
-        if (form.data.type === 'anime') {
-          const watchedAfter = computeWatchedAfterDate(
-            form.data.date,
-            form.data.time,
-            form.data.data.watchedAfter
-          );
+        switch (form.data.type) {
+          case 'anime':
+            const watchedAfter = computeWatchedAfterDate(
+              form.data.date,
+              form.data.time,
+              form.data.data.watchedAfter
+            );
 
-          if (!watchedAfter) {
-            throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED, { form: 'create-schedule-entry' });
-          }
+            if (!watchedAfter) {
+              throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED, { form: 'create-schedule-entry' });
+            }
 
-          // Insert anime detail
-          const [animeDetailInserted] = await services.scheduleAnimeDetail.insert(tx, [{
-            scheduleEntryId: scheduleEntryInserted.scheduleEntryId,
-            watchedAfter
-          }]);
+            // Insert anime detail
+            const [animeDetailInserted] = await services.scheduleAnimeDetail.insert(tx, [{
+              scheduleEntryId: scheduleEntryInserted.scheduleEntryId,
+              watchedAfter
+            }]);
 
-          if (!animeDetailInserted) {
-            throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'create-schedule-entry' });
-          }
+            if (!animeDetailInserted) {
+              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'create-schedule-entry' });
+            }
 
-          // Validate all episode IDs exist
-          const animeEpisodes = await services.animeEpisode.select(
-            tx,
-            inArray(schema.animeEpisode.animeEpisodeId, form.data.data.animeEpisodeIds)
-          );
-          if (animeEpisodes.length !== form.data.data.animeEpisodeIds.length) {
-            throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'create-schedule-entry' });
-          }
+            // Validate all episode IDs exist
+            const animeEpisodes = await services.animeEpisode.select(
+              tx,
+              inArray(schema.animeEpisode.animeEpisodeId, form.data.data.animeEpisodeIds)
+            );
+            if (animeEpisodes.length !== form.data.data.animeEpisodeIds.length) {
+              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'create-schedule-entry' });
+            }
 
-          // Insert anime episodes join rows
-          const animeEpisodeRows = animeEpisodes.map(ep => ({
-            animeEpisodeId: ep.animeEpisodeId,
-            scheduleAnimeDetailId: animeDetailInserted.scheduleAnimeDetailId
-          }));
-          if (animeEpisodeRows.length > 0) {
-            await services.scheduleAnimeEpisode.insert(tx, animeEpisodeRows);
-          }
+            // Insert anime episodes join rows
+            const animeEpisodeRows = animeEpisodes.map(ep => ({
+              animeEpisodeId: ep.animeEpisodeId,
+              scheduleAnimeDetailId: animeDetailInserted.scheduleAnimeDetailId
+            }));
+            if (animeEpisodeRows.length > 0) {
+              await services.scheduleAnimeEpisode.insert(tx, animeEpisodeRows);
+            }
+            break;
+          case 'misc':
+            await services.scheduleMiscDetail.insert(
+              tx,
+              {
+                scheduleEntryId: scheduleEntryInserted.scheduleEntryId,
+                title: form.data.data.title,
+                description: form.data.data.description
+              }
+            );
+            break;
         }
       });
 

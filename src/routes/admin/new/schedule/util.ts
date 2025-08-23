@@ -14,14 +14,28 @@ export const scheduleAnimeDetail = z.object({
   watchedAfter: z.string()
 });
 
+export const scheduleMiscDetail = z.object({
+  title: z.string(),
+  description: z.string().nullable(),
+})
+
+const baseScheduleEntry = {
+  date: z.iso.date(),
+  time: z.iso.time().nullable(),
+  platformIds: z.array(z.number().int().positive()),
+  note: z.string().nullable(),
+};
+
 export const scheduleEntry = z.discriminatedUnion("type", [
   z.object({
-    type: z.enum(['anime', 'hololive', 'game', 'event', 'sponsored']),
-    date: z.iso.date(),
-    time: z.iso.time().nullable(),
-    platformIds: z.array(z.number().int().positive()),
-    note: z.string().nullable(),
+    type: z.literal('anime'),
+    ...baseScheduleEntry,
     data: scheduleAnimeDetail,
+  }),
+  z.object({
+    type: z.literal('misc'),
+    ...baseScheduleEntry,
+    data: scheduleMiscDetail,
   })
 ]);
 

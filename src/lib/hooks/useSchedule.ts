@@ -69,6 +69,11 @@ export async function useSchedule(
     watchedAfter?: typeof schema.scheduleAnimeDetail.watchedAfter;
   };
 
+  type MiscSelect = {
+    title: typeof schema.scheduleMiscDetail.title;
+    description: typeof schema.scheduleMiscDetail.description;
+  };
+
   let animeSelect: AnimeSelect = {
     animeId: schema.animeSeason.animeId,
     sequence: schema.animeSeason.sequence,
@@ -76,6 +81,11 @@ export async function useSchedule(
     titleNative: schema.animeSeason.titleNative,
     titleRomaji: schema.animeSeason.titleRomaji,
     episodes: sql<Array<number>>`ARRAY_AGG(${schema.animeEpisode.episodeNumber} ORDER BY ${schema.animeEpisode.episodeNumber})`,
+  };
+
+  let miscSelect: MiscSelect = {
+    title: schema.scheduleMiscDetail.title,
+    description: schema.scheduleMiscDetail.description,
   };
 
   if (options?.watchedAfter) {
@@ -105,6 +115,7 @@ export async function useSchedule(
         platformId: schema.scheduleEntryPlatform.platformId,
       },
       anime: animeSelect,
+      misc: miscSelect,
     })
     .from(schema.scheduleEntry)
     .innerJoin(schema.scheduleEntryPlatform, eq(schema.scheduleEntryPlatform.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
@@ -112,6 +123,7 @@ export async function useSchedule(
     .leftJoin(schema.scheduleAnimeEpisode, eq(schema.scheduleAnimeEpisode.scheduleAnimeDetailId, schema.scheduleAnimeDetail.scheduleAnimeDetailId))
     .leftJoin(schema.animeEpisode, eq(schema.animeEpisode.animeEpisodeId, schema.scheduleAnimeEpisode.animeEpisodeId))
     .leftJoin(schema.animeSeason, and(eq(schema.animeSeason.animeId, schema.animeEpisode.animeId), eq(schema.animeSeason.sequence, schema.animeEpisode.sequence)))
+    .leftJoin(schema.scheduleMiscDetail, eq(schema.scheduleMiscDetail.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
     .where(eq(schema.scheduleEntry.scheduleId, scheduleInfo.scheduleId))
     .groupBy(
       schema.scheduleEntry.scheduleEntryId,
@@ -125,6 +137,8 @@ export async function useSchedule(
       schema.animeSeason.titleEnglish,
       schema.animeSeason.titleNative,
       schema.animeSeason.titleRomaji,
+      schema.scheduleMiscDetail.title,
+      schema.scheduleMiscDetail.description
     )
     .orderBy(schema.scheduleEntry.date, schema.scheduleEntry.time, schema.animeSeason.animeId, schema.animeSeason.sequence)
 

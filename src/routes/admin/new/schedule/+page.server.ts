@@ -84,24 +84,39 @@ export const actions: Actions = {
           await services.scheduleEntryPlatform.insert(tx, scheduleEntryPlatformData);
         }
 
-        // 8. Handle anime-specific details and episodes
+        // 8. Handle specific details
         const scheduleAnimeDetailData: Array<typeof schema.scheduleAnimeDetail.$inferInsert> = [];
+        const scheduleMiscDetailData: Array<typeof schema.scheduleMiscDetail.$inferInsert> = [];
         for (const entry of sortedEntries) {
-          if (entry.type === 'anime') {
-            const watchedAfter = computeWatchedAfterDate(entry.date, entry.time, entry.data.watchedAfter);
-            if (!watchedAfter) throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED, { form: 'new-schedule' });
-            const scheduleEntry = entryKeyToInsertedRow.get(uniqueKey(entry));
-            if (!scheduleEntry) {
-              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
-            }
-            scheduleAnimeDetailData.push({
-              scheduleEntryId: scheduleEntry.scheduleEntryId,
-              watchedAfter,
-            });
+          const scheduleEntry = entryKeyToInsertedRow.get(uniqueKey(entry));
+          if (!scheduleEntry) {
+            throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
+          }
+
+          switch (entry.type) {
+            case 'anime':
+              const watchedAfter = computeWatchedAfterDate(entry.date, entry.time, entry.data.watchedAfter);
+              if (!watchedAfter) throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED, { form: 'new-schedule' });
+              scheduleAnimeDetailData.push({
+                scheduleEntryId: scheduleEntry.scheduleEntryId,
+                watchedAfter,
+              });
+              break;
+            case 'misc':
+              scheduleMiscDetailData.push({
+                scheduleEntryId: scheduleEntry.scheduleEntryId,
+                ...entry.data,
+              })
+              break;
           }
         }
+
         const scheduleAnimeDetailInsertedRows = scheduleAnimeDetailData.length > 0
           ? await services.scheduleAnimeDetail.insert(tx, scheduleAnimeDetailData)
+          : [];
+
+        const scheduleMiscDetailInsertedRows = scheduleMiscDetailData.length > 0
+          ? await services.scheduleMiscDetail.insert(tx, scheduleMiscDetailData)
           : [];
 
         // 9. Map scheduleEntryId -> animeDetail for episode association
@@ -112,21 +127,23 @@ export const actions: Actions = {
         // 10. Insert anime episodes
         const scheduleAnimeEpisodeData: Array<typeof schema.scheduleAnimeEpisode.$inferInsert> = [];
         for (const entry of sortedEntries) {
-          if (entry.type === 'anime') {
-            const scheduleEntry = entryKeyToInsertedRow.get(uniqueKey(entry));
-            if (!scheduleEntry) {
-              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
-            }
-            const animeDetail = entryIdToAnimeDetail.get(scheduleEntry.scheduleEntryId);
-            if (!animeDetail) {
-              throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
-            }
-            for (const ep of entry.data.animeEpisodeIds) {
-              scheduleAnimeEpisodeData.push({
-                scheduleAnimeDetailId: animeDetail.scheduleAnimeDetailId,
-                animeEpisodeId: ep,
-              });
-            }
+          switch (entry.type) {
+            case 'anime':
+              const scheduleEntry = entryKeyToInsertedRow.get(uniqueKey(entry));
+              if (!scheduleEntry) {
+                throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
+              }
+              const animeDetail = entryIdToAnimeDetail.get(scheduleEntry.scheduleEntryId);
+              if (!animeDetail) {
+                throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-schedule' });
+              }
+              for (const ep of entry.data.animeEpisodeIds) {
+                scheduleAnimeEpisodeData.push({
+                  scheduleAnimeDetailId: animeDetail.scheduleAnimeDetailId,
+                  animeEpisodeId: ep,
+                });
+              }
+              break;
           }
         }
         if (scheduleAnimeEpisodeData.length > 0) {

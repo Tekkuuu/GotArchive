@@ -12,7 +12,7 @@ export type WatchingWeek = Awaited<ReturnType<typeof useWatchingWeek>>;
 
 export type ScheduleEntry = {
   scheduleEntry: Omit<DB.ScheduleEntry, 'scheduleId'> & { platformId: number };
-  anime: {
+  anime?: {
     animeId: number;
     sequence: number;
     titleEnglish: string;
@@ -20,5 +20,9 @@ export type ScheduleEntry = {
     titleRomaji: string;
     episodes: number[];
     watchedAfter?: Date;
-  };
+  } | null;
+  misc?: {
+    title: string;
+    description: string | null;
+  } | null;
 };

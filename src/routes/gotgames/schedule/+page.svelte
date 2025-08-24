@@ -59,7 +59,7 @@
 			return;
 		}
 
-		let response = await fetch(`/api/schedule/${datecode}`);
+		let response = await fetch(`/api/schedule/${datecode}?preview=false`);
 		if (response.ok) {
 			const data: Schedule = await response.json();
 

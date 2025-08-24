@@ -5,7 +5,8 @@ import { getISOWeek } from 'date-fns';
 export const schedule = z.object({
   note: z.string().nullable(),
   year: z.number().int().min(1900),
-  week: z.number().int().min(1).max(53)
+  week: z.number().int().min(1).max(53),
+  preview: z.boolean().default(false)
 });
 
 export const scheduleAnimeDetail = z.object({

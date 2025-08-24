@@ -6,7 +6,15 @@
 	import * as z from 'zod/v4';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { toast } from '$lib/components/ui/toaster';
-	import { Input, Label, Button, Select, TimeInput, DateInput } from '$lib/components/forms';
+	import {
+		Input,
+		Label,
+		Button,
+		Select,
+		TimeInput,
+		DateInput,
+		Checkbox
+	} from '$lib/components/forms';
 	import { Clock, Minus, Plus, Text } from 'lucide-svelte';
 	import { addDays, addWeeks, getWeek, getYear, startOfISOWeek, format } from 'date-fns';
 	import { formatWeekRange } from '$lib/util/';
@@ -338,15 +346,19 @@
 				<Minus />
 			</Button>
 		</div>
-		<Button
-			type="submit"
-			variant="submit"
-			shape="rounded"
-			filled
-			fullWidth
-			appendClass="col-span-3"
-		>
-			<span class="font-bold">Submit</span>
-		</Button>
+		<div class="flex gap-1">
+			<Button
+				type="submit"
+				variant="submit"
+				shape="rounded"
+				filled
+				fullWidth
+				appendClass="col-span-3"
+			>
+				<span class="font-bold">Submit</span>
+			</Button>
+			<Label labelFor="schedule-preview" shape="rounded" appendClass="px-2">Preview</Label>
+			<Checkbox bind:value={$form.schedule.preview} shape="rounded" />
+		</div>
 	</form>
 </div>

@@ -117,23 +117,14 @@
 </svelte:head>
 
 {#snippet card(entryGroup: GroupedAnimeEntryGroup | GroupedMiscEntryGroup)}
-	<div class="flex flex-col rounded-lg">
-		<div
-			class="
-        bg-primary-300 dark:bg-primary-800
-        text-primary-900 dark:text-primary-50
-        border-accent-400
-        border p-2 text-center
-        text-xl font-bold
-      "
-		>
+	<div class="flex flex-col">
+		<div class="divider my-2! text-lg font-bold">
 			{#if entryGroup.time}
-				{_.capitalize(entryGroup.type)} —
-				{formatInTimeZone(new Date(`${entryGroup.date}T${entryGroup.time}Z`), 'UTC', 'HH:mm')} UTC (
+				{_.startCase(entryGroup.type)}
 				{formatInTimeZone(
 					new Date(`${entryGroup.date}T${entryGroup.time}Z`),
 					Intl.DateTimeFormat().resolvedOptions().timeZone,
-					'HH:mm zzz',
+					'(HH:mm zzz)',
 					{ locale: enGB }
 				)}
 				{#if formatInTimeZone(new Date(`${entryGroup.date}T${entryGroup.time}Z`), 'UTC', 'yyyy-MM-dd') !== formatInTimeZone(new Date(`${entryGroup.date}T${entryGroup.time}Z`), Intl.DateTimeFormat().resolvedOptions().timeZone, 'yyyy-MM-dd')}
@@ -144,36 +135,30 @@
 						{ locale: enGB }
 					)}
 				{/if}
-				)
 			{:else}
-				{_.capitalize(entryGroup.type)} ( Time TBA )
+				{_.capitalize(entryGroup.type)} (Time TBA)
 			{/if}
 		</div>
 		{#if entryGroup.type === 'anime'}
 			{#each Object.entries(_.groupBy(entryGroup.entries, 'animeId')) as [animeId, entries]}
-				<div class="flex flex-col gap-1 p-1 min-md:grid min-md:grid-cols-[7fr_3fr]">
-					<div class="text-primary-900 dark:text-primary-50 flex flex-col gap-1">
+				<div class="flex flex-col gap-1 p-1 lg:flex-row">
+					<div class="flex flex-col justify-center gap-2 text-xl font-bold">
 						{#each entries as e}
-							<a
-								href={`/gotgames/anime/${animeId}`}
-								class="hover:text-warning text-xl font-bold transition-all duration-150"
-							>
-								{e.titleEnglish || e.titleRomaji || e.titleNative}
-							</a>
-							<span>Episode{e.episodes.length > 1 ? 's' : ''}: {e.episodes.join(', ')}</span>
+							<div class="max-lg:mb-1 max-lg:flex max-lg:flex-col">
+								<a href={`/gotgames/anime/${animeId}`} class="link link-hover">
+									{e.titleEnglish || e.titleRomaji || e.titleNative}
+								</a>
+								<span class="text-base-content/50">
+									<span class="lg:hidden">Episodes: </span>
+									({e.episodes.join(', ')})
+								</span>
+							</div>
 						{/each}
 					</div>
-					<div class="flex items-center justify-center gap-1">
-						{#each entries[0].platformIds as platformId}
+					<div class="flex items-center justify-center gap-1 lg:ml-auto lg:flex-row">
+						{#each _.sortBy(entries[0].platformIds) as platformId}
 							{@const platform = platforms.find((p) => p.platformId === platformId)}
-							<LinkButton
-								href={platform?.url || '#'}
-								variant="warning"
-								shape="rounded"
-								filled
-								fullWidth
-								appendClass="flex gap-1 justify-center items-center mb-1"
-							>
+							<a href={platform?.url || '#'} class="btn btn-primary w-40" target="_blank">
 								<Link2 />
 								<span class="font-bold">
 									{#if platform?.url.includes('youtube')}
@@ -184,73 +169,22 @@
 										Patreon
 									{/if}
 								</span>
-							</LinkButton>
+							</a>
 						{/each}
 					</div>
 				</div>
-				<!-- <div -->
-				<!-- 	class="text-primary-900 dark:text-primary-50 flex flex-col gap-1 p-1 font-medium min-md:grid min-md:grid-cols-10 min-md:grid-rows-2" -->
-				<!-- > -->
-				<!-- 	<span class="order-1 text-xl font-bold min-md:col-span-7"> -->
-				<!-- 		<a -->
-				<!-- 			href={`/gotgames/anime/${entry.animeId}`} -->
-				<!-- 			class="hover:text-warning transition-all duration-150" -->
-				<!-- 		> -->
-				<!-- 			{entry.titleEnglish ?? entry.titleRomaji ?? entry.titleNative} -->
-				<!-- 		</a> -->
-				<!-- 	</span> -->
-				<!-- 	<span -->
-				<!-- 		class="order-3 flex items-center justify-end gap-1 min-md:order-2 min-md:col-span-3 min-md:row-span-2" -->
-				<!-- 	> -->
-				<!-- 		{#each entry.platformIds as platformId} -->
-				<!-- 			{@const platform = platforms.find((p) => p.platformId === platformId)} -->
-				<!-- 			<LinkButton -->
-				<!-- 				href={platform?.url || '#'} -->
-				<!-- 				variant="warning" -->
-				<!-- 				shape="rounded" -->
-				<!-- 				filled -->
-				<!-- 				fullWidth -->
-				<!-- 				appendClass="flex gap-1 justify-center items-center" -->
-				<!-- 			> -->
-				<!-- 				<Link2 /> -->
-				<!-- 				<span class="font-bold"> -->
-				<!-- 					{#if platform?.url.includes('youtube')} -->
-				<!-- 						YouTube -->
-				<!-- 					{:else if platform?.url.includes('twitch')} -->
-				<!-- 						Twitch -->
-				<!-- 					{:else if platform?.url.includes('patreon')} -->
-				<!-- 						Patreon -->
-				<!-- 					{/if} -->
-				<!-- 				</span> -->
-				<!-- 			</LinkButton> -->
-				<!-- 		{/each} -->
-				<!-- 	</span> -->
-				<!-- 	<span class="order-2 min-md:order-3 min-md:col-span-7"> -->
-				<!-- 		Episode{entry.episodes.length > 1 ? 's' : ''}: {entry.episodes.join(', ')} -->
-				<!-- 	</span> -->
-				<!-- </div> -->
 			{/each}
 		{:else if entryGroup.type === 'misc'}
 			{#each entryGroup.entries as entry}
-				<div
-					class="text-primary-900 dark:text-primary-50 flex flex-col gap-1 p-1 font-medium min-md:grid min-md:grid-cols-10 min-md:grid-rows-2"
-				>
-					<span class="order-1 text-xl font-bold min-md:col-span-7">
+				<div class="flex flex-col gap-1 lg:flex-row">
+					<div class="text-xl font-bold max-lg:mb-1 max-lg:flex max-lg:flex-col">
 						{entry.title}
-					</span>
-					<span
-						class="order-3 row-span-2 flex items-center justify-end gap-1 min-md:order-2 min-md:col-span-3"
-					>
+						<span class="text-base-content/50">({entry.description})</span>
+					</div>
+					<div class="flex items-center justify-center gap-1 lg:ml-auto lg:flex-row">
 						{#each entry.platformIds as platformId}
 							{@const platform = platforms.find((p) => p.platformId === platformId)}
-							<LinkButton
-								href={platform?.url || '#'}
-								variant="warning"
-								shape="rounded"
-								filled
-								fullWidth
-								appendClass="flex gap-1 justify-center items-center"
-							>
+							<a href={platform?.url || '#'} class="btn btn-primary w-40" target="_blank">
 								<Link2 />
 								<span class="font-bold">
 									{#if platform?.url.includes('youtube')}
@@ -261,12 +195,9 @@
 										Patreon
 									{/if}
 								</span>
-							</LinkButton>
+							</a>
 						{/each}
-					</span>
-					<span class="order-2 min-md:order-3 min-md:col-span-7">
-						{entry.description}
-					</span>
+					</div>
 				</div>
 			{/each}
 		{/if}
@@ -274,74 +205,43 @@
 {/snippet}
 
 {#snippet weekday(weekday: GroupedWeekday)}
-	{console.log(weekday)}
-	<div class="flex flex-col">
-		<button
-			class="bg-warning text-primary-900 relative flex flex-1 items-center justify-center p-2 text-3xl font-bold"
-			onclick={() => {
-				collapseDay[getISODay(new Date(weekday.date)) - 1] =
-					!collapseDay[getISODay(new Date(weekday.date)) - 1];
-			}}
+	<div class="rounded-box max-lg:flex max-lg:flex-col max-lg:gap-1 lg:grid lg:grid-cols-[1fr_9fr]">
+		<div
+			class="bg-primary max-lg:rounded-box lg:rounded-l-box text-primary-content flex items-center justify-center p-2 text-2xl font-bold"
 		>
-			<span>{format(new Date(weekday.date), 'eeee')}</span>
-			{#if weekday.entries.length > 0}
-				<div
-					class={[
-						'absolute top-1/2 right-0 -translate-x-1/2 -translate-y-1/2 transition-transform duration-150',
-						collapseDay[getISODay(new Date(weekday.date)) - 1] ? 'rotate-0' : 'rotate-180'
-					]}
-				>
-					<ChevronDown />
-				</div>
-			{/if}
-		</button>
-		{#if !collapseDay[getISODay(new Date(weekday.date)) - 1]}
-			<div
-				class="dark:bg-primary-700 bg-primary-200"
-				transition:slide={{ axis: 'y', duration: 150, easing: sineInOut }}
-			>
-				{#each weekday.entries as entryGroup}
-					{@render card(entryGroup)}
-				{/each}
-			</div>
-		{/if}
+			{format(new Date(weekday.date), 'eee')}
+		</div>
+		<div class="bg-base-300 rounded-r-box p-2">
+			{#each weekday.entries as entryGroup}
+				{@render card(entryGroup)}
+			{/each}
+		</div>
 	</div>
 {/snippet}
 
 <div class="flex flex-col gap-1">
-	<div
-		class={[
-			'text-primary-900 dark:text-primary-50 grid grid-cols-3 items-center justify-center gap-1',
-			'max-xl:grid-cols-2'
-		]}
-	>
-		<Button
-			filled
-			variant="info"
-			fullWidth
-			appendClass="h-full max-xl:order-2"
+	<div class="grid grid-cols-3 items-center justify-center gap-1 max-xl:grid-cols-2">
+		<button
+			class="btn btn-info max-xl:order-2"
 			onclick={(e) => {
 				updateSchedule(-1);
 				e.preventDefault();
 			}}
 		>
 			<ChevronLeft />
-		</Button>
-		<span class={['p-2 text-center text-4xl font-black', 'max-xl:order-1 max-xl:col-span-2']}>
+		</button>
+		<span class="p-2 text-center text-3xl font-black max-xl:order-1 max-xl:col-span-2">
 			{formatWeekRange(scheduleDate.year, scheduleDate.week)}
 		</span>
-		<Button
-			filled
-			variant="info"
-			fullWidth
-			appendClass="h-full max-xl:order-3"
+		<button
+			class="btn btn-info max-xl:order-2"
 			onclick={(e) => {
 				updateSchedule(1);
 				e.preventDefault();
 			}}
 		>
 			<ChevronRight />
-		</Button>
+		</button>
 	</div>
 	{#if schedules.length > 0}
 		{@const s = schedules.find((x) => {

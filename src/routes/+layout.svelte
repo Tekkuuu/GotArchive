@@ -12,7 +12,6 @@
 	let { children, data }: LayoutProps = $props();
 	let { session, supabase } = $derived(data);
 
-	let feedbackOpen = $state(false);
 	let darkMode = getDarkModeStore();
 
 	$effect(() => {
@@ -283,7 +282,7 @@
 	<main class="mx-2 mt-20 mb-2 flex grow flex-col">
 		{@render children()}
 	</main>
-	<FeedbackModal formData={data.feedbackForm} bind:open={feedbackOpen} />
+	<FeedbackModal formData={data.feedbackForm} />
 	<footer class="bg-base-300 flex w-full gap-2 p-2">
 		<nav class="flex gap-2">
 			<label class="swap swap-rotate btn btn-secondary btn-outline">
@@ -296,7 +295,11 @@
 				<Sun class="swap-off" />
 				<Moon class="swap-on" />
 			</label>
-			<button class="btn btn-secondary btn-outline" onclick={() => (feedbackOpen = !feedbackOpen)}>
+			<button
+				class="btn btn-secondary btn-outline"
+				onclick={() =>
+					(document.getElementById('feedback-modal') as HTMLDialogElement)?.showModal()}
+			>
 				Feedback
 			</button>
 			<a href="/privacy" class="btn btn-secondary btn-outline">Privacy</a>

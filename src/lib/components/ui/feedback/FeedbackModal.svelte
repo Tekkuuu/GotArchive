@@ -8,13 +8,13 @@
 	import { feedbackSchema, feedbackTags } from '$lib/api/';
 	import { getAnonymousUUIDStore } from '$lib/stores';
 	import LucideIcon from '$lib/components/util/LucideIcon.svelte';
+	import _ from 'lodash';
 
 	interface Props {
 		formData: SuperValidated<Infer<typeof feedbackSchema>>;
-		open: boolean;
 	}
 
-	let { formData, open = $bindable() }: Props = $props();
+	let { formData }: Props = $props();
 
 	let { form, enhance, errors, submit } = superForm(formData, {
 		dataType: 'json',
@@ -36,51 +36,33 @@
 	let uuid = getAnonymousUUIDStore();
 </script>
 
-{#if open}
-	<div
-		class={[
-			'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900 border',
-			'fixed top-1/2 left-1/2 flex w-xs -translate-x-1/2 -translate-y-1/2 sm:w-xl',
-			'flex-col items-center justify-center gap-1 rounded-lg'
-		]}
-	>
-		<h1 class="dark:text-primary-50 text-primary-900 px-4 pt-4 text-3xl font-bold">Feedback</h1>
-		<form method="POST" action="/api/feedback" use:enhance class="flex w-full flex-col gap-1 p-4">
-			<input type="hidden" name="anonymousUUID" bind:value={$form.anonymousUUID} />
-			<Select
-				rounded
-				options={feedbackTags.map((f) => ({ value: f, label: f }))}
-				bind:selected={() => ({ value: $form.tag, label: $form.tag }), (v) => ($form.tag = v.value)}
-			>
-				<LucideIcon icon={Tag} />
-			</Select>
-			<Textarea cols="full" rounded="lg" fullWidth bind:value={$form.text}>
-				<span class="flex items-center">
-					<Text />
-				</span>
-			</Textarea>
-			<span
-				class={[
-					'dark:bg-primary-700 bg-primary-200 col-span-2 rounded-lg',
-					'text-primary-900 dark:text-primary-50',
-					'p-1'
-				]}
-			>
-				Message length: {$form.text.length}/1000
-			</span>
-			<Input
-				fullWidth
-				rounded="lg"
-				name="contact_info"
-				type="text"
-				placeholder="Contact Info (Optional)"
-				bind:value={
-					() => $form.contactInfo || '',
-					(v) => (v === '' ? ($form.contactInfo = undefined) : ($form.contactInfo = v))
-				}
-			>
-				<LucideIcon icon={Mail} />
-			</Input>
+<dialog id="feedback-modal" class="modal">
+	<div class="modal-box bg-base-300">
+		<h1 class="text-center text-3xl font-bold">Feedback</h1>
+		<form method="POST" action="/api/feedback" use:enhance class="flex w-full flex-col gap-2 p-4">
+			<label class="select w-full">
+				<span class="label">Tag</span>
+				<select bind:value={$form.tag}>
+					{#each feedbackTags as tag}
+						<option value={tag}>{_.startCase(tag)}</option>
+					{/each}
+				</select>
+			</label>
+			<fieldset class="fieldset w-full">
+				<textarea class="textarea w-full" bind:value={$form.text}></textarea>
+				<div class="label">Message length: {$form.text.length}/1000</div>
+			</fieldset>
+			<label class="input w-full">
+				<span class="label">Contact Info</span>
+				<input
+					type="text"
+					placeholder="(Optional)"
+					bind:value={
+						() => $form.contactInfo || '',
+						(v) => (v === '' ? ($form.contactInfo = undefined) : ($form.contactInfo = v))
+					}
+				/>
+			</label>
 			<input
 				tabindex={-1}
 				autocomplete="off"
@@ -89,51 +71,41 @@
 				bind:value={$form.honeypot}
 				class="hidden"
 			/>
-			<Button
-				variant="submit"
-				shape="rounded"
-				filled
-				fullWidth
+			<button
+				class="btn btn-success"
 				onclick={() => {
-					$form.anonymousUUID = uuid.value;
 					submit();
 				}}
 			>
-				<span class="font-bold">Send Feedback</span>
-			</Button>
-			<span
-				class={[
-					'dark:bg-primary-700 bg-primary-200 col-span-2 rounded-lg',
-					'text-primary-900 dark:text-primary-50',
-					'p-1'
-				]}
-			>
+				Send Feedback
+			</button>
+			<div class="card bg-base-100 p-2">
 				<p>
 					If you’d like us to contact you about your feedback, please leave your email or Discord ID
 					(optional).
 				</p>
+				<div class="divider"></div>
 				<p>
-					The feedback text area supports <a
-						class="text-info hover:text-info-light underline transition-all duration-150"
+					The feedback text area supports
+					<a
+						class="link link-hover link-info"
 						href="https://www.markdownguide.org/basic-syntax/"
-						target="_blank">Markdown</a
-					> formatting! &#128521;
+						target="_blank"
+					>
+						Markdown
+					</a>
+					formatting!
 				</p>
-			</span>
+			</div>
 		</form>
-		<button
-			class={[
-				'dark:text-primary-50 text-primary-900 bg-primary-200 dark:bg-primary-700',
-				'absolute top-4 right-4 rounded-lg p-2',
-				'hover:bg-primary-300 dark:hover:bg-primary-600'
-			]}
-			type="button"
-			onclick={(e) => {
-				e.preventDefault();
-				open = false;
-			}}
-		>
-			<X />
-		</button>
+		<div class="modal-action">
+			<button
+				class="btn btn-info"
+				type="button"
+				onclick={() => {
+					(document.getElementById('feedback-modal') as HTMLDialogElement)?.close();
+				}}>Close</button
+			>
+		</div>
 	</div>
-{/if}
+</dialog>

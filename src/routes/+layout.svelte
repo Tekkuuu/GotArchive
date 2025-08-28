@@ -1,35 +1,19 @@
 <script lang="ts">
 	import type { LayoutProps } from './$types';
 	import '../app.css';
-	import {
-		Home,
-		Database,
-		TvMinimalPlay,
-		KeyRound,
-		Calendar,
-		Globe,
-		Info,
-		Logs
-	} from 'lucide-svelte';
-	import {
-		Navbar,
-		NavDropdown,
-		NavUl,
-		NavLi,
-		Footer,
-		FeedbackModal,
-		DarkModeToggle,
-		CookieConsent
-	} from '$lib/components/ui/';
+	import { page } from '$app/state';
+	import { Home, Database, TvMinimalPlay, Calendar, Sun, Moon, Globe } from 'lucide-svelte';
+	import { FeedbackModal, CookieConsent } from '$lib/components/ui/';
 	import { Toaster } from '$lib/components/ui/toaster';
-	import { Button, LinkButton } from '$lib/components/forms';
 	import { invalidate } from '$app/navigation';
-	import { getAnonymousUUIDStore, getCookieConsentStore } from '$lib/stores';
+	import { getDarkModeStore, getAnonymousUUIDStore, getCookieConsentStore } from '$lib/stores';
 	import { onMount } from 'svelte';
 
 	let { children, data }: LayoutProps = $props();
 	let { session, supabase } = $derived(data);
+
 	let feedbackOpen = $state(false);
+	let darkMode = getDarkModeStore();
 
 	$effect(() => {
 		if (supabase) {
@@ -48,71 +32,275 @@
 	onMount(() => {
 		getAnonymousUUIDStore();
 	});
+
+	$inspect(page);
 </script>
 
 <div class="flex min-h-screen flex-col">
 	<CookieConsent />
-	<Navbar>
-		<NavUl>
-			<NavLi href="/"><Home />Home</NavLi>
-			<NavLi href="/gotgames/schedule"><Calendar />Schedule</NavLi>
+	<div class="navbar bg-base-300 fixed z-50 shadow-sm">
+		<div class="navbar-start">
+			<div class="dropdown">
+				<div tabindex="0" role="button" class="btn btn-ghost lg:hidden">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-5 w-5"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 6h16M4 12h8m-8 6h16"
+						/>
+					</svg>
+				</div>
+				<ul class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-4 p-2 shadow">
+					<li>
+						<a href="/">Dashboard</a>
+					</li>
+					<li>
+						<a href="/gotgames/schedule"> Schedule </a>
+					</li>
+					<li>
+						<details>
+							<summary>Reactions</summary>
+							<ul class="**:text-nowrap">
+								<li>
+									<a href="/gotgames/anime/list"> Anime </a>
+								</li>
+							</ul>
+						</details>
+					</li>
+					<li>
+						<details>
+							<summary>Socials</summary>
+							<ul class="**:text-nowrap">
+								<li>
+									<a target="_blank" href="https://www.youtube.com/c/GOTGames">
+										G.O.T Games Youtube
+									</a>
+								</li>
+								<li>
+									<a target="_blank" href="https://www.youtube.com/@GOTExtraChannel">
+										G.O.T Extra Youtube
+									</a>
+								</li>
+								<li>
+									<a target="_blank" href="https://www.youtube.com/@GOT_Clips">
+										G.O.T Clips Youtube
+									</a>
+								</li>
+								<li>
+									<a target="_blank" href="https://www.twitch.tv/gotgames_tb">Twitch</a>
+								</li>
+								<li>
+									<a target="_blank" href="https://x.com/GOTGAMES_TB">X (Twitter)</a>
+								</li>
+								<li>
+									<a target="_blank" href="https://discord.gg/MXTebs9yb2">Discord</a>
+								</li>
+							</ul>
+						</details>
+					</li>
+					{#if session?.user}
+						<li>
+							<details>
+								<summary> Admin </summary>
+								<ul class="**:text-nowrap">
+									<li>
+										<a href="/admin/feedback">Feedback</a>
+									</li>
+									<li>
+										<details>
+											<summary>New</summary>
+											<ul>
+												<li>
+													<a href="/admin/new/anime">Anime</a>
+												</li>
+												<li>
+													<a href="/admin/new/season">Season</a>
+												</li>
+												<li>
+													<a href="/admin/new/schedule">Schedule</a>
+												</li>
+											</ul>
+										</details>
+									</li>
+									<li>
+										<details>
+											<summary>Edit</summary>
+											<ul>
+												<li>
+													<a href="/admin/edit/anime">Anime</a>
+												</li>
+												<li>
+													<a href="/admin/edit/schedule">Schedule</a>
+												</li>
+											</ul>
+										</details>
+									</li>
+								</ul>
+							</details>
+						</li>
+					{/if}
+				</ul>
+			</div>
+			<a href="/" class="btn btn-ghost text-xl">GotArchive</a>
+		</div>
+		<div class="navbar-center hidden lg:flex">
+			<ul class="menu menu-horizontal gap-2 px-1">
+				<li>
+					<a href="/" class="btn {page.route.id === '/' && 'btn-secondary'}">
+						<Home />
+						Dashboard
+					</a>
+				</li>
+				<li>
+					<a
+						href="/gotgames/schedule"
+						class="btn {page.route.id === '/gotgames/schedule' && 'btn-secondary'}"
+					>
+						<Calendar />
+						Schedule
+					</a>
+				</li>
+				<li>
+					<details>
+						<summary class="btn {page.route.id === '/gotgames/anime/list' && 'btn-secondary'}">
+							<TvMinimalPlay />
+							Reactions
+						</summary>
+						<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
+							<li>
+								<a
+									href="/gotgames/anime/list"
+									class="btn {page.route.id === '/gotgames/anime/list' && 'btn-secondary'}"
+								>
+									Anime
+								</a>
+							</li>
+						</ul>
+					</details>
+				</li>
+				<li>
+					<details>
+						<summary class="btn">
+							<Globe />
+							Socials
+						</summary>
+						<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
+							<li>
+								<a target="_blank" href="https://www.youtube.com/c/GOTGames">
+									G.O.T Games Youtube
+								</a>
+							</li>
+							<li>
+								<a target="_blank" href="https://www.youtube.com/@GOTExtraChannel">
+									G.O.T Extra Youtube
+								</a>
+							</li>
+							<li>
+								<a target="_blank" href="https://www.youtube.com/@GOT_Clips">
+									G.O.T Clips Youtube
+								</a>
+							</li>
+							<li>
+								<a target="_blank" href="https://www.twitch.tv/gotgames_tb">Twitch</a>
+							</li>
+							<li>
+								<a target="_blank" href="https://x.com/GOTGAMES_TB">X (Twitter)</a>
+							</li>
+							<li>
+								<a target="_blank" href="https://discord.gg/MXTebs9yb2">Discord</a>
+							</li>
+						</ul>
+					</details>
+				</li>
+				{#if session?.user}
+					<li>
+						<details>
+							<summary class="btn">
+								<Database />
+								Admin
+							</summary>
+							<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
+								<li>
+									<a href="/admin/feedback">Feedback</a>
+								</li>
+								<li>
+									<details>
+										<summary>New</summary>
+										<ul>
+											<li>
+												<a href="/admin/new/anime">Anime</a>
+											</li>
+											<li>
+												<a href="/admin/new/season">Season</a>
+											</li>
+											<li>
+												<a href="/admin/new/schedule">Schedule</a>
+											</li>
+										</ul>
+									</details>
+								</li>
+								<li>
+									<details>
+										<summary>Edit</summary>
+										<ul>
+											<li>
+												<a href="/admin/edit/anime">Anime</a>
+											</li>
+											<li>
+												<a href="/admin/edit/schedule">Schedule</a>
+											</li>
+										</ul>
+									</details>
+								</li>
+							</ul>
+						</details>
+					</li>
+				{/if}
+			</ul>
+		</div>
+		<div class="navbar-end">
 			{#if session?.user}
-				<NavLi id="admin">
-					<Database />Admin
-					<NavDropdown trigger="#admin">
-						<NavLi href="/admin/feedback">Feedbacks</NavLi>
-						<NavLi href="/admin/new/anime">New anime</NavLi>
-						<NavLi href="/admin/new/anime/bulk">New anime bulk</NavLi>
-						<NavLi href="/admin/new/season">New season</NavLi>
-						<NavLi href="/admin/new/schedule">New schedule</NavLi>
-						<NavLi href="/admin/edit/anime">Edit anime</NavLi>
-						<NavLi href="/admin/edit/schedule">Edit schedule</NavLi>
-					</NavDropdown>
-				</NavLi>
-			{/if}
-			<NavLi href="/gotgames/anime/list"><TvMinimalPlay />Anime</NavLi>
-			<NavLi id="got-socials">
-				<Globe />G.O.T Socials
-				<NavDropdown trigger="#got-socials">
-					<NavLi target="_blank" href="https://www.youtube.com/c/GOTGames">
-						G.O.T Games Youtube
-					</NavLi>
-					<NavLi target="_blank" href="https://www.youtube.com/@GOTExtraChannel">
-						G.O.T Extra Youtube
-					</NavLi>
-					<NavLi target="_blank" href="https://www.youtube.com/@GOT_Clips">
-						G.O.T Clips Youtube
-					</NavLi>
-					<NavLi target="_blank" href="https://www.twitch.tv/gotgames_tb">Twitch</NavLi>
-					<NavLi target="_blank" href="https://x.com/GOTGAMES_TB">X (Twitter)</NavLi>
-					<NavLi target="_blank" href="https://discord.gg/MXTebs9yb2">Discord</NavLi>
-				</NavDropdown>
-			</NavLi>
-			<NavLi href="/about"><Info />About</NavLi>
-			<NavLi href="/changelog"><Logs />Site news</NavLi>
-			{#if session?.user}
-				<NavLi
-					onclick={(e: MouseEvent) => {
-						e.preventDefault();
+				<button
+					class="btn"
+					type="button"
+					onclick={() => {
 						supabase.auth.signOut();
 					}}
 				>
-					<KeyRound />Logout
-				</NavLi>
+					Logout
+				</button>
 			{/if}
-		</NavUl>
-	</Navbar>
+		</div>
+	</div>
 	<Toaster />
-	<main class="mt-1 flex grow flex-col">
+	<main class="mx-2 mt-20 mb-2 flex grow flex-col">
 		{@render children()}
 	</main>
 	<FeedbackModal formData={data.feedbackForm} bind:open={feedbackOpen} />
-	<Footer>
-		<DarkModeToggle />
-		<Button variant="primary" shape="pill" onclick={(_) => (feedbackOpen = !feedbackOpen)}
-			>Feedback</Button
-		>
-		<LinkButton href="/privacy" variant="primary" shape="pill">Privacy</LinkButton>
-		<LinkButton href="/tos" variant="primary" shape="pill">Terms</LinkButton>
-	</Footer>
+	<footer class="bg-base-300 flex w-full gap-2 p-2">
+		<nav class="flex gap-2">
+			<label class="swap swap-rotate btn btn-secondary btn-outline">
+				<input
+					type="checkbox"
+					class="theme-controller"
+					value="gotdark"
+					bind:checked={() => darkMode.value, (v) => darkMode.update(() => v)}
+				/>
+				<Sun class="swap-off" />
+				<Moon class="swap-on" />
+			</label>
+			<button class="btn btn-secondary btn-outline" onclick={() => (feedbackOpen = !feedbackOpen)}>
+				Feedback
+			</button>
+			<a href="/privacy" class="btn btn-secondary btn-outline">Privacy</a>
+			<a href="/tos" class="btn btn-secondary btn-outline">Terms</a>
+		</nav>
+	</footer>
 </div>

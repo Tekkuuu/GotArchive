@@ -93,61 +93,63 @@
 	{@const anilistId = extractId(entry.anilistLink)}
 	{@const srcMedium = images.value.find((i) => i.id === anilistId)?.coverImage.medium}
 	{@const srcExtraLarge = images.value.find((i) => i.id === anilistId)?.coverImage.extraLarge}
-	<div
-		class="text-primary-50 relative flex w-68 flex-col items-center justify-center rounded-xl bg-transparent p-4"
+	<a
+		href="/gotgames/anime/{entry.animeId}"
+		class="card bg-base-100 m-4 w-68 shadow-sm transition-all duration-150 hover:scale-[102%]"
 	>
 		{#key anilistId}
 			{#if srcMedium}
-				<img
-					loading="lazy"
-					onload={() => handleMediumLoad(anilistId || 0)}
-					src={srcMedium}
-					alt={entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
-					class="block aspect-[3/4] w-68 rounded-lg object-cover {extraLargeLoaded[anilistId || 0]
-						? 'hidden'
-						: ''}"
-				/>
-				<img
-					loading="lazy"
-					onload={() => handleExtraLargeLoad(anilistId || 0)}
-					src={srcExtraLarge}
-					alt={entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
-					class="block aspect-[3/4] w-68 rounded-lg object-cover {extraLargeLoaded[anilistId || 0]
-						? 'opacity-100'
-						: 'absolute opacity-0'}"
-				/>
+				<figure>
+					<img
+						loading="lazy"
+						onload={() => handleMediumLoad(anilistId || 0)}
+						src={srcMedium}
+						alt={entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
+						class="block aspect-[3/4] w-68 object-cover {extraLargeLoaded[anilistId || 0]
+							? 'hidden'
+							: ''}"
+					/>
+					<img
+						loading="lazy"
+						onload={() => handleExtraLargeLoad(anilistId || 0)}
+						src={srcExtraLarge}
+						alt={entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
+						class="block aspect-[3/4] w-68 object-cover {extraLargeLoaded[anilistId || 0]
+							? 'opacity-100'
+							: 'absolute opacity-0'}"
+					/>
+				</figure>
 			{:else}
 				<div class="block aspect-[3/4] h-88 w-68 rounded-lg object-cover">
 					<Suspense.Image />
 				</div>
 			{/if}
 		{/key}
-		<div
-			class="absolute bottom-4 left-1/2 z-20 flex w-60 -translate-x-1/2 flex-col items-center rounded-b-lg bg-black/75 p-4"
-		>
-			<a
-				href="/gotgames/anime/{entry.animeId}"
-				class="text-center font-bold transition-all duration-150 hover:text-amber-400"
-				>{entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}</a
-			>
-			<span>Episodes</span>
-			<span>{entry.episodes.join(', ')}</span>
+		<div class="card-body h-40 items-center text-center">
+			<div class="card-title">
+				{entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
+			</div>
+			<p>
+				Episodes:
+				<br />
+				{entry.episodes.join(', ')}
+			</p>
 		</div>
+	</a>
+{/snippet}
+
+{#snippet statistic(title: string, stat: string | number, desc: string)}
+	<div class="stat">
+		<div class="stat-title">{title}</div>
+		<div class="stat-value">{stat}</div>
+		<div class="stat-desc">{desc}</div>
 	</div>
 {/snippet}
 
-{#snippet statistic(title: string, stat: string | number)}
-	<div
-		class="text-primary-900 dark:text-primary-50 border-primary-600 w-full rounded-lg border p-2"
-	>
-		{title}: <span class="font-bold">{stat}</span>
-	</div>
-{/snippet}
-
-<div class="container mx-auto px-4 py-8 lg:px-8">
+<div class="container mx-auto">
+	<div class="divider text-3xl font-bold">Watching this week</div>
 	<!-- Watching -->
-	<section class="mb-12 flex flex-col items-center justify-center">
-		<h2 class="mb-6 text-3xl font-bold dark:text-white">Watching this week</h2>
+	<section class="flex flex-col items-center justify-center">
 		{#if watching.length >= 3}
 			<div class="relative w-full overflow-hidden" style="height: {cardEl?.offsetHeight || 352}px">
 				{#key focus}
@@ -187,94 +189,73 @@
 			</div>
 		{/if}
 		{#if watching.length >= 3}
-			<div
-				class="dark:border-primary-700 border-primary-400 mt-4 flex justify-center space-x-2 rounded-full border p-2"
-			>
-				{#if watching.length === 0}
-					<span class="block h-4 w-4"></span>
-				{:else}
-					{#each watching as w, i}
-						<button
-							class={[
-								'h-4 w-4 cursor-pointer rounded-full transition-all duration-150',
-								'hover:bg-amber-400',
-								i === focus ? 'bg-amber-400' : 'dark:bg-primary-700 bg-primary-400'
-							]}
-							onclick={() => {
-								if (i > focus) {
-									direction = 1;
-								} else {
-									direction = -1;
-								}
-								focus = i;
-								startSlider();
-							}}
-							aria-label="Select {w.titles.english ?? w.titles.romaji ?? w.titles.native} anime"
-						>
-						</button>
-					{/each}
-				{/if}
+			<div class="border-neutral flex gap-2 rounded-full border p-2">
+				{#each watching as w, i}
+					<button
+						class="join-item btn btn-circle btn-xs btn-neutral {i === focus && 'btn-primary'}"
+						aria-label="carousel-{i}"
+						onclick={() => {
+							if (i > focus) {
+								direction = 1;
+							} else {
+								direction = -1;
+							}
+							focus = i;
+							startSlider();
+						}}
+					></button>
+				{/each}
 			</div>
 		{/if}
 	</section>
 
+	<div class="divider text-2xl font-bold">Archive stats</div>
+
 	<!-- Archive Stats -->
-	<section class="mb-4 flex flex-col items-center justify-center">
-		<h2 class="text-primary-900 dark:text-primary-50 mb-4 text-2xl font-semibold">Archive stats</h2>
+	<section class="flex flex-col items-center justify-center">
 		{#if !data.error}
-			<div class="grid w-full gap-4 sm:grid-cols-1 lg:grid-cols-2">
-				{@render statistic('Total anime', data.totalAnime)}
-				{@render statistic('Total episodes watched', data.totalEpisodesWatched)}
+			<div class="stats bg-base-100 shadow">
+				{@render statistic('Total anime', data.totalAnime, '')}
+				{@render statistic('Total episodes watched', data.totalEpisodesWatched, '')}
 			</div>
 		{:else}
 			<HttpError error={data.error} />
 		{/if}
 	</section>
 
+	<div class="divider text-2xl font-bold">Useful links</div>
+
 	<!-- Useful Links -->
-	<section class="mb-4 flex flex-col items-center justify-center">
-		<h2 class="text-primary-900 dark:text-primary-50 mb-4 text-2xl font-semibold">Useful links</h2>
+	<section class="flex flex-col items-center justify-center">
 		<div class="grid w-full grid-cols-1 gap-4 min-md:grid-cols-2">
-			<LinkButton href="/gotgames/schedule" variant="info" filled shape="rounded" fullWidth>
+			<a href="/gotgames/schedule" class="btn btn-info">
 				<Calendar /><span class="pl-2 font-bold">Check out this week's schedule</span>
-			</LinkButton>
-			<LinkButton href="/gotgames/anime/list" variant="info" filled shape="rounded" fullWidth>
+			</a>
+			<a href="/gotgames/anime/list" class="btn btn-info">
 				<TvMinimalPlay /><span class="pl-2 font-bold">Search through anime</span>
-			</LinkButton>
-			<LinkButton
-				href="/about"
-				filled
-				shape="rounded"
-				variant="warning"
-				fullWidth
-				appendClass="md:col-span-2"
-			>
+			</a>
+			<a href="/about" class="btn btn-primary md:col-span-2">
 				<Heart /><span class="pl-2 font-bold">Support this project</span>
-			</LinkButton>
+			</a>
 		</div>
 	</section>
 
+	<div class="divider text-2xl font-bold">Site news</div>
+
 	<!-- Changelog -->
-	<section class="mb-4 flex flex-col items-center justify-center gap-2">
-		<h2 class="text-primary-900 dark:text-primary-50 mb-4 text-2xl font-semibold">Site news</h2>
-		<div class="border-info flex w-full flex-col gap-2 min-md:flex-row">
+	<section class="flex flex-col items-center justify-center gap-2">
+		<div class="flex w-full flex-col gap-2 min-md:flex-row">
 			{#each _.take(_.orderBy(data.changelogs, ['createdAt'], ['desc']), 3) as c}
 				<div
-					class="text-primary-900 dark:text-primary-50 border-info flex w-full flex-col gap-1 rounded-lg border p-2"
+					class="border-neutral bg-base-300 flex w-full flex-col items-center justify-center gap-2 rounded-lg border p-2"
 				>
-					<h3 class="text-center text-xl">{c.title}</h3>
-					<h4 class="dark:text-primary-300 text-primary-700 text-center">
+					<h3 class="text-center text-xl font-semibold">{c.title}</h3>
+					<div class="badge badge-neutral">
 						{c.author} · {format(c.createdAt, 'yyyy-MM-dd, HH:mm')}
-					</h4>
-					<LinkButton
-						href={`/changelog/${c.changelogId}`}
-						variant="info"
-						shape="rounded"
-						fullWidth
-						filled
-					>
+					</div>
+					<a href={`/changelog/${c.changelogId}`} class="btn btn-info w-full">
 						<Logs /><span class="font-bold">Read more</span>
-					</LinkButton>
+					</a>
 				</div>
 			{/each}
 		</div>

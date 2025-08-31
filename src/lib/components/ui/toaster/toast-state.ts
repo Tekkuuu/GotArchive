@@ -1,6 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
 import type { Toast } from './types';
-import type { Icon } from 'lucide-svelte';
 
 type ToastList = Toast[];
 
@@ -35,54 +34,49 @@ function createToaster() {
     toastTimeouts.clear();
   }
 
-  function success(message: string, icon?: typeof Icon, duration = 2000) {
+  function success(message: string, duration = 2000) {
     add({
       id: crypto.randomUUID(),
       message,
-      icon,
       duration,
       type: 'success'
     });
   }
 
-  function error(message: string, icon?: typeof Icon, duration = 2000) {
+  function error(message: string, duration = 2000) {
     add({
       id: crypto.randomUUID(),
       message,
-      icon,
       duration,
       type: 'error'
     });
   }
 
-  function warning(message: string, icon?: typeof Icon, duration = 2000) {
+  function warning(message: string, duration = 2000) {
     add({
       id: crypto.randomUUID(),
       message,
-      icon,
       duration,
       type: 'warning'
     });
   }
 
-  function info(message: string, icon?: typeof Icon, duration = 2000) {
+  function info(message: string, duration = 2000) {
     add({
       id: crypto.randomUUID(),
       message,
-      icon,
       duration,
       type: 'info'
     });
   }
 
-  function promise(promise: Promise<any>, icon?: typeof Icon, duration = 2000) {
+  function promise(promise: Promise<any>, message: string = "Loading", duration = 2000) {
     const id = crypto.randomUUID();
     add(
       {
         id,
-        message: 'Loading',
+        message: message,
         duration,
-        icon,
         type: 'promise',
         promise
       },
@@ -92,13 +86,13 @@ function createToaster() {
     promise
       .then(() => {
         update(toasts =>
-          toasts.map(t => (t.id === id ? { ...t, message: 'Success' } : t))
+          toasts.map(t => (t.id === id ? { ...t, type: "success", message: 'Success' } : t))
         );
       })
       .catch(err => {
         update(toasts =>
           toasts.map(t =>
-            t.id === id ? { ...t, message: err.message || 'Failed' } : t
+            t.id === id ? { ...t, type: "error", message: err.message || 'Failed' } : t
           )
         );
       })

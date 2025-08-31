@@ -12,7 +12,7 @@
 	import * as Suspense from '$lib/components/ui/suspense';
 	import { onMount } from 'svelte';
 
-	const mqBannerImage = new MediaQuery('max-width: 47.999rem');
+	const mqMaxSm = new MediaQuery('max-width: 39.999rem');
 
 	let { data }: PageProps = $props();
 	let anime = $derived(data.anime.find((a) => a.animeId === Number(page.params.animeId)));
@@ -52,77 +52,60 @@
 </svelte:head>
 
 {#snippet animeCard(details: AnimeCard)}
-	<div class="dark:bg-primary-700 bg-primary-200 relative flex flex-col rounded-xl">
-		<div class="flex max-h-96 items-center overflow-hidden rounded-xl md:m-2">
+	<div class="card bg-base-300">
+		<figure>
 			{#if images.value.find((x) => x.id)}
 				<img
 					loading="lazy"
-					class="w-full object-cover"
 					src={images.value.find((x) => x.id === extractId(details.mainSeason))?.bannerImage || ''}
-					alt=""
+					alt={`Banner image for ${details.titleEnglish || details.titleRomaji || details.titleNative}`}
 				/>
 			{:else}
 				<Suspense.Image />
 			{/if}
-		</div>
-		<div class="flex flex-1 flex-col justify-between rounded-lg max-md:relative">
-			<div class="flex flex-col gap-1 p-2 max-md:z-10">
-				<div class="text-primary-900 dark:text-primary-50 text-xl font-bold">
-					{details.titleEnglish ?? details.titleRomaji ?? details.titleNative}
-				</div>
-				<div class="text-primary-600 dark:text-primary-400 text-xs">
+		</figure>
+		<div class="card-body">
+			<h2 class="card-title">
+				{details.titleEnglish ?? details.titleRomaji ?? details.titleNative}
+			</h2>
+			<div class="flex flex-col gap-1">
+				<p class="text-primary-600 dark:text-primary-400 text-xs">
 					{details.titleNative}
+				</p>
+				<div class="flex flex-wrap gap-1">
+					{#each details.genres as genre}
+						<span class="badge badge-accent">{genre}</span>
+					{/each}
 				</div>
-				<div class="text-primary-900 dark:text-primary-50">
-					{details.genres.join(', ')}
-				</div>
-				<div class="text-primary-900 dark:text-primary-50">
+				<p>
 					Watched: {details.totalEpisodesWatched}/{details.totalEpisodes}
-				</div>
+				</p>
 			</div>
-			<div class="flex gap-2 p-2 max-md:z-10">
-				<Button
-					variant="warning"
-					shape="rounded"
-					filled
-					fullWidth
+			<div class="card-actions justify-end">
+				<button
+					class="btn btn-primary"
 					onclick={() => {
-						modalOpen = true;
+						(document.getElementById('watch_modal') as HTMLDialogElement).showModal();
 					}}
 				>
-					<span class="font-bold">Watch</span>
-				</Button>
-				<LinkButton
-					variant="warning"
-					shape="rounded"
-					filled
-					fullWidth
-					href={details.mainSeason}
-					target="_blank"
-				>
-					<span class="font-bold">AniList</span>
-				</LinkButton>
+					Watch
+				</button>
+				<a href={details.mainSeason} target="_blank" class="btn btn-primary">AniList</a>
 			</div>
 		</div>
 	</div>
 {/snippet}
 
 {#snippet seasonCard(details: (typeof seasons)[number])}
-	<div
-		class={[
-			'dark:bg-primary-700 bg-primary-200 relative flex rounded-xl',
-			seasons.length % 2 === 1 && 'md:last:col-span-2'
-		]}
-	>
-		<div class="flex flex-shrink-0 items-center md:w-40 md:p-2">
+	<div class={['card sm:card-side bg-base-300', mqMaxSm.current && 'image-full']}>
+		<figure class="sm:h-60 sm:w-45 sm:shrink-0">
 			{#if images.value.find((x) => x.id)}
 				{#key extractId(details.anilistLink)}
 					{#if !extraLargeLoaded[extractId(details.anilistLink) ?? 0]}
 						<img
-							class="block h-56 rounded-lg object-cover min-md:blur-xs"
 							loading="lazy"
 							alt={`Medium cover image for ${details.titleEnglish || details.titleRomaji || details.titleNative}`}
-							src={mqBannerImage.current
+							src={mqMaxSm.current
 								? images.value.find((x) => x.id === extractId(details.anilistLink))?.bannerImage ||
 									''
 								: images.value.find((x) => x.id === extractId(details.anilistLink))?.coverImage
@@ -133,12 +116,12 @@
 					{#if mediumLoaded[extractId(details.anilistLink) ?? 0]}
 						<img
 							loading="lazy"
-							class="block h-full w-full rounded-lg object-cover {extraLargeLoaded[
-								extractId(details.anilistLink) ?? 0
-							]
-								? 'opacity-100'
-								: 'absolute opacity-0'}"
-							src={mqBannerImage.current
+							class={[
+								extraLargeLoaded[extractId(details.anilistLink) ?? 0]
+									? 'opacity-100'
+									: 'absolute opacity-0'
+							]}
+							src={mqMaxSm.current
 								? images.value.find((x) => x.id === extractId(details.anilistLink))?.bannerImage ||
 									''
 								: images.value.find((x) => x.id === extractId(details.anilistLink))?.coverImage
@@ -151,88 +134,71 @@
 			{:else}
 				<Suspense.Image />
 			{/if}
-		</div>
+		</figure>
 
-		<div class="flex flex-1 flex-col justify-between rounded-lg max-md:relative">
-			{#if mqBannerImage.current}
-				<div class="absolute h-full w-full rounded-lg bg-black opacity-75"></div>
-			{/if}
-			<div class="flex h-full flex-col justify-between gap-1 p-2 max-md:z-10">
-				<a
-					href={details.anilistLink}
-					target="_blank"
-					class="max-md:text-primary-50 text-primary-900 dark:text-primary-50 hover:text-accent-400 text-xl font-bold transition-all duration-150"
-				>
-					{details.titleEnglish ?? details.titleRomaji ?? details.titleNative}
-				</a>
-				<div class="max-md:text-primary-400 text-primary-600 dark:text-primary-400 text-xs">
-					{details.titleNative}
-				</div>
-				<div class="max-md:text-primary-50 text-primary-900 dark:text-primary-50">
+		<div class="card-body">
+			<h2 class="card-title">
+				{details.titleEnglish ?? details.titleRomaji ?? details.titleNative}
+			</h2>
+			<p>
+				<span class="inline-flex w-full justify-between">
 					Released: {_.capitalize(details.season ?? 'N/A')}
 					{details.year}
-				</div>
-				<div class="max-md:text-primary-50 text-primary-900 dark:text-primary-50">
-					Format: {details.format}
-				</div>
-				<div class="max-md:text-primary-50 text-primary-900 dark:text-primary-50">
-					Watched: {details.watchedInSeason}/{details.episodes}
-				</div>
-				<div class="max-md:text-primary-50 text-primary-900 dark:text-primary-50">
-					Status: {details.status}
-				</div>
-				<div>
-					<LinkButton
-						variant="warning"
-						shape="rounded"
-						href={details.anilistLink}
-						target="_blank"
-						fullWidth
-						filled
-						appendClass="dark:*:fill-[#FFFFFF] *:fill-[#212121] max-md:*:fill-[#FFFFFF] *:h-5"
+					<span
+						class={[
+							'badge',
+							details.status === 'Completed' && 'badge-success',
+							details.status === 'Watching' && 'badge-primary',
+							details.status === 'Paused' && 'badge-warning'
+						]}
 					>
-						<span class="font-bold">View on AniList</span>
-					</LinkButton>
-				</div>
+						{details.status}
+					</span>
+				</span>
+				<br />
+				Format: {details.format}
+				<br />
+				Watched: {details.watchedInSeason}/{details.episodes}
+			</p>
+			<div class="card-actions justify-end">
+				<a href={details.anilistLink} target="_blank" class="btn btn-primary">View on AniList</a>
 			</div>
 		</div>
 	</div>
 {/snippet}
 
-<div class="flex flex-col justify-center gap-1">
+<div class="flex flex-col justify-center gap-2">
 	{#if anime !== undefined}
 		{@render animeCard(anime)}
 	{/if}
-	<div class={['grid grid-cols-1 gap-1', seasons.length !== 1 && 'lg:grid-cols-2']}>
+	<div class={['grid grid-cols-1 gap-2', seasons.length !== 1 && 'lg:grid-cols-2']}>
 		{#each seasons.sort((a, b) => a.sequence - b.sequence) as season}
 			{@render seasonCard(season)}
 		{/each}
 	</div>
-	<Modal open={modalOpen} onclose={() => (modalOpen = false)} appendClass="max-md:w-3/4 min-h-0!">
+	<dialog class="modal" id="watch_modal">
 		{#if anime}
-			<div class="flex w-full flex-col items-center justify-center gap-2">
+			<div class="modal-box bg-base-300 flex flex-col gap-1">
 				{#each anime.links.filter((x) => x[0] != 'NULL') as link}
-					<LinkButton
-						href={link[0]}
-						variant="warning"
-						target="_blank"
-						shape="rounded"
-						appendClass="gap-2"
-						filled
-						fullWidth
-					>
+					<a href={link[0]} class="btn btn-primary">
 						<ListVideo />
-						<span class="flex flex-col items-center justify-center gap-1">
-							<p class="font-bold">
-								{link[0].includes('youtube') ? 'YouTube' : 'Patreon'}
-							</p>
+						<span class="flex items-center justify-center gap-1">
+							{link[0].includes('youtube') ? 'YouTube' : 'Patreon'}
 							{#if link[1]}
-								<p class="text-center text-xs">{link[1]}</p>
+								({link[1]})
 							{/if}
 						</span>
-					</LinkButton>
+					</a>
 				{/each}
+				<div class="modal-action">
+					<button
+						class="btn"
+						onclick={() => (document.getElementById('watch_modal') as HTMLDialogElement).close()}
+					>
+						Close
+					</button>
+				</div>
 			</div>
 		{/if}
-	</Modal>
+	</dialog>
 </div>

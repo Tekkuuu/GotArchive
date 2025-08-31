@@ -15,6 +15,4 @@
 	});
 </script>
 
-<div class="mr-2 ml-2">
-	{@render children?.()}
-</div>
+{@render children?.()}

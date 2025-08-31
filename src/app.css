@@ -72,31 +72,7 @@
   --noise: 0;
 }
 
-@custom-variant dark (&:where(.dark, .dark *));
-
 @theme {
-  /* --color-primary-50: var(--color-zinc-50); */
-  /* --color-primary-100: var(--color-zinc-100); */
-  /* --color-primary-200: var(--color-zinc-200); */
-  /* --color-primary-300: var(--color-zinc-300); */
-  /* --color-primary-400: var(--color-zinc-400); */
-  /* --color-primary-500: var(--color-zinc-500); */
-  /* --color-primary-600: var(--color-zinc-600); */
-  /* --color-primary-700: var(--color-zinc-700); */
-  /* --color-primary-800: var(--color-zinc-800); */
-  /* --color-primary-900: var(--color-zinc-900); */
-  /**/
-  /* --color-accent-400: var(--color-amber-400); */
-  /**/
-  /* --color-success: var(--color-emerald-400); */
-  /* --color-success-light: var(--color-emerald-300); */
-  /* --color-warning: var(--color-yellow-400); */
-  /* --color-warning-light: var(--color-yellow-300); */
-  /* --color-danger: var(--color-red-400); */
-  /* --color-danger-light: var(--color-red-300); */
-  /* --color-info: var(--color-blue-400); */
-  /* --color-info-light: var(--color-blue-300); */
-
   --animate-wiggle: wiggle 1s ease-in-out infinite;
 
   @keyframes wiggle {

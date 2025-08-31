@@ -3,6 +3,6 @@
 	let { supabase } = $derived(data);
 </script>
 
-<div class="mr-2 ml-2">
+<div>
 	{@render children?.()}
 </div>

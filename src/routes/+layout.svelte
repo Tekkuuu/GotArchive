@@ -2,7 +2,17 @@
 	import type { LayoutProps } from './$types';
 	import '../app.css';
 	import { page } from '$app/state';
-	import { Home, Database, TvMinimalPlay, Calendar, Sun, Moon, Globe } from 'lucide-svelte';
+	import {
+		Home,
+		Database,
+		TvMinimalPlay,
+		Calendar,
+		Sun,
+		Moon,
+		Globe,
+		List,
+		Info
+	} from 'lucide-svelte';
 	import { FeedbackModal, CookieConsent } from '$lib/components/ui/';
 	import { Toaster } from '$lib/components/ui/toaster';
 	import { invalidate } from '$app/navigation';
@@ -61,17 +71,23 @@
 						<a href="/">Dashboard</a>
 					</li>
 					<li>
-						<a href="/gotgames/schedule"> Schedule </a>
+						<a href="/gotgames/schedule">Schedule</a>
 					</li>
 					<li>
 						<details>
 							<summary>Reactions</summary>
 							<ul class="**:text-nowrap">
 								<li>
-									<a href="/gotgames/anime/list"> Anime </a>
+									<a href="/gotgames/anime/list">Anime</a>
 								</li>
 							</ul>
 						</details>
+					</li>
+					<li>
+						<a href="/changelog">Changelog</a>
+					</li>
+					<li>
+						<a href="/about">About</a>
 					</li>
 					<li>
 						<details>
@@ -183,6 +199,18 @@
 							</li>
 						</ul>
 					</details>
+				</li>
+				<li>
+					<a href="/changelog" class="btn {page.route.id === '/changelog' && 'btn-secondary'}">
+						<List />
+						Changelog
+					</a>
+				</li>
+				<li>
+					<a href="/about" class="btn {page.route.id === '/about' && 'btn-secondary'}">
+						<Info />
+						About
+					</a>
 				</li>
 				<li>
 					<details>

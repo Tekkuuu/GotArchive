@@ -1,19 +1,13 @@
 <script lang="ts">
 	import { anilistServices as s } from '$lib/anilist';
 	import { AppError } from '$lib/errors';
-	import { Button, Input, Label, Select, SectionTitle } from '$lib/components/forms';
-	import { LucideIcon } from '$lib/components/util';
-	import * as T from '$lib/components/table/';
 	import { toast } from '$lib/components/ui/toaster';
 	import _ from 'lodash';
-	import { Check, CircleX, Hash, Minus, Plus, Tag, Text } from 'lucide-svelte';
+	import { Minus, Plus } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zod4 } from 'sveltekit-superforms/adapters';
 	import type { PageProps } from './$types';
 	import { formSchema } from './util';
-	import { MediaQuery } from 'svelte/reactivity';
-
-	let maxSm: MediaQuery = new MediaQuery('max-width: 39.999rem');
 
 	let { data }: PageProps = $props();
 	let { form, enhance, errors } = superForm(data.form, {
@@ -55,192 +49,151 @@
 
 			$form.genres = data.genres.filter((x) => response.genres.find((g) => g === x.name));
 
-			toast.success('Anime data fetched successfully', Check, 1000);
+			toast.success('Anime data fetched successfully', 1000);
 		} catch (e: any) {
 			if (e instanceof AppError) {
-				toast.error(e.message, CircleX, 5000);
+				toast.error(e.message, 5000);
 			} else if (e instanceof Error) {
 				// Fallback for unexpected errors
-				toast.error(e.message, CircleX, 5000);
+				toast.error(e.message, 5000);
 			} else {
-				toast.error('An unexpected error occurred while fetching anime details.', CircleX, 5000);
+				toast.error('An unexpected error occurred while fetching anime details.', 5000);
 			}
 			return;
 		}
 	}
+
+	$inspect($errors.titleNative);
 </script>
 
 <svelte:head>
 	<title>Admin | New anime | G.O.T Archive</title>
 </svelte:head>
 
-<!-- TODO: Mobile UI-->
-<div class="flex w-full flex-col items-center justify-center gap-1">
-	<div class="flex w-full flex-col gap-1">
-		<div class="grid grid-cols-1 gap-1" style="grid-auto-rows: minmax(2.5em, auto)">
-			<div class="grid grid-cols-[1fr_3fr] gap-1">
-				<Label labelFor="anime-new-anilist-id" shape="rounded">Anilist ID</Label>
-				<Input type="number" rounded="lg" id="anime-new-anilist-id" bind:value={anilistId}>
-					<LucideIcon icon={Hash} />
-				</Input>
-			</div>
-			<Button
-				variant="submit"
-				shape="rounded"
-				filled
-				fullWidth
-				onclick={() => {
-					fillForm(anilistId);
-				}}
-			>
-				<span class="font-bold">Get</span>
-			</Button>
-		</div>
-		<form
-			method="POST"
-			action="?/create"
-			class="flex flex-col gap-1 min-sm:grid min-sm:grid-cols-[1fr_3fr]"
-			style="grid-auto-rows: minmax(2.5em, auto);"
-			id="form-new-anime"
-			use:enhance
+<div class="flex w-full flex-col items-center justify-center gap-2">
+	<div class="grid w-full grid-cols-1 gap-2">
+		<label class="input w-full">
+			<span class="label">AnimeID</span>
+			<input type="number" required min={1} bind:value={anilistId} />
+		</label>
+		<button
+			class="btn btn-success"
+			onclick={() => {
+				fillForm(anilistId);
+			}}
 		>
-			<SectionTitle shape="rounded" fontWeight="700" appendClass="col-span-2">
-				Anime details
-			</SectionTitle>
-			<Label labelFor="titleNative" shape="rounded" appendClass="max-sm:hidden">Title native</Label>
-			<Input
-				type="text"
-				name="titleNative"
-				id="titleNative"
-				rounded="lg"
-				placeholder={maxSm.current ? 'Title native' : ''}
-				bind:value={$form.titleNative}
-			>
-				<LucideIcon icon={Text} />
-			</Input>
-			<Label labelFor="titleRomaji" shape="rounded" appendClass="max-sm:hidden">Title romaji</Label>
-			<Input
-				type="text"
-				name="titleRomaji"
-				id="titleRomaji"
-				rounded="lg"
-				placeholder={maxSm.current ? 'Title romaji' : ''}
-				bind:value={() => $form.titleRomaji || '', (v) => ($form.titleRomaji = v === '' ? null : v)}
-			>
-				<LucideIcon icon={Text} />
-			</Input>
-			<Label labelFor="titleEnglish" shape="rounded" appendClass="max-sm:hidden"
-				>Title english</Label
-			>
-			<Input
-				type="text"
-				name="titleEnglish"
-				id="titleEnglish"
-				rounded="lg"
-				placeholder={maxSm.current ? 'Title english' : ''}
-				bind:value={
-					() => $form.titleEnglish || '', (v) => ($form.titleEnglish = v === '' ? null : v)
-				}
-			>
-				<LucideIcon icon={Text} />
-			</Input>
-			<Label shape="rounded" appendClass="max-sm:hidden">Genres</Label>
-			<Select
-				rounded
-				allowMultiple
-				options={data.genres.map((g) => ({ value: g.genreId, label: g.name }))}
-				placeholder={maxSm.current ? 'Genres' : ''}
-				bind:selected={
-					() => {
-						return $form.genres.map((g) => ({ value: g.genreId, label: g.name }));
-					},
-					(v) => ($form.genres = v.map((x) => ({ genreId: x.value, name: x.label })))
-				}
-			>
-				<LucideIcon icon={Tag} />
-			</Select>
-			<SectionTitle shape="rounded" fontWeight="700" appendClass="col-span-2">
-				Playlist links
-			</SectionTitle>
-			<div class="col-span-2 flex flex-col gap-1">
-				{#each $form.links as link, index}
-					<div class={['grid grid-cols-2 gap-1 min-sm:grid-cols-3']}>
-						<Input
+			Get
+		</button>
+	</div>
+	<form
+		method="POST"
+		action="?/create"
+		class="flex w-full flex-col gap-2"
+		id="form-new-anime"
+		use:enhance
+	>
+		<fieldset class="fieldset bg-base-300 rounded-box p-2">
+			<legend class="fieldset-legend">Anime details</legend>
+			<label class="input w-full">
+				<span class="label">Title native</span>
+				<input type="text" bind:value={$form.titleNative} />
+			</label>
+			<label class="input w-full">
+				<span class="label">Title romaji</span>
+				<input type="text" bind:value={$form.titleRomaji} />
+			</label>
+			<label class="input w-full">
+				<span class="label">Title english</span>
+				<input type="text" bind:value={$form.titleEnglish} />
+			</label>
+			<label class="select w-full">
+				<span class="label">Genres</span>
+				<select
+					onchange={(e) => {
+						const add = data.genres.find(
+							(g) => _.lowerCase(_.deburr(g.name)) === _.lowerCase(_.deburr(e.currentTarget.value))
+						);
+						if (!add) return;
+						$form.genres = [...$form.genres, add];
+						e.currentTarget.value = '';
+					}}
+				>
+					<option value={''} selected disabled>Select genre</option>
+					{#each _.differenceBy( data.genres, $form.genres, (g) => _.lowerCase(_.deburr(g.name)) ) as genre}
+						<option value={genre.name}>{genre.name}</option>
+					{/each}
+				</select>
+			</label>
+			<div class="input w-full overflow-scroll">
+				{#each $form.genres as genre}
+					<button
+						class="btn btn-neutral btn-xs"
+						type="button"
+						onclick={() =>
+							($form.genres = $form.genres.filter(
+								(g) => _.lowerCase(_.deburr(g.name)) !== _.lowerCase(_.deburr(genre.name))
+							))}
+					>
+						{genre.name}
+					</button>
+				{/each}
+			</div>
+		</fieldset>
+		<fieldset class="fieldset bg-base-300 rounded-box gap-2 p-2">
+			<legend class="fieldset-legend">Playlist links</legend>
+			{#each $form.links as link, index}
+				<div class="flex flex-col gap-2 md:flex-row">
+					<label class="floating-label w-full">
+						<span>URL</span>
+						<input
+							class="input w-full"
 							type="text"
-							name="url"
-							id="url"
-							placeholder="URL"
-							rounded="lg"
 							bind:value={$form.links[index].url}
-							appendClass="col-span-2 min-sm:col-span-1"
+							placeholder="URL"
 						/>
-						<Select
-							rounded
-							placeholder="Select platform"
-							options={data.platforms.map((p) => ({ value: p.platformId, label: p.name }))}
-							bind:selected={
-								() => {
-									let platform = data.platforms.find(
-										(p) => p.platformId === $form.links[index].platformId
-									);
-									if (platform !== undefined) {
-										return { value: platform.platformId, label: platform.name };
-									} else {
-										return { value: -1, label: '' };
-									}
-								},
-								(v) => ($form.links[index].platformId = v.value)
-							}
-						/>
-						<Input
-							placeholder="Note"
+					</label>
+					<label class="floating-label w-full">
+						<span>Platform</span>
+						<select class="select w-full" bind:value={$form.links[index].platformId}>
+							<option value={-1} disabled selected>Select platform</option>
+							{#each data.platforms as platform}
+								<option value={platform.platformId}>{platform.name}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="floating-label w-full">
+						<span>Note</span>
+						<input
+							class="input w-full"
 							type="text"
-							name="note"
-							id="note"
-							rounded="lg"
 							bind:value={
-								() => $form.links[index].note ?? '',
+								() => $form.links[index].note || '',
 								(v) => ($form.links[index].note = v === '' ? null : v)
 							}
+							placeholder="Note"
 						/>
-					</div>
-				{/each}
-				<div class="grid grid-cols-2 gap-1">
-					<Button
-						variant="submit"
-						filled
-						fullWidth
-						shape="rounded"
-						onclick={() =>
-							($form.links = [...$form.links, { url: '', platformId: -1, note: null }])}
-					>
-						<Plus />
-					</Button>
-					<Button
-						variant="danger"
-						filled
-						fullWidth
-						shape="rounded"
-						onclick={() => ($form.links = $form.links.slice(0, -1))}
-					>
-						<Minus />
-					</Button>
+					</label>
 				</div>
+			{/each}
+			<div class="flex w-full gap-2">
+				<button
+					type="button"
+					class="btn btn-success grow"
+					onclick={() => ($form.links = [...$form.links, { url: '', platformId: -1, note: null }])}
+				>
+					<Plus />
+				</button>
+				<button
+					type="button"
+					class="btn btn-error grow"
+					onclick={() => ($form.links = _.dropRight($form.links))}
+				>
+					<Minus />
+				</button>
 			</div>
-			<Button
-				variant="submit"
-				form="form-new-anime"
-				type="submit"
-				filled
-				fullWidth
-				shape="rounded"
-				appendClass="col-span-2"
-			>
-				<span class="font-bold">Submit</span>
-			</Button>
-		</form>
-	</div>
-	<div class="w-full">
-		<T.Table data={data.anime} sortable filterable />
-	</div>
+		</fieldset>
+		<button class="btn btn-success">
+			<span class="font-bold">Submit</span>
+		</button>
+	</form>
 </div>

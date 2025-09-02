@@ -1,17 +1,20 @@
 <script lang="ts">
-	import { Button, LinkButton, Input, InputError, Label, Row, Select } from '$lib/components/forms';
-	import { Table } from '$lib/components/table';
-	import { Accordion } from '$lib/components/ui';
 	import { toast } from '$lib/components/ui/toaster';
 	import _ from 'lodash';
-	import { Link2, Minus, Pencil, Plus, Tag, Text, X } from 'lucide-svelte';
+	import { Minus, Pencil, Plus, X } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zod } from 'sveltekit-superforms/adapters';
 	import type { PageProps } from './$types';
 	import { formSchema, deleteFormSchema } from './util';
-	import { LucideIcon } from '$lib/components/util';
+	import { confirm } from '$lib/util';
 
 	let { data }: PageProps = $props();
+	let seasonsTable = $derived(
+		data.allSeasons.map((s) =>
+			_.pick(s, ['animeId', 'sequence', 'titleNative', 'titleRomaji', 'titleEnglish'])
+		)
+	);
+
 	const { form, enhance, errors } = superForm(data.form, {
 		dataType: 'json',
 		validators: zod(formSchema),
@@ -58,189 +61,182 @@
 	</title>
 </svelte:head>
 
-{#snippet row(rowData: { animeId: number; sequence: number })}
-	<div class="flex items-center justify-center gap-1">
-		<LinkButton variant="warning" filled href={`${rowData.animeId}/${rowData.sequence}`}>
-			<Pencil />
-		</LinkButton>
-		<Button
-			variant="danger"
-			filled
-			onclick={(_) => {
-				$deleteForm.animeId = rowData.animeId;
-				$deleteForm.sequence = rowData.sequence;
-				deleteSubmit();
-			}}
-		>
-			<X />
-		</Button>
-	</div>
-{/snippet}
-
-<div class="flex flex-col items-center justify-center gap-1">
+<div class="flex w-full flex-col items-center justify-center gap-2">
 	<form use:deleteEnhance action="?/delete" method="POST" id="delete-form" class="hidden">
 		<input type="hidden" name="animeId" bind:value={$deleteForm.animeId} />
 		<input type="hidden" name="sequence" bind:value={$deleteForm.sequence} />
 	</form>
 	{#if data.anime !== undefined}
-		<div class="w-full">
-			<Accordion title="Edit anime" open={true} rounded>
-				<form
-					action="?/update"
-					id="edit-form"
-					method="POST"
-					class="grid flex-1 grid-cols-[1fr_3fr] gap-1"
-					style="grid-auto-rows: minmax(1fr, auto);"
-					use:enhance
-				>
-					<Label shape="rounded" labelFor="titleNative">Title native</Label>
-					<Input
-						rounded="lg"
+		<form
+			action="?/update"
+			id="edit-form"
+			method="POST"
+			class="flex w-full max-w-5xl flex-col gap-2"
+			use:enhance
+		>
+			<fieldset class="fieldset bg-base-300 rounded-box p-2">
+				<legend class="fieldset-legend">Edit</legend>
+				<label class="input w-full">
+					<span class="label">Title native</span>
+					<input type="text" bind:value={$form.anime.titleNative} />
+				</label>
+				<label class="input w-full">
+					<span class="label">Title romaji</span>
+					<input
 						type="text"
-						id="titleNative"
-						name="titleNative"
-						bind:value={$form.anime.titleNative}
-					>
-						<LucideIcon icon={Text} />
-					</Input>
-					<Label shape="rounded" labelFor="titleRomaji">Title romaji</Label>
-					<Input
-						rounded="lg"
-						type="text"
-						id="titleRomaji"
-						name="titleRomaji"
 						bind:value={
 							() => $form.anime.titleRomaji || '',
 							(v) => ($form.anime.titleRomaji = v === '' ? null : v)
 						}
-					>
-						<LucideIcon icon={Text} />
-					</Input>
-					<Label shape="rounded" labelFor="titleEnglish">Title english</Label>
-					<Input
-						rounded="lg"
+					/>
+				</label>
+				<label class="input w-full">
+					<span class="label">Title english</span>
+					<input
 						type="text"
-						id="titleEnglish"
-						name="titleEnglish"
 						bind:value={
 							() => $form.anime.titleEnglish || '',
 							(v) => ($form.anime.titleEnglish = v === '' ? null : v)
 						}
-					>
-						<LucideIcon icon={Text} />
-					</Input>
-					<Label shape="rounded" labelFor="genres">Genres</Label>
-					<Select
-						rounded
-						allowMultiple
-						options={data.allGenres.map((g) => ({ value: g.genreId, label: g.name }))}
-						bind:selected={
-							() => $form.genres.map((g) => ({ value: g.genreId, label: g.name })),
-							(v) => ($form.genres = v.map((g) => ({ genreId: g.value, name: g.label })))
-						}
-					>
-						<span class="flex aspect-square h-full items-center justify-center">
-							<Tag />
-						</span>
-					</Select>
-					<div class="col-span-2 flex flex-col gap-1">
-						{#each $form.links as link, index}
-							<div class="grid auto-rows-fr grid-cols-3 gap-1">
-								<Input
-									rounded="lg"
-									placeholder="Playlist url"
-									type="text"
-									bind:value={$form.links[index].url}
-									id={`link-${index}`}
-									name={`link-${index}`}
-								>
-									<LucideIcon icon={Link2} />
-								</Input>
-								<Select
-									rounded
-									placeholder="Select platform"
-									options={data.allPlatforms.map((p) => ({ label: p.name, value: p.platformId }))}
-									bind:selected={
-										() => {
-											let f = data.allPlatforms.find(
-												(p) => p.platformId === $form.links[index].platformId
-											);
-											return { label: f?.name || '', value: f?.platformId || -1 };
-										},
-										(v) => ($form.links[index].platformId = v.value)
-									}
-								/>
-								<Input
-									rounded="lg"
-									placeholder="Note"
-									type="text"
-									bind:value={
-										() => $form.links[index].note ?? '',
-										(v) => ($form.links[index].note = v === '' ? null : v)
-									}
-									id={`note-${index}`}
-									name={`note-${index}`}
-								>
-									<LucideIcon icon={Text} />
-								</Input>
-							</div>
-						{/each}
-						<div class="grid grid-cols-2 gap-1">
-							<Button
-								shape="rounded"
-								variant="submit"
-								filled
-								fullWidth
-								onclick={(e) => {
-									e.preventDefault();
-									$form.links = [...$form.links, { url: '', platformId: -1, note: '' }];
-								}}><Plus /></Button
-							>
-							<Button
-								shape="rounded"
-								variant="danger"
-								filled
-								fullWidth
-								onclick={(e) => {
-									e.preventDefault();
-									$form.links = $form.links.slice(0, -1);
-								}}><Minus /></Button
-							>
-						</div>
-					</div>
-					<Button
-						shape="rounded"
-						variant="warning"
-						filled
-						fullWidth
-						type="submit"
-						form="edit-form"
-						appendClass="col-span-2"
-					>
-						<span class="flex gap-2">
-							<Pencil /><span class="font-bold">Edit</span>
-						</span>
-					</Button>
-				</form>
-			</Accordion>
-		</div>
-
-		<div class="w-full">
-			<Accordion title="Seasons" open={true} rounded>
-				<div class="flex flex-col gap-1">
-					<Table
-						data={data.allSeasons.map((s) =>
-							_.pick(s, ['animeId', 'sequence', 'titleNative', 'titleRomaji', 'titleEnglish'])
-						)}
-						columns={[
-							{
-								header: 'Actions',
-								row: row
-							}
-						]}
 					/>
+				</label>
+				<label class="select w-full">
+					<span class="label">Genres</span>
+					<select
+						onchange={(e) => {
+							const add = data.allGenres.find(
+								(g) =>
+									_.lowerCase(_.deburr(g.name)) === _.lowerCase(_.deburr(e.currentTarget.value))
+							);
+							if (!add) return;
+							$form.genres = [...$form.genres, add];
+							e.currentTarget.value = '';
+						}}
+					>
+						<option value={''} selected disabled>Select genre</option>
+						{#each _.differenceBy( data.allGenres, $form.genres, (g) => _.lowerCase(_.deburr(g.name)) ) as genre}
+							<option value={genre.name}>{genre.name}</option>
+						{/each}
+					</select>
+				</label>
+				<div class="input w-full overflow-scroll">
+					{#each $form.genres as genre}
+						<button
+							class="btn btn-neutral btn-xs"
+							type="button"
+							onclick={() =>
+								($form.genres = $form.genres.filter(
+									(g) => _.lowerCase(_.deburr(g.name)) !== _.lowerCase(_.deburr(genre.name))
+								))}
+						>
+							{genre.name}
+						</button>
+					{/each}
 				</div>
-			</Accordion>
+			</fieldset>
+			<fieldset class="fieldset bg-base-300 rounded-box p-2">
+				<legend class="fieldset-legend">Playlist links</legend>
+				<div class="flex flex-col gap-2">
+					{#each $form.links as link, index}
+						<label class="floating-label">
+							<span>Playlist url</span>
+							<input
+								class="input w-full"
+								placeholder="Playlist url"
+								type="text"
+								bind:value={$form.links[index].url}
+							/>
+						</label>
+						<label class="floating-label">
+							<span>Platform</span>
+							<select class="select w-full" bind:value={$form.links[index].platformId}>
+								{#each data.allPlatforms as platform}
+									<option value={platform.platformId}>
+										{platform.name}
+									</option>
+								{/each}
+							</select>
+						</label>
+						<label class="floating-label">
+							<span>Note</span>
+							<input
+								class="input w-full"
+								placeholder="Note"
+								type="text"
+								bind:value={
+									() => $form.links[index].note ?? '',
+									(v) => ($form.links[index].note = v === '' ? null : v)
+								}
+							/>
+						</label>
+						<div class="divider m-0 last:hidden"></div>
+					{/each}
+				</div>
+				<div class="grid grid-cols-2 gap-1">
+					<button
+						class="btn btn-success"
+						onclick={(e) => {
+							e.preventDefault();
+							$form.links = [...$form.links, { url: '', platformId: -1, note: '' }];
+						}}
+					>
+						<Plus />
+					</button>
+					<button
+						type="button"
+						class="btn btn-error"
+						onclick={(e) => {
+							e.preventDefault();
+							$form.links = $form.links.slice(0, -1);
+						}}
+					>
+						<Minus />
+					</button>
+				</div>
+			</fieldset>
+			<button class="btn btn-success" type="submit">Edit</button>
+		</form>
+
+		<div class="border-base-content/5 rounded-box w-full max-w-5xl overflow-x-auto border">
+			<table class="table">
+				<thead>
+					<tr class="uppercase">
+						{#each _.keys(_.head(seasonsTable)) as header}
+							<th>{_.lowerCase(header)}</th>
+						{/each}
+						<th>actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each seasonsTable as season}
+						<tr>
+							{#each _.values(season) as cell}
+								<td>{cell}</td>
+							{/each}
+							<td class="flex flex-nowrap gap-2">
+								<a
+									href={`/admin/edit/anime/${season.animeId}/${season.sequence}`}
+									class="btn btn-warning"
+								>
+									<Pencil />
+								</a>
+								<button
+									class="btn btn-error"
+									onclick={() => {
+										confirm(() => {
+											$deleteForm.animeId = season.animeId;
+											$deleteForm.sequence = season.sequence;
+											deleteSubmit();
+										}, 'Are you sure you want to delete this season? This action cannot be undone.');
+									}}
+								>
+									<X />
+								</button>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		</div>
 	{/if}
 </div>

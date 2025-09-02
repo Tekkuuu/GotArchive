@@ -2,6 +2,15 @@
 
 import type { User, Session, SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./lib/database.types.js";
+import type {
+  CalendarRangeProps,
+  CalendarMonthProps,
+  CalendarDateProps,
+} from "cally";
+
+type MapEvents<T> = {
+  [K in keyof T as K extends `on${infer E}` ? `on:${Lowercase<E>}` : K]: T[K];
+};
 
 // for information about these interfaces
 declare global {
@@ -22,6 +31,11 @@ declare global {
     }
     // interface PageState {}
     // interface Platform {}
+    interface SvelteHTMLElements {
+      "calendar-range": MapEvents<CalendarRangeProps>;
+      "calendar-month": MapEvents<CalendarMonthProps>;
+      "calendar-date": MapEvents<CalendarDateProps>;
+    }
   }
 }
 

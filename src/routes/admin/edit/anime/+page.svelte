@@ -1,13 +1,13 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import _ from 'lodash';
-	import { Table } from '$lib/components/table';
 	import { Button, LinkButton } from '$lib/components/forms';
-	import { X, Pencil, CircleX } from 'lucide-svelte';
+	import { X, Pencil } from 'lucide-svelte';
 	import { toast } from '$lib/components/ui/toaster';
 	import { superForm } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { formSchema } from './util';
+	import Fuse from 'fuse.js';
 
 	let { data }: PageProps = $props();
 
@@ -20,49 +20,75 @@
 			if (result.type === 'success') {
 				toast.success('Anime deleted successfully');
 			} else if (result.type === 'failure') {
-				toast.error(result.data?.text || 'Failed to delete anime', CircleX, 5000);
+				toast.error(result.data?.text || 'Failed to delete anime', 5000);
 			} else if (result.type === 'error') {
-				toast.error('An unexpected error occurred', CircleX, 5000);
+				toast.error('An unexpected error occurred', 5000);
 			}
 		}
 	});
+
+	function filterAnime() {
+		if (search.trim().length === 0) return data.anime;
+
+		let fuse = new Fuse(data.anime, {
+			keys: ['titleNative', 'titleRomaji', 'titleEnglish'],
+			threshold: 0.3,
+			ignoreDiacritics: true,
+			minMatchCharLength: 2
+		});
+
+		return fuse.search(search).map((result) => result.item);
+	}
+
+	let search = $state('');
 </script>
 
 <svelte:head>
 	<title>Admin | Edit anime | G.O.T Archive</title>
 </svelte:head>
 
-{#snippet row(rowData: (typeof data.anime)[number])}
-	<div class="flex items-center justify-center gap-1">
-		<LinkButton variant="warning" filled href={`/admin/edit/anime/${rowData.animeId}`}>
-			<Pencil />
-		</LinkButton>
-		<Button
-			variant="danger"
-			filled
-			onclick={(_) => {
-				$form.animeId = rowData.animeId;
-				submit();
-			}}
-		>
-			<X />
-		</Button>
-	</div>
-{/snippet}
-
-<!-- TODO: Replace per-row form with one superform with hidden fields -->
 <div class="flex w-full flex-col gap-1">
 	<form method="POST" use:enhance action="?/delete" class="hidden">
 		<input type="number" bind:value={$form.animeId} />
 	</form>
-	<Table
-		filterable
-		data={data.anime}
-		columns={[
-			{
-				header: 'Actions',
-				row: row
-			}
-		]}
-	/>
+	<label class="input w-full">
+		<span class="label">Search</span>
+		<input type="text" bind:value={search} />
+	</label>
+	<div class="rounded-box border-base-content/5 overflow-x-auto border">
+		<table class="table-xs table">
+			<thead>
+				<tr class="uppercase">
+					{#each _.keys(_.head(data.anime)) as header}
+						<th>{_.lowerCase(header)}</th>
+					{/each}
+					<th>actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each filterAnime() as rowData}
+					<tr>
+						{#each _.values(rowData) as cell}
+							<td>{cell}</td>
+						{/each}
+						<td class="flex flex-nowrap gap-2">
+							<a href={`/admin/edit/anime/${rowData.animeId}`} class="btn btn-xs btn-warning">
+								<Pencil />
+							</a>
+							<button
+								type="button"
+								class="btn btn-xs btn-error"
+								onclick={() => {
+									$form.animeId = rowData.animeId;
+									submit();
+								}}
+							>
+								<X />
+							</button>
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
 </div>

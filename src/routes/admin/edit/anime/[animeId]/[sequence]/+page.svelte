@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { Button, LinkButton, Select, Checkbox, Input, Label } from '$lib/components/forms';
 	import { LucideIcon } from '$lib/components/util/';
 	import { toast } from '$lib/components/ui/toaster';
 	import _ from 'lodash';
-	import { MoveLeft, MoveRight, Pencil, SunSnow, Text, TvMinimalPlay } from 'lucide-svelte';
+	import { MoveLeft, MoveRight } from 'lucide-svelte';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { superForm } from 'sveltekit-superforms/client';
 	import type { PageProps } from './$types';
@@ -46,8 +45,6 @@
 			}
 		}
 	});
-
-	let episodeFilter: number = $state(0);
 </script>
 
 <svelte:head>
@@ -58,159 +55,119 @@
 	</title>
 </svelte:head>
 
-<div class="flex flex-col items-center justify-center gap-1">
+<div class="flex w-full flex-col items-center justify-center gap-2">
 	{#if data.season !== undefined}
-		<div class="w-full">
-			<form
-				action="?/update"
-				id="edit-form"
-				method="POST"
-				class="grid flex-1 grid-cols-[1fr_3fr] gap-1"
-				style="grid-auto-rows: minmax(1fr, auto);"
-				use:enhance
-			>
-				<Label shape="rounded" labelFor="sequence">Sequence</Label>
-				<Input rounded="lg" type="text" name="sequence" bind:value={$form.sequence} disabled>
-					<LucideIcon icon={Text} />
-				</Input>
-				<Label shape="rounded" labelFor="titleNative">Title native</Label>
-				<Input rounded="lg" type="text" name="titleNative" bind:value={$form.titleNative}>
-					<LucideIcon icon={Text} />
-				</Input>
-				<Label shape="rounded" labelFor="titleRomaji">Title romaji</Label>
-				<Input
-					rounded="lg"
-					type="text"
-					name="titleRomaji"
-					bind:value={
-						() => $form.titleRomaji || '', (v) => ($form.titleRomaji = v === '' ? null : v)
-					}
-				>
-					<LucideIcon icon={Text} />
-				</Input>
-				<Label shape="rounded" labelFor="titleEnglish">Title english</Label>
-				<Input
-					rounded="lg"
-					type="text"
-					name="titleEnglish"
-					bind:value={
-						() => $form.titleEnglish || '', (v) => ($form.titleEnglish = v === '' ? null : v)
-					}
-				>
-					<LucideIcon icon={Text} />
-				</Input>
-				<Label shape="rounded" labelFor="format">Format</Label>
-				<Select
-					textAlign="justify-start"
-					options={data.formats.map((f) => ({ value: f, label: f }))}
-					bind:selected={
-						() => ({ value: $form.format, label: $form.format }), (v) => ($form.format = v.value)
-					}
-				>
-					<LucideIcon icon={TvMinimalPlay} />
-				</Select>
-				<Label shape="rounded" labelFor="season">Season</Label>
-				<Select
-					allowDeselect
-					textAlign="justify-start"
-					options={data.seasons.map((s) => ({ value: s, label: s }))}
-					bind:selected={
-						() =>
-							$form.season === null ? undefined : { value: $form.season, label: $form.season },
-						(v) => (v === undefined ? ($form.season = null) : ($form.season = v.value))
-					}
-				>
-					<LucideIcon icon={SunSnow} />
-				</Select>
-				<Label shape="rounded" labelFor="seasonYear">Year</Label>
-				<Input
-					rounded="lg"
-					type="number"
-					name="seasonYear"
-					bind:value={
-						() => $form.year || '', (v) => (v === '' ? ($form.year = null) : ($form.year = v))
-					}
-				>
-					<LucideIcon icon={Text} />
-				</Input>
-				<Label shape="rounded" labelFor="episodes">Episodes</Label>
-				<Input
-					rounded="lg"
-					type="number"
-					name="episodes"
-					bind:value={
-						() => $form.episodes || '',
-						(v) => (v === '' || v === 0 ? ($form.episodes = null) : ($form.episodes = v))
-					}
-				>
-					<LucideIcon icon={Text} />
-				</Input>
-				<Label shape="rounded" labelFor="siteUrl">Anilist URL</Label>
-				<Input rounded="lg" type="text" name="siteUrl" bind:value={$form.anilistLink}>
-					<LucideIcon icon={Text} />
-				</Input>
-				<Button
-					variant="warning"
-					filled
-					fullWidth
-					shape="rounded"
-					type="submit"
-					form="edit-form"
-					appendClass="col-span-2"
-				>
-					<span class="font-bold">Edit</span>
-					<LucideIcon icon={Pencil} />
-				</Button>
-				{#key data.previous || data.next}
-					<div class="col-span-2 grid grid-cols-2 gap-1">
-						<LinkButton
-							variant="info"
-							filled
-							fullWidth
-							shape="rounded"
-							disabled={data.previous === undefined}
-							href={data.previous === undefined
-								? '#'
-								: `/admin/edit/anime/${data.animeId}/${data.previous}`}
-						>
-							<LucideIcon icon={MoveLeft} />
-						</LinkButton>
-						<LinkButton
-							variant="info"
-							filled
-							fullWidth
-							shape="rounded"
-							disabled={data.next === undefined}
-							href={data.next === undefined
-								? '#'
-								: `/admin/edit/anime/${data.animeId}/${data.next}`}
-						>
-							<LucideIcon icon={MoveRight} />
-						</LinkButton>
-					</div>
-				{/key}
-			</form>
-		</div>
-		<div class="dark:text-primary-50 text-primary-900 flex w-full flex-col">
+		<form
+			action="?/update"
+			id="edit-form"
+			method="POST"
+			class="flex w-full max-w-5xl flex-col gap-2"
+			use:enhance
+		>
+			<fieldset class="fieldset rounded-box bg-base-300 p-2">
+				<legend class="fieldset-legend">Edit Anime Season</legend>
+				<label class="input bg-base-100! w-full">
+					<span class="label">Sequence</span>
+					<input type="text" bind:value={$form.sequence} disabled />
+				</label>
+				<label class="input w-full">
+					<span class="label">Title native</span>
+					<input type="text" bind:value={$form.titleNative} />
+				</label>
+				<label class="input w-full">
+					<span class="label">Title romaji</span>
+					<input
+						type="text"
+						bind:value={
+							() => $form.titleRomaji || '', (v) => ($form.titleRomaji = v === '' ? null : v)
+						}
+					/>
+				</label>
+				<label class="input w-full">
+					<span class="label">Title english</span>
+					<input
+						type="text"
+						bind:value={
+							() => $form.titleEnglish || '', (v) => ($form.titleEnglish = v === '' ? null : v)
+						}
+					/>
+				</label>
+				<label class="select w-full">
+					<span class="label">Format</span>
+					<select bind:value={$form.format}>
+						{#each data.formats as format}
+							<option value={format}>{format}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="select w-full">
+					<span class="label">Season</span>
+					<select
+						bind:value={() => $form.season || '', (v) => ($form.season = v === '' ? null : v)}
+					>
+						<option value="">N/A</option>
+						{#each data.seasons as season}
+							<option value={season}>{season}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="input w-full">
+					<span class="label">Year</span>
+					<input
+						type="number"
+						bind:value={() => $form.year || '', (v) => ($form.year = v === '' ? null : v)}
+					/>
+				</label>
+				<label class="input bg-base-100! w-full">
+					<span class="label">Episodes</span>
+					<input type="number" bind:value={$form.episodes} disabled />
+				</label>
+				<label class="input w-full">
+					<span class="label">Anilist URL</span>
+					<input type="text" bind:value={$form.anilistLink} />
+				</label>
+			</fieldset>
+			<button class="btn btn-warning" type="submit" form="edit-form">Edit</button>
+			{#key data.previous || data.next}
+				<div class="flex gap-2">
+					<a
+						class={['btn btn-info grow', !data.previous && 'btn-outline pointer-events-none']}
+						href={data.previous === undefined
+							? '#'
+							: `/admin/edit/anime/${data.animeId}/${data.previous}`}
+					>
+						<LucideIcon icon={MoveLeft} />
+					</a>
+					<a
+						class={['btn btn-info grow', !data.next && 'btn-outline pointer-events-none']}
+						href={data.next === undefined ? '#' : `/admin/edit/anime/${data.animeId}/${data.next}`}
+					>
+						<LucideIcon icon={MoveRight} />
+					</a>
+				</div>
+			{/key}
+		</form>
+		<div class="flex w-full max-w-5xl flex-col">
 			<form
 				action="?/updateEpisodes"
 				id="update-episodes-form"
 				method="POST"
-				class="flex flex-col gap-1"
+				class="flex flex-col gap-2"
 				use:updateEpisodesEnhance
 			>
-				<div class="grid grid-cols-3 gap-1 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12">
+				<fieldset
+					class="fieldset rounded-box bg-base-300 grid grid-cols-3 gap-2 p-2 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12"
+				>
+					<legend class="fieldset-legend">Update Episodes Watched</legend>
 					{#each $updateEpisodesForm.episodes as episode}
-						<div class="flex gap-1">
-							<input type="hidden" name="animeEpisodeId" bind:value={episode.animeEpisodeId} />
-							<Label shape="rounded" fulLWidth>{episode.episodeNumber}</Label>
-							<Checkbox shape="rounded" bind:value={episode.watched}></Checkbox>
-						</div>
+						<input type="hidden" name="animeEpisodeId" bind:value={episode.animeEpisodeId} />
+						<label class="btn has-checked:btn-success w-full">
+							<input class="hidden" type="checkbox" bind:checked={episode.watched} />
+							{episode.episodeNumber}
+						</label>
 					{/each}
-				</div>
-				<Button shape="rounded" type="submit" variant="submit" filled fullWidth>
-					<span class="font-bold">Update Episodes</span>
-				</Button>
+				</fieldset>
+				<button type="submit" class="btn btn-warning">Update Episodes</button>
 			</form>
 		</div>
 	{/if}

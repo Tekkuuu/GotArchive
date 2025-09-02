@@ -60,6 +60,7 @@
     "@sveltejs/adapter-node": "^5.2.14",
     "@upstash/qstash": "^2.8.2",
     "@upstash/redis": "^1.35.1",
+    "cally": "^0.8.0",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dotenv": "^16.5.0",

@@ -1,14 +1,12 @@
 <script lang="ts">
-	import type { PageServerLoad, PageProps } from './$types';
-	import { formatWeekRange } from '$lib/util';
+	import type { PageProps } from './$types';
 	import _ from 'lodash';
 	import { superForm } from 'sveltekit-superforms';
 	import { zod } from 'sveltekit-superforms/adapters';
 	import { formSchema } from './util';
 	import { toast } from '$lib/components/ui/toaster';
-	import { Table } from '$lib/components/table';
-	import { Button, LinkButton } from '$lib/components/forms';
 	import { X, Pencil } from 'lucide-svelte';
+	import { confirm } from '$lib/util';
 
 	let { data }: PageProps = $props();
 
@@ -34,46 +32,50 @@
 	<title>Edit schedule | G.O.T Archive</title>
 </svelte:head>
 
-{#snippet row(rowData: (typeof data.schedule)[number])}
-	<div class="flex gap-1">
-		<LinkButton
-			variant="warning"
-			filled
-			fullWidth
-			href={`/admin/edit/schedule/${rowData.year}${rowData.week}`}
-		>
-			<Pencil />
-		</LinkButton>
-		<Button
-			variant="danger"
-			filled
-			fullWidth
-			onclick={() => {
-				$form.scheduleId = rowData.scheduleId;
-				submit();
-			}}
-		>
-			<X />
-		</Button>
-	</div>
-{/snippet}
-
-<div class="flex w-full flex-col gap-1">
+<div class="flex w-full flex-col items-center gap-2">
 	<form use:enhance class="hidden" method="POST" action="?/delete">
 		<input type="hidden" name="scheduleId" bind:value={$form.scheduleId} />
 	</form>
-	<Table
-		sortable
-		filterable
-		data={data.schedule}
-		columns={[
-			{
-				header: 'Actions',
-				row: row
-			}
-		]}
-	/>
-	<LinkButton shape="rounded" variant="info" filled fullWidth href="/admin/new/schedule">
-		<span class="font-bold">Add Schedule</span>
-	</LinkButton>
+	<div class="rounded-box border-base-content/5 w-full max-w-5xl overflow-x-auto border">
+		<table class="table">
+			<thead>
+				<tr class="uppercase">
+					{#each _.keys(_.head(data.schedule)) as header}
+						<th>{_.lowerCase(header)}</th>
+					{/each}
+					<th>actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each data.schedule as scheduleRow}
+					<tr>
+						{#each _.values(scheduleRow) as cell}
+							<td>{cell}</td>
+						{/each}
+						<td class="flex gap-2">
+							<a
+								href={`/admin/edit/schedule/${scheduleRow.year}${scheduleRow.week}`}
+								class="btn btn-warning"
+							>
+								<Pencil />
+							</a>
+							<button
+								class="btn btn-error"
+								type="button"
+								onclick={() => {
+									confirm(() => {
+										$form.scheduleId = scheduleRow.scheduleId;
+										submit();
+									}, 'Are you sure you want to delete this schedule?');
+								}}
+							>
+								<X />
+							</button>
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+	<a class="btn btn-success w-full max-w-5xl" href="/admin/new/schedule">Add Schedule</a>
 </div>

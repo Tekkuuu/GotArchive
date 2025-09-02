@@ -7,14 +7,11 @@
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { updateFormSchema, createFormSchema, deleteFormSchema } from './util';
 	import { toast } from '$lib/components/ui/toaster';
-	import { Table } from '$lib/components/table';
-	import { Button, Input, DateInput, TimeInput, Select } from '$lib/components/forms';
-	import { Modal } from '$lib/components/ui';
-	import { X, Pencil, Loader, Clock, Text } from 'lucide-svelte';
+	import { X, Pencil } from 'lucide-svelte';
 	import type { ApiErrorResponse } from '$lib/api';
 	import { formatWeekRange } from '$lib/util';
-	import { LucideIcon } from '$lib/components/util';
 	import { computeDurationStringFromWatchedAfter } from '$lib/util/schedule';
+	import { confirm } from '$lib/util';
 
 	let { data }: PageProps = $props();
 	let entries = $derived.by(() => {
@@ -35,13 +32,53 @@
 		});
 		return result;
 	});
+	let tableAnimeEntries = $derived(
+		entries
+			.filter((e) => e.scheduleEntry.type === 'anime')
+			.map((e) => {
+				return {
+					scheduleEntryId: e.scheduleEntry.scheduleEntryId,
+					platforms: data.platforms
+						.filter((p) => e.scheduleEntry.platformIds.includes(p.platformId))
+						.map((p) => p.name)
+						.join(', '),
+					date: format(
+						new Date(
+							`${e.scheduleEntry.date}${e.scheduleEntry.time !== null ? 'T' + e.scheduleEntry.time : ''}Z`
+						),
+						`EEEE, yyyy-MM-dd${e.scheduleEntry.time !== null ? ' HH:mm' : ''}`
+					),
+					watchedAfter: format(new Date(e.anime!.watchedAfter!), 'EEEE, yyyy-MM-dd HH:mm:ss'),
+					anime: e.anime!.titleEnglish || e.anime!.titleRomaji || e.anime!.titleNative,
+					episodes: e.anime!.episodes.join(', ')
+				};
+			})
+	);
+	let talbeMiscEntries = $derived(
+		entries
+			.filter((e) => e.scheduleEntry.type === 'misc')
+			.map((e) => {
+				return {
+					scheduleEntryId: e.scheduleEntry.scheduleEntryId,
+					platforms: data.platforms
+						.filter((p) => e.scheduleEntry.platformIds.includes(p.platformId))
+						.map((p) => p.name)
+						.join(', '),
+					date: format(
+						new Date(
+							`${e.scheduleEntry.date}${e.scheduleEntry.time !== null ? 'T' + e.scheduleEntry.time : ''}Z`
+						),
+						`EEEE, yyyy-MM-dd${e.scheduleEntry.time !== null ? ' HH:mm' : ''}`
+					),
+					title: e.misc!.title,
+					description: e.misc!.description || 'N/A'
+				};
+			})
+	);
 
 	let episodes: AnimeEpisodeDetails[] = $state([]);
 
-	let updateModalOpen: boolean = $state(false);
 	let loading: Promise<any> | undefined = $state(undefined);
-
-	let createModalOpen: boolean = $state(false);
 
 	async function fetchAnimeEpisodes(animeId: number) {
 		if (episodes.find((e) => e.animeId === animeId) !== undefined) return;
@@ -198,410 +235,547 @@
 	</title>
 </svelte:head>
 
-{#snippet row(rowData: { scheduleEntryId: number })}
-	<div class="flex gap-1">
-		<Button
-			variant="warning"
-			filled
-			fullWidth
-			onclick={async () => {
-				updateModalOpen = true;
-				loading = setModal(rowData.scheduleEntryId);
-			}}
-		>
-			<Pencil />
-		</Button>
-		<Button
-			variant="danger"
-			filled
-			fullWidth
-			onclick={() => {
-				$deleteForm.scheduleEntryId = rowData.scheduleEntryId;
-				deleteSubmit();
-			}}
-		>
-			<X />
-		</Button>
-	</div>
-{/snippet}
-
-<div class="flex w-full flex-col gap-1">
+<div class="flex w-full flex-col items-center gap-2">
 	<form method="POST" action="?/delete" use:deleteEnhance class="hidden">
 		<input type="hidden" name="scheduleEntryId" bind:value={$deleteForm.scheduleEntryId} />
 	</form>
-	<Table
-		sortable
-		filterable
-		data={entries
-			.filter((e) => e.scheduleEntry.type === 'anime')
-			.map((e) => {
-				return {
-					scheduleEntryId: e.scheduleEntry.scheduleEntryId,
-					platforms: data.platforms
-						.filter((p) => e.scheduleEntry.platformIds.includes(p.platformId))
-						.map((p) => p.name)
-						.join(', '),
-					date: format(
-						new Date(
-							`${e.scheduleEntry.date}${e.scheduleEntry.time !== null ? 'T' + e.scheduleEntry.time : ''}Z`
-						),
-						`EEEE, yyyy-MM-dd${e.scheduleEntry.time !== null ? ' HH:mm' : ''}`
-					),
-					watchedAfter: format(new Date(e.anime!.watchedAfter!), 'EEEE, yyyy-MM-dd HH:mm:ss'),
-					anime: e.anime!.titleEnglish || e.anime!.titleRomaji || e.anime!.titleNative,
-					episodes: e.anime!.episodes.join(', ')
-				};
-			})}
-		columns={[
-			{
-				header: 'Actions',
-				row: row
-			}
-		]}
-	/>
-	<Table
-		sortable
-		filterable
-		data={entries
-			.filter((e) => e.scheduleEntry.type === 'misc')
-			.map((e) => {
-				return {
-					scheduleEntryId: e.scheduleEntry.scheduleEntryId,
-					platforms: data.platforms
-						.filter((p) => e.scheduleEntry.platformIds.includes(p.platformId))
-						.map((p) => p.name)
-						.join(', '),
-					date: format(
-						new Date(
-							`${e.scheduleEntry.date}${e.scheduleEntry.time !== null ? 'T' + e.scheduleEntry.time : ''}Z`
-						),
-						`EEEE, yyyy-MM-dd${e.scheduleEntry.time !== null ? ' HH:mm' : ''}`
-					),
-					title: e.misc!.title,
-					description: e.misc!.description || 'N/A'
-				};
-			})}
-		columns={[
-			{
-				header: 'Actions',
-				row: row
-			}
-		]}
-	/>
-	<div class="flex gap-1">
-		<Button
-			variant="submit"
-			filled
-			fullWidth
-			onclick={() => {
-				createModalOpen = true;
-			}}
-		>
-			<span class="font-bold">New entry</span>
-		</Button>
-	</div>
-	<Modal open={createModalOpen} onclose={() => (createModalOpen = false)} center="both">
-		<div
-			class="text-primary-900 dark:text-primary-50 mb-2 flex w-full items-center justify-center text-2xl font-bold"
-		>
-			<h1>Create entry data</h1>
+	{#if tableAnimeEntries.length > 0}
+		<div class="rounded-box border-base-content/5 w-full overflow-x-auto border">
+			<table class="table">
+				<thead>
+					<tr class="uppercase">
+						{#each _.keys(_.head(tableAnimeEntries)) as header}
+							<th>{_.lowerCase(header)}</th>
+						{/each}
+						<th>actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each tableAnimeEntries as entry}
+						<tr>
+							{#each _.values(entry) as cell}
+								<td>{cell}</td>
+							{/each}
+							<td>
+								<button
+									class="btn btn-warning"
+									onclick={async () => {
+										(
+											document.getElementById('update_entry_modal') as HTMLDialogElement
+										)?.showModal();
+										loading = setModal(entry.scheduleEntryId);
+									}}
+								>
+									<Pencil />
+								</button>
+								<button
+									class="btn btn-error"
+									onclick={() => {
+										confirm(() => {
+											$deleteForm.scheduleEntryId = entry.scheduleEntryId;
+											deleteSubmit();
+										}, 'Are you sure you want to delete this entry?');
+									}}
+								>
+									<X />
+								</button>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		</div>
-		<form method="POST" action="?/create" use:createEnhance class="flex w-full flex-col gap-1">
-			<input type="hidden" name="scheduleId" bind:value={$createForm.scheduleId} />
-			<input type="hidden" name="year" bind:value={$createForm.year} />
-			<input type="hidden" name="week" bind:value={$createForm.week} />
-			<div class="grid w-full grid-cols-2 gap-1">
-				<Select
-					rounded
-					placeholder="Entry type"
-					options={data.scheduleEntryType.map((t) => ({ label: t, value: t }))}
-					bind:selected={
-						() => ({
-							value: $createForm.type,
-							label: data.scheduleEntryType.find((t) => t === $createForm.type) || ''
-						}),
-						(v) => ($createForm.type = v.value)
-					}
-				/>
-				<Select
-					allowMultiple
-					rounded
-					placeholder="Select platforms"
-					options={data.platforms.map((p) => ({ label: p.name, value: p.platformId }))}
-					bind:selected={
-						() =>
-							$createForm.platformIds.map((pId) => ({
-								value: pId,
-								label:
-									data.platforms.find((p) => p.platformId === pId)?.name || 'An error has occurred'
-							})),
-						(v) => ($createForm.platformIds = v.map((p) => p.value))
-					}
-				/>
-				<DateInput bind:value={$createForm.date} rounded />
-				<TimeInput
-					rounded
-					showSecond={false}
-					bind:value={
-						() => $createForm.time ?? undefined,
-						(v) => (!v ? ($createForm.time = null) : ($createForm.time = v))
-					}
-				/>
-				<Input
-					rounded="lg"
-					appendClass="col-span-2"
-					placeholder="Note"
-					type="text"
-					bind:value={
-						() => $createForm.note ?? '',
-						(v) => (v === '' ? ($createForm.note = null) : ($createForm.note = v))
-					}
-				/>
-			</div>
-			{#if $createForm.type === 'anime'}
-				<div class="grid w-full grid-cols-2 gap-1">
-					<Select
-						rounded
-						search
-						options={data.anime.map((a) => ({ value: a.animeId, label: getSelectTitleLabel(a) }))}
-						bind:selected={
-							() => ({
-								value: $createForm.data.animeId,
-								label: getSelectTitleLabel(
-									data.anime.find((a) => a.animeId === $createForm.data.animeId)
-								)
-							}),
-							(v) => ($createForm.data.animeId = v.value)
-						}
-						onselect={async () => {
-							await fetchAnimeEpisodes($createForm.data.animeId);
-						}}
-					/>
-					<Select
-						rounded
-						search
-						allowMultiple
-						disabled={$createForm.data.animeId <= 0}
-						options={episodes
-							.filter((e) => e.animeId === $createForm.data.animeId)
-							.map((e) => ({
-								value: e.animeEpisodeId,
-								label: `${e.titleEnglish ?? e.titleRomaji ?? e.titleNative}, Ep: ${e.episodeNumber.toString()}`
-							}))}
-						bind:selected={
-							() =>
-								$createForm.data.animeEpisodeIds.map((e) => {
-									const ep = episodes.find((ep) => ep.animeEpisodeId === e);
-									return {
-										value: e,
-										label: `${ep?.titleEnglish || ep?.titleRomaji || ep?.titleNative || 'Error occurred'}, Ep: ${ep?.episodeNumber || 'Error occured'}`
-									};
-								}),
-							(v) => ($createForm.data.animeEpisodeIds = v.map((e) => e.value))
-						}
-					/>
-				</div>
-				<Input
-					rounded="lg"
-					appendClass="col-span-2"
-					placeholder="Watch delay"
-					type="text"
-					bind:value={$createForm.data.watchedAfter}
+	{/if}
+	{#if talbeMiscEntries.length > 0}
+		<div class="rounded-box border-base-content/5 w-full overflow-x-auto border">
+			<table class="table">
+				<thead>
+					<tr class="uppercase">
+						{#each _.keys(_.head(talbeMiscEntries)) as header}
+							<th>{_.lowerCase(header)}</th>
+						{/each}
+						<th>actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each talbeMiscEntries as entry}
+						<tr>
+							{#each _.values(entry) as cell}
+								<td>{cell}</td>
+							{/each}
+							<td>
+								<button
+									class="btn btn-warning"
+									onclick={async () => {
+										(
+											document.getElementById('update_entry_modal') as HTMLDialogElement
+										)?.showModal();
+										loading = setModal(entry.scheduleEntryId);
+									}}
+								>
+									<Pencil />
+								</button>
+								<button
+									class="btn btn-error"
+									onclick={() => {
+										confirm(() => {
+											$deleteForm.scheduleEntryId = entry.scheduleEntryId;
+											deleteSubmit();
+										}, 'Are you sure you want to delete this entry?');
+									}}
+								>
+									<X />
+								</button>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
+	<button
+		class="btn btn-success btn-block"
+		onclick={() => {
+			(document.getElementById('add_entry_modal') as HTMLDialogElement)?.showModal();
+		}}
+	>
+		New entry
+	</button>
+	<dialog class="modal" id="add_entry_modal">
+		<div class="modal-box bg-base-300 flex max-w-full flex-col gap-2">
+			<form method="POST" action="?/create" use:createEnhance class="flex w-full flex-col gap-1">
+				<input type="hidden" name="scheduleId" bind:value={$createForm.scheduleId} />
+				<input type="hidden" name="year" bind:value={$createForm.year} />
+				<input type="hidden" name="week" bind:value={$createForm.week} />
+				<fieldset
+					class="fieldset bg-base-200 rounded-box grid grid-cols-1 p-2 md:grid-cols-2 lg:grid-cols-3"
 				>
-					<LucideIcon icon={Clock} />
-				</Input>
-			{:else if $createForm.type === 'misc'}
-				<div class="grid grid-cols-2 gap-1">
-					<Input
-						type="text"
-						rounded="lg"
-						placeholder="Title"
-						bind:value={() => $createForm.data.title, (v) => ($createForm.data.title = v)}
-					>
-						<LucideIcon icon={Text} />
-					</Input>
-					<Input
-						type="text"
-						rounded="lg"
-						placeholder="Description"
-						bind:value={
-							() => $createForm.data.description || '',
-							(v) => ($createForm.data.description = v === '' ? null : v)
-						}
-					>
-						<LucideIcon icon={Text} />
-					</Input>
-				</div>
-			{/if}
-			<Button
-				shape="rounded"
-				variant="submit"
-				filled
-				fullWidth
-				onclick={() => {
-					$createForm.scheduleId = data.schedule.scheduleInfo.scheduleId;
-					$createForm.year = data.schedule.scheduleInfo.year;
-					$createForm.week = data.schedule.scheduleInfo.week;
-					createSubmit();
-				}}
-			>
-				<span class="font-bold">Submit</span>
-			</Button>
-		</form>
-	</Modal>
-	<Modal open={updateModalOpen} onclose={() => (updateModalOpen = false)} center="both">
-		<div
-			class="text-primary-900 dark:text-primary-50 mb-2 flex w-full items-center justify-center text-2xl font-bold"
-		>
-			{#await loading}
-				<Loader class="h-full animate-spin" />
-			{:then _}
-				<h1>Update entry data</h1>
-			{/await}
+					<legend class="fieldset-legend">Entry</legend>
+					<label class="select order-1 w-full">
+						<span class="label">Entry</span>
+						<select
+							bind:value={$createForm.type}
+							onselect={() => {
+								switch ($createForm.type) {
+									case 'anime':
+										$createForm.data = {
+											animeEpisodeIds: [],
+											animeId: -1,
+											watchedAfter: ''
+										};
+										break;
+									case 'misc':
+										$createForm.data = {
+											title: '',
+											description: null
+										};
+										break;
+								}
+							}}
+						>
+							{#each data.scheduleEntryType as type}
+								<option value={type}>{type}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="select order-3 w-full lg:order-2">
+						<span class="label">Platforms</span>
+						<select
+							onchange={(e) => {
+								const add = data.platforms.find((p) => p.platformId === +e.currentTarget.value);
+								if (!add) return;
+								$createForm.platformIds = [...$createForm.platformIds, add.platformId];
+								e.currentTarget.value = '';
+							}}
+						>
+							<option value={''} selected disabled>Select platform</option>
+							{#each data.platforms.filter((p) => !$createForm.platformIds.includes(p.platformId)) as platform}
+								<option value={platform.platformId}>{platform.name}</option>
+							{/each}
+						</select>
+					</label>
+					<div class="input order-4 w-full overflow-scroll lg:order-3">
+						{#each $createForm.platformIds as pid}
+							{@const platform = data.platforms.find((p) => p.platformId === pid)}
+							<button
+								class="btn btn-neutral btn-xs"
+								type="button"
+								onclick={() =>
+									($createForm.platformIds = $createForm.platformIds.filter((p) => p !== pid))}
+							>
+								{platform?.name || 'An error occurred'}
+							</button>
+						{/each}
+					</div>
+					<label class="input order-5 w-full lg:order-4">
+						<span class="label">Date</span>
+						<input type="date" bind:value={$createForm.date} />
+					</label>
+					<label class="input order-6 w-full lg:order-5">
+						<span class="label">Time</span>
+						<input
+							type="time"
+							bind:value={
+								() => $createForm.time ?? '', (v) => ($createForm.time = v === '' ? null : v)
+							}
+						/>
+					</label>
+					<label class="input order-2 w-full lg:order-6">
+						<span class="label">Note</span>
+						<input
+							type="text"
+							bind:value={
+								() => $createForm.note || '', (v) => ($createForm.note = v === '' ? null : v)
+							}
+						/>
+					</label>
+				</fieldset>
+				<fieldset class="fieldset bg-base-200 rounded-box p-2">
+					{#if $createForm.type === 'anime'}
+						<legend class="fieldset-legend">Anime details</legend>
+						<div class="grid grid-cols-1 gap-2 lg:grid-cols-3">
+							<label class="input w-full">
+								<span class="label">Watch delay</span>
+								<input
+									type="text"
+									bind:value={
+										() => $createForm.data.watchedAfter, (v) => ($createForm.data.watchedAfter = v)
+									}
+								/>
+							</label>
+							<label class="input w-full">
+								<span class="label">Anime</span>
+								<input
+									type="text"
+									list="anime-list"
+									oninput={(e) => {
+										const found = data.anime.find((a) => {
+											return (
+												e.currentTarget.value === (a.titleEnglish ?? a.titleRomaji ?? a.titleNative)
+											);
+										});
+										if (!found) return;
+										$createForm.data.animeId = found.animeId;
+										fetchAnimeEpisodes($createForm.data.animeId);
+										e.currentTarget.value = '';
+									}}
+								/>
+								<datalist id="anime-list">
+									{#each data.anime as anime}
+										<option value={anime.titleEnglish ?? anime.titleRomaji ?? anime.titleNative}
+										></option>
+									{/each}
+								</datalist>
+							</label>
+							<label class="select w-full">
+								<select
+									onchange={() => fetchAnimeEpisodes($createForm.data.animeId)}
+									bind:value={() => $createForm.data.animeId, (v) => ($createForm.data.animeId = v)}
+								>
+									<option value={-1} selected disabled>Select anime</option>
+									{#each data.anime as anime}
+										<option value={anime.animeId}>
+											{anime.titleEnglish ?? anime.titleRomaji ?? anime.titleNative}
+										</option>
+									{/each}
+								</select>
+							</label>
+							<label class="select w-full">
+								<select
+									onchange={(e) => {
+										$createForm.data.animeEpisodeIds = [
+											...$createForm.data.animeEpisodeIds,
+											+e.currentTarget.value
+										];
+										e.currentTarget.value = '-1';
+									}}
+								>
+									<option value={-1} selected disabled>Select episode</option>
+									{#each episodes.filter((ep) => ep.animeId === $createForm.data.animeId && !$createForm.data.animeEpisodeIds.includes(ep.animeEpisodeId)) as episode}
+										<option value={episode.animeEpisodeId}>
+											{episode.titleEnglish || episode.titleRomaji || episode.titleNative || 'N/A'} (Ep
+											{episode.episodeNumber})
+										</option>
+									{/each}
+								</select>
+							</label>
+							<div class="input w-full lg:col-span-2">
+								{#each $createForm.data.animeEpisodeIds as epId}
+									{@const episode = episodes.find((e) => e.animeEpisodeId === epId)}
+									<button
+										class="btn btn-neutral btn-xs"
+										type="button"
+										onclick={() =>
+											($createForm.data.animeEpisodeIds = $createForm.data.animeEpisodeIds.filter(
+												(e) => e !== epId
+											))}
+									>
+										{getSelectTitleLabel(data.anime.find((a) => a.animeId === episode?.animeId))} - {episode?.titleEnglish ||
+											episode?.titleRomaji ||
+											episode?.titleNative ||
+											'N/A'} (Ep {episode?.episodeNumber || 'N/A'})
+									</button>
+								{/each}
+							</div>
+						</div>
+					{:else if $createForm.type === 'misc'}
+						<legend class="fieldset-legend">Misc details</legend>
+						<div class="grid grid-cols-1 gap-1 lg:grid-cols-2">
+							<label class="input w-full">
+								<span class="label">Title</span>
+								<input
+									type="text"
+									bind:value={() => $createForm.data.title, (v) => ($createForm.data.title = v)}
+								/>
+							</label>
+							<label class="input w-full">
+								<span class="label">Description</span>
+								<input
+									type="text"
+									bind:value={
+										() => $createForm.data.description || '',
+										(v) => ($createForm.data.description = v === '' ? null : v)
+									}
+								/>
+							</label>
+						</div>
+					{/if}
+				</fieldset>
+				<button
+					class="btn btn-success"
+					onclick={() => {
+						$createForm.scheduleId = data.schedule.scheduleInfo.scheduleId;
+						$createForm.year = data.schedule.scheduleInfo.year;
+						$createForm.week = data.schedule.scheduleInfo.week;
+						createSubmit();
+						(document.getElementById('add_entry_modal') as HTMLDialogElement).close();
+					}}
+				>
+					Submit
+				</button>
+			</form>
 		</div>
-		{#await loading then _}
+	</dialog>
+	<dialog class="modal" id="update_entry_modal">
+		<div class="modal-box bg-base-300 flex max-w-full flex-col gap-2">
 			<form method="POST" action="?/update" use:updateEnhance class="flex w-full flex-col gap-1">
 				<input type="hidden" name="year" bind:value={$updateForm.year} />
 				<input type="hidden" name="week" bind:value={$updateForm.week} />
-				<div class="grid w-full grid-cols-2 gap-1">
-					<Select
-						rounded
-						placeholder="Entry type"
-						options={data.scheduleEntryType.map((t) => ({ label: t, value: t }))}
-						disabled
-						bind:selected={
-							() => ({
-								value: $updateForm.type,
-								label: data.scheduleEntryType.find((t) => t === $updateForm.type) || ''
-							}),
-							(v) => ($updateForm.type = v.value)
-						}
-					/>
-					<Select
-						allowMultiple
-						rounded
-						placeholder="Select platforms"
-						options={data.platforms.map((p) => ({ label: p.name, value: p.platformId }))}
-						bind:selected={
-							() =>
-								$updateForm.platformIds.map((pId) => ({
-									value: pId,
-									label:
-										data.platforms.find((p) => p.platformId === pId)?.name ||
-										'An error has occurred'
-								})),
-							(v) => ($updateForm.platformIds = v.map((p) => p.value))
-						}
-					/>
-					<DateInput rounded bind:value={$updateForm.date} />
-					<TimeInput
-						rounded
-						showSecond={false}
-						bind:value={
-							() => $updateForm.time ?? undefined,
-							(v) => (!v ? ($updateForm.time = null) : ($updateForm.time = v))
-						}
-					/>
-					<Input
-						rounded="lg"
-						appendClass="col-span-2"
-						placeholder="Note"
-						type="text"
-						bind:value={
-							() => $updateForm.note ?? '',
-							(v) => (v === '' ? ($updateForm.note = null) : ($updateForm.note = v))
-						}
-					/>
-				</div>
-				{#if $updateForm.type === 'anime'}
-					<div class="grid w-full grid-cols-2 gap-1">
-						<Select
-							rounded
-							search
-							options={data.anime.map((a) => ({ value: a.animeId, label: getSelectTitleLabel(a) }))}
-							bind:selected={
-								() => ({
-									value: $updateForm.data.animeId,
-									label: getSelectTitleLabel(
-										data.anime.find((a) => a.animeId === $updateForm.data.animeId)
-									)
-								}),
-								(v) => ($updateForm.data.animeId = v.value)
-							}
-							onselect={async () => {
-								await fetchAnimeEpisodes($updateForm.data.animeId);
-							}}
-						/>
-						<Select
-							rounded
-							search
-							allowMultiple
-							disabled={$updateForm.data.animeId <= 0}
-							options={episodes
-								.filter((e) => e.animeId === $updateForm.data.animeId)
-								.map((e) => ({
-									value: e.animeEpisodeId,
-									label: `${e.titleEnglish ?? e.titleRomaji ?? e.titleNative}, Ep: ${e.episodeNumber.toString()}`
-								}))}
-							bind:selected={
-								() =>
-									$updateForm.data.animeEpisodeIds.map((e) => {
-										const ep = episodes.find((ep) => ep.animeEpisodeId === e);
-										return {
-											value: e,
-											label: `${ep?.titleEnglish || ep?.titleRomaji || ep?.titleNative || 'Error occurred'}, Ep: ${ep?.episodeNumber || 'Error occured'}`
+				{#await loading}
+					<div class="flex items-center justify-center gap-2">
+						<div class="loading"></div>
+						Loading
+					</div>
+				{:then}
+					<h1 class="text-center font-semibold">Update entry</h1>
+				{/await}
+				<fieldset
+					class="fieldset bg-base-200 rounded-box grid grid-cols-1 p-2 md:grid-cols-2 lg:grid-cols-3"
+				>
+					<legend class="fieldset-legend">Entry</legend>
+					<label class="select bg-base-100! order-1 w-full">
+						<span class="label">Entry</span>
+						<select
+							disabled
+							bind:value={$updateForm.type}
+							onselect={() => {
+								switch ($updateForm.type) {
+									case 'anime':
+										$updateForm.data = {
+											animeEpisodeIds: [],
+											animeId: -1,
+											watchedAfter: ''
 										};
-									}),
-								(v) => ($updateForm.data.animeEpisodeIds = v.map((e) => e.value))
+										break;
+									case 'misc':
+										$updateForm.data = {
+											title: '',
+											description: null
+										};
+										break;
+								}
+							}}
+						>
+							{#each data.scheduleEntryType as type}
+								<option value={type}>{type}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="select order-3 w-full lg:order-2">
+						<span class="label">Platforms</span>
+						<select
+							onchange={(e) => {
+								const add = data.platforms.find((p) => p.platformId === +e.currentTarget.value);
+								if (!add) return;
+								$updateForm.platformIds = [...$updateForm.platformIds, add.platformId];
+								e.currentTarget.value = '';
+							}}
+						>
+							<option value={''} selected disabled>Select platform</option>
+							{#each data.platforms.filter((p) => !$updateForm.platformIds.includes(p.platformId)) as platform}
+								<option value={platform.platformId}>{platform.name}</option>
+							{/each}
+						</select>
+					</label>
+					<div class="input order-4 w-full overflow-scroll lg:order-3">
+						{#each $updateForm.platformIds as pid}
+							{@const platform = data.platforms.find((p) => p.platformId === pid)}
+							<button
+								class="btn btn-neutral btn-xs"
+								type="button"
+								onclick={() =>
+									($updateForm.platformIds = $updateForm.platformIds.filter((p) => p !== pid))}
+							>
+								{platform?.name || 'An error occurred'}
+							</button>
+						{/each}
+					</div>
+					<label class="input order-5 w-full lg:order-4">
+						<span class="label">Date</span>
+						<input type="date" bind:value={$updateForm.date} />
+					</label>
+					<label class="input order-6 w-full lg:order-5">
+						<span class="label">Time</span>
+						<input
+							type="time"
+							bind:value={
+								() => $updateForm.time ?? '', (v) => ($updateForm.time = v === '' ? null : v)
 							}
 						/>
-					</div>
-					<Input
-						rounded="lg"
-						appendClass="col-span-2"
-						placeholder="Watch delay"
-						type="text"
-						bind:value={$updateForm.data.watchedAfter}
-					>
-						<LucideIcon icon={Clock} />
-					</Input>
-				{:else if $updateForm.type === 'misc'}
-					<div class="grid grid-cols-2 gap-1">
-						<Input
+					</label>
+					<label class="input order-2 w-full lg:order-6">
+						<span class="label">Note</span>
+						<input
 							type="text"
-							rounded="lg"
-							placeholder="Title"
-							bind:value={() => $updateForm.data.title, (v) => ($updateForm.data.title = v)}
-						>
-							<LucideIcon icon={Text} />
-						</Input>
-						<Input
-							type="text"
-							rounded="lg"
-							placeholder="Description"
 							bind:value={
-								() => $updateForm.data.description || '',
-								(v) => ($updateForm.data.description = v === '' ? null : v)
+								() => $updateForm.note || '', (v) => ($updateForm.note = v === '' ? null : v)
 							}
-						>
-							<LucideIcon icon={Text} />
-						</Input>
-					</div>
-				{/if}
-				<Button
-					variant="warning"
-					filled
-					fullWidth
-					shape="rounded"
+						/>
+					</label>
+				</fieldset>
+				<fieldset class="fieldset bg-base-200 rounded-box p-2">
+					{#if $updateForm.type === 'anime'}
+						<legend class="fieldset-legend">Anime details</legend>
+						<div class="grid grid-cols-1 gap-2 lg:grid-cols-3">
+							<label class="input w-full">
+								<span class="label">Watch delay</span>
+								<input
+									type="text"
+									bind:value={
+										() => $updateForm.data.watchedAfter, (v) => ($updateForm.data.watchedAfter = v)
+									}
+								/>
+							</label>
+							<label class="input w-full">
+								<span class="label">Anime</span>
+								<input
+									type="text"
+									list="anime-list"
+									oninput={(e) => {
+										const found = data.anime.find((a) => {
+											return (
+												e.currentTarget.value === (a.titleEnglish ?? a.titleRomaji ?? a.titleNative)
+											);
+										});
+										if (!found) return;
+										$updateForm.data.animeId = found.animeId;
+										fetchAnimeEpisodes($updateForm.data.animeId);
+										e.currentTarget.value = '';
+									}}
+								/>
+								<datalist id="anime-list">
+									{#each data.anime as anime}
+										<option value={anime.titleEnglish ?? anime.titleRomaji ?? anime.titleNative}
+										></option>
+									{/each}
+								</datalist>
+							</label>
+							<label class="select w-full">
+								<select
+									onchange={() => fetchAnimeEpisodes($updateForm.data.animeId)}
+									bind:value={() => $updateForm.data.animeId, (v) => ($updateForm.data.animeId = v)}
+								>
+									<option value={-1} selected disabled>Select anime</option>
+									{#each data.anime as anime}
+										<option value={anime.animeId}>
+											{anime.titleEnglish ?? anime.titleRomaji ?? anime.titleNative}
+										</option>
+									{/each}
+								</select>
+							</label>
+							<label class="select w-full">
+								<select
+									onchange={(e) => {
+										$updateForm.data.animeEpisodeIds = [
+											...$updateForm.data.animeEpisodeIds,
+											+e.currentTarget.value
+										];
+										e.currentTarget.value = '-1';
+									}}
+								>
+									<option value={-1} selected disabled>Select episode</option>
+									{#each episodes.filter((ep) => ep.animeId === $updateForm.data.animeId && !$updateForm.data.animeEpisodeIds.includes(ep.animeEpisodeId)) as episode}
+										<option value={episode.animeEpisodeId}>
+											{episode.titleEnglish || episode.titleRomaji || episode.titleNative || 'N/A'} (Ep
+											{episode.episodeNumber})
+										</option>
+									{/each}
+								</select>
+							</label>
+							<div class="input w-full lg:col-span-2">
+								{#each $updateForm.data.animeEpisodeIds as epId}
+									{@const episode = episodes.find((e) => e.animeEpisodeId === epId)}
+									<button
+										class="btn btn-neutral btn-xs"
+										type="button"
+										onclick={() =>
+											($updateForm.data.animeEpisodeIds = $updateForm.data.animeEpisodeIds.filter(
+												(e) => e !== epId
+											))}
+									>
+										{getSelectTitleLabel(data.anime.find((a) => a.animeId === episode?.animeId))} - {episode?.titleEnglish ||
+											episode?.titleRomaji ||
+											episode?.titleNative ||
+											'N/A'} (Ep {episode?.episodeNumber || 'N/A'})
+									</button>
+								{/each}
+							</div>
+						</div>
+					{:else if $updateForm.type === 'misc'}
+						<legend class="fieldset-legend">Misc details</legend>
+						<div class="grid grid-cols-1 gap-1 lg:grid-cols-2">
+							<label class="input w-full">
+								<span class="label">Title</span>
+								<input
+									type="text"
+									bind:value={() => $updateForm.data.title, (v) => ($updateForm.data.title = v)}
+								/>
+							</label>
+							<label class="input w-full">
+								<span class="label">Description</span>
+								<input
+									type="text"
+									bind:value={
+										() => $updateForm.data.description || '',
+										(v) => ($updateForm.data.description = v === '' ? null : v)
+									}
+								/>
+							</label>
+						</div>
+					{/if}
+				</fieldset>
+				<button
+					class="btn btn-success"
 					onclick={() => {
 						$updateForm.year = data.schedule.scheduleInfo.year;
 						$updateForm.week = data.schedule.scheduleInfo.week;
 						updateSubmit();
+						(document.getElementById('update_entry_modal') as HTMLDialogElement)?.close();
 					}}
 				>
-					<span class="font-bold">Submit</span>
-				</Button>
+					Submit
+				</button>
 			</form>
-		{/await}
-	</Modal>
+		</div>
+	</dialog>
 </div>

@@ -184,7 +184,7 @@
 				</li>
 				<li>
 					<details>
-						<summary class="btn {page.route.id === '/gotgames/anime/list' && 'btn-secondary'}">
+						<summary class="btn {page.route.id?.startsWith('/gotgames/anime') && 'btn-secondary'}">
 							<TvMinimalPlay />
 							Reactions
 						</summary>
@@ -192,7 +192,7 @@
 							<li>
 								<a
 									href="/gotgames/anime/list"
-									class="btn {page.route.id === '/gotgames/anime/list' && 'btn-secondary'}"
+									class={[page.route.id === '/gotgames/anime/list' && 'underline']}
 								>
 									Anime
 								</a>
@@ -249,39 +249,64 @@
 				{#if session?.user}
 					<li>
 						<details>
-							<summary class="btn">
+							<summary class={['btn', page.route.id?.startsWith('/admin') && 'btn-secondary']}>
 								<Database />
 								Admin
 							</summary>
 							<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
 								<li>
-									<a href="/admin/feedback">Feedback</a>
+									<a
+										href="/admin/feedback"
+										class={[page.route.id === '/admin/feedback' && 'underline']}>Feedback</a
+									>
 								</li>
 								<li>
 									<details>
-										<summary>New</summary>
+										<summary class={[page.route.id?.startsWith('/admin/new') && 'underline']}
+											>New</summary
+										>
 										<ul>
 											<li>
-												<a href="/admin/new/anime">Anime</a>
+												<a
+													href="/admin/new/anime"
+													class={[page.route.id === '/admin/new/anime' && 'underline']}>Anime</a
+												>
 											</li>
 											<li>
-												<a href="/admin/new/season">Season</a>
+												<a
+													href="/admin/new/season"
+													class={[page.route.id === '/admin/new/season' && 'underline']}>Season</a
+												>
 											</li>
 											<li>
-												<a href="/admin/new/schedule">Schedule</a>
+												<a
+													href="/admin/new/schedule"
+													class={[page.route.id === '/admin/new/schedule' && 'underline']}
+													>Schedule</a
+												>
 											</li>
 										</ul>
 									</details>
 								</li>
 								<li>
 									<details>
-										<summary>Edit</summary>
+										<summary class={[page.route.id?.startsWith('/admin/edit') && 'underline']}
+											>Edit</summary
+										>
 										<ul>
 											<li>
-												<a href="/admin/edit/anime">Anime</a>
+												<a
+													href="/admin/edit/anime"
+													class={[page.route.id === '/admin/edit/anime' && 'underline']}>Anime</a
+												>
 											</li>
 											<li>
-												<a href="/admin/edit/schedule">Schedule</a>
+												<a
+													href="/admin/edit/schedule"
+													class={[page.route.id === '/admin/edit/schedule' && 'underline']}
+												>
+													Schedule
+												</a>
 											</li>
 										</ul>
 									</details>

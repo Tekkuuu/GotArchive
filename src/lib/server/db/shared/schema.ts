@@ -175,6 +175,7 @@ export const schedule = pgTable('schedule', {
   year: smallint('year').notNull(),
   week: smallint('week').notNull(),
   note: text('note'),
+  preview: boolean('preview').notNull().default(false),
 }, (table) => [
   unique('unique_year_week').on(table.year, table.week),
   check('check_week_range', sql`${table.week} BETWEEN 1 AND 53`),

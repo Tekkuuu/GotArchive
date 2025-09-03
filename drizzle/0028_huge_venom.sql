@@ -1,0 +1,1 @@
+ALTER TABLE "schedule" ADD COLUMN "preview" boolean DEFAULT false NOT NULL;

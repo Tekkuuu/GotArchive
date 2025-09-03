@@ -3,16 +3,20 @@
 	import _ from 'lodash';
 	import { superForm } from 'sveltekit-superforms';
 	import { zod } from 'sveltekit-superforms/adapters';
-	import { formSchema } from './util';
+	import { deleteFormSchema, previewFormSchema } from './util';
 	import { toast } from '$lib/components/ui/toaster';
-	import { X, Pencil } from 'lucide-svelte';
+	import { X, Pencil, Eye, EyeOff } from 'lucide-svelte';
 	import { confirm } from '$lib/util';
 
 	let { data }: PageProps = $props();
 
-	const { enhance, errors, submit, form } = superForm(data.form, {
+	const {
+		enhance: deleteEnhance,
+		submit: deleteSubmit,
+		form: deleteForm
+	} = superForm(data.deleteForm, {
 		dataType: 'json',
-		validators: zod(formSchema),
+		validators: zod(deleteFormSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		invalidateAll: 'force',
@@ -26,6 +30,27 @@
 			}
 		}
 	});
+
+	const {
+		enhance: previewEnhance,
+		submit: previewSubmit,
+		form: previewForm
+	} = superForm(data.previewForm, {
+		dataType: 'json',
+		validators: zod(previewFormSchema),
+		validationMethod: 'onsubmit',
+		multipleSubmits: 'prevent',
+		invalidateAll: 'force',
+		onResult: ({ result }) => {
+			if (result.type === 'success') {
+				toast.success('Pewview updated.');
+			} else if (result.type === 'failure') {
+				toast.error(result.data?.text ?? 'Failed to update pewview');
+			} else if (result.type === 'error') {
+				toast.error('Failed to update preview');
+			}
+		}
+	});
 </script>
 
 <svelte:head>
@@ -33,8 +58,12 @@
 </svelte:head>
 
 <div class="flex w-full flex-col items-center gap-2">
-	<form use:enhance class="hidden" method="POST" action="?/delete">
-		<input type="hidden" name="scheduleId" bind:value={$form.scheduleId} />
+	<form use:deleteEnhance class="hidden" method="POST" action="?/delete">
+		<input type="hidden" name="scheduleId" bind:value={$deleteForm.scheduleId} />
+	</form>
+	<form use:previewEnhance class="hidden" method="POST" action="?/preview">
+		<input type="hidden" name="scheduleId" bind:value={$previewForm.scheduleId} />
+		<input type="hidden" name="preview" bind:value={$previewForm.preview} />
 	</form>
 	<div class="rounded-box border-base-content/5 w-full max-w-5xl overflow-x-auto border">
 		<table class="table">
@@ -64,12 +93,32 @@
 								type="button"
 								onclick={() => {
 									confirm(() => {
-										$form.scheduleId = scheduleRow.scheduleId;
-										submit();
+										$deleteForm.scheduleId = scheduleRow.scheduleId;
+										deleteSubmit();
 									}, 'Are you sure you want to delete this schedule?');
 								}}
 							>
 								<X />
+							</button>
+							<button
+								class="btn {scheduleRow.preview ? 'btn-success' : 'btn-error'}"
+								type="button"
+								onclick={() => {
+									confirm(
+										() => {
+											$previewForm.scheduleId = scheduleRow.scheduleId;
+											$previewForm.preview = !scheduleRow.preview;
+											previewSubmit();
+										},
+										`Are you sure you want to ${scheduleRow.preview ? 'publish' : 'hide'} this schedule?`
+									);
+								}}
+							>
+								{#if scheduleRow.preview}
+									<Eye />
+								{:else}
+									<EyeOff />
+								{/if}
 							</button>
 						</td>
 					</tr>

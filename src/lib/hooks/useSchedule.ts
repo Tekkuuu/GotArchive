@@ -36,7 +36,7 @@ import _ from 'lodash';
  */
 export async function useSchedule(
   datecode: string,
-  options?: { watchedAfter?: boolean }
+  options?: { watchedAfter?: boolean, preview?: boolean }
 ): Promise<{
   scheduleInfo: DB.Schedule | undefined;
   scheduleEntries: ScheduleEntry[]
@@ -102,6 +102,11 @@ export async function useSchedule(
   if (scheduleInfo === undefined) {
     // Cannot find schedule entry in the database, reutrn empty result
     return { scheduleInfo: undefined, scheduleEntries: [] };
+  }
+
+  if (options?.preview !== undefined && options.preview !== scheduleInfo.preview) {
+    // If preview param was provided and doesn't match the schedule preview status, return empty result
+    return { scheduleInfo: undefined, scheduleEntries: [] }
   }
 
   let result = await db

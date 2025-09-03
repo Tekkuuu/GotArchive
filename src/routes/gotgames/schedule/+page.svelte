@@ -1,9 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { MediaQuery } from 'svelte/reactivity';
 	import type { Schedule } from '$lib/hooks';
-	import { slide } from 'svelte/transition';
-	import { sineInOut } from 'svelte/easing';
 	import {
 		setISOWeek,
 		setISOWeekYear,
@@ -12,8 +9,7 @@
 		getISOWeekYear,
 		getYear,
 		startOfISOWeek,
-		endOfISOWeek,
-		getISODay
+		endOfISOWeek
 	} from 'date-fns';
 	import { enGB } from 'date-fns/locale/en-GB';
 	import { formatInTimeZone } from 'date-fns-tz';
@@ -22,27 +18,22 @@
 	import { format } from 'date-fns';
 	import {
 		groupScheduleByWeek,
-		type GroupedScheduleWeek,
 		type GroupedWeekday,
 		type GroupedAnimeEntryGroup,
 		type GroupedMiscEntryGroup
 	} from '$lib/util/';
-	import { Button, LinkButton } from '$lib/components/forms/';
-	import { ChevronDown, ChevronLeft, ChevronRight, Link2 } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight, Link2 } from 'lucide-svelte';
 	import { toast } from '$lib/components/ui/toaster';
 	import type { ApiErrorResponse } from '$lib/api';
 
 	let { data }: PageProps = $props();
 	let { platforms } = data;
 
-	const maxSmallMq = new MediaQuery('max-width: 39.999rem'); // 640px
-
 	let schedules: Array<Schedule> = $state([]);
 	let scheduleDate: { year: number; week: number } = $state({
 		year: getYear(new Date()),
 		week: getISOWeek(new Date())
 	});
-	let collapseDay: Array<boolean> = $state([false, false, false, false, false, false, false]);
 
 	async function updateSchedule(weekOffset: number) {
 		// Calculate new date based on current scheduleDate and offset
@@ -59,7 +50,7 @@
 			return;
 		}
 
-		let response = await fetch(`/api/schedule/${datecode}`);
+		let response = await fetch(`/api/schedule/${datecode}?preview=false`);
 		if (response.ok) {
 			const data: Schedule = await response.json();
 

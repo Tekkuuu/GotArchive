@@ -7,6 +7,13 @@ import { sentry } from '$lib/sentry';
 export const GET: RequestHandler = async ({ params, locals, url, request, setHeaders }) => {
   try {
     const referer = request.headers.get('referer') || '';
+    const previewParam = url.searchParams.get('preview');
+    let preview: boolean | undefined = undefined;
+    if (previewParam === 'true') {
+      preview = true;
+    } else if (previewParam === 'false') {
+      preview = false;
+    }
 
     if (params.datecode) {
       sentry.addBreadcrumb({
@@ -18,7 +25,7 @@ export const GET: RequestHandler = async ({ params, locals, url, request, setHea
         }
       });
 
-      const data = await useSchedule(params.datecode);
+      const data = await useSchedule(params.datecode, { preview });
 
       if (!data.scheduleInfo) {
         error(404, "Schedule not found for give year and week");

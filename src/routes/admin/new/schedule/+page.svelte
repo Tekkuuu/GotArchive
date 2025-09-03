@@ -6,7 +6,7 @@
 	import * as z from 'zod/v4';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { toast } from '$lib/components/ui/toaster';
-	import { Minus, Pencil, X } from 'lucide-svelte';
+	import { Pencil, X } from 'lucide-svelte';
 	import { addDays, addWeeks, getWeek, getYear, startOfISOWeek, format } from 'date-fns';
 	import { formatInTimeZone } from 'date-fns-tz';
 	import { formatWeekRange } from '$lib/util/';
@@ -445,6 +445,11 @@
 						() => $form.schedule.note || '', (v) => ($form.schedule.note = v === '' ? null : v)
 					}
 				/>
+			</label>
+			<label class="flex cursor-pointer items-center gap-2">
+				<span class="label-text">Public</span>
+				<input type="checkbox" class="toggle" bind:checked={$form.schedule.preview} />
+				<span class="label-text">Hidden</span>
 			</label>
 		</fieldset>
 

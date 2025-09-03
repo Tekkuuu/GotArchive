@@ -22,9 +22,10 @@ export const formSchema = z.object({
   titleNative: z.string().nonempty(),
   titleRomaji: z.string().nonempty().nullable(),
   titleEnglish: z.string().nonempty().nullable(),
-  season: zodSeason,
-  year: z.number().int().min(1900),
-  episodes: z.number().int().positive(),
+  shortTitle: z.string().nonempty().nullable(),
+  season: zodSeason.nullable(),
+  year: z.number().int().min(1900).nullable(),
+  episodes: z.number().int().positive().nullable(),
   anilistLink: z.string().url(),
   episodeData: z.array(episodeSchema),
 })

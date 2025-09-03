@@ -65,6 +65,8 @@ export async function useSchedule(
     titleEnglish: typeof schema.animeSeason.titleEnglish;
     titleNative: typeof schema.animeSeason.titleNative;
     titleRomaji: typeof schema.animeSeason.titleRomaji;
+    shortTitle: typeof schema.animeSeason.shortTitle;
+    logoUrl: typeof schema.anime.logoUrl;
     episodes: ReturnType<typeof sql<Array<number>>>;
     watchedAfter?: typeof schema.scheduleAnimeDetail.watchedAfter;
   };
@@ -80,6 +82,8 @@ export async function useSchedule(
     titleEnglish: schema.animeSeason.titleEnglish,
     titleNative: schema.animeSeason.titleNative,
     titleRomaji: schema.animeSeason.titleRomaji,
+    shortTitle: schema.animeSeason.shortTitle,
+    logoUrl: schema.anime.logoUrl,
     episodes: sql<Array<number>>`ARRAY_AGG(${schema.animeEpisode.episodeNumber} ORDER BY ${schema.animeEpisode.episodeNumber})`,
   };
 
@@ -128,9 +132,11 @@ export async function useSchedule(
     .leftJoin(schema.scheduleAnimeEpisode, eq(schema.scheduleAnimeEpisode.scheduleAnimeDetailId, schema.scheduleAnimeDetail.scheduleAnimeDetailId))
     .leftJoin(schema.animeEpisode, eq(schema.animeEpisode.animeEpisodeId, schema.scheduleAnimeEpisode.animeEpisodeId))
     .leftJoin(schema.animeSeason, and(eq(schema.animeSeason.animeId, schema.animeEpisode.animeId), eq(schema.animeSeason.sequence, schema.animeEpisode.sequence)))
+    .innerJoin(schema.anime, eq(schema.anime.animeId, schema.animeSeason.animeId))
     .leftJoin(schema.scheduleMiscDetail, eq(schema.scheduleMiscDetail.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
     .where(eq(schema.scheduleEntry.scheduleId, scheduleInfo.scheduleId))
     .groupBy(
+      schema.anime.logoUrl,
       schema.scheduleEntry.scheduleEntryId,
       schema.scheduleEntry.type,
       schema.scheduleEntry.date,

@@ -4,8 +4,8 @@ import { error, fail } from '@sveltejs/kit';
 import { eq, and, getTableColumns, inArray } from 'drizzle-orm';
 import _ from 'lodash';
 import { superValidate } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
-import { z } from 'zod';
+import { zod4 } from 'sveltekit-superforms/adapters';
+import * as z from 'zod/v4';
 import type { PageServerLoad, Actions } from './$types';
 import { formSchema, deleteFormSchema } from './util';
 import { sentry, type SentryLoggerOptions } from '$lib/sentry';
@@ -42,8 +42,8 @@ export const load: PageServerLoad = async ({ params }) => {
     links: linksData
   };
 
-  const form = await superValidate(data, zod(formSchema))
-  const deleteForm = await superValidate({ animeId: 0, sequence: 0 }, zod(deleteFormSchema));
+  const form = await superValidate(data, zod4(formSchema))
+  const deleteForm = await superValidate({ animeId: 0, sequence: 0 }, zod4(deleteFormSchema));
 
   return {
     form,
@@ -60,7 +60,7 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
   update: async ({ request, url, locals }) => {
     const formData = await request.formData();
-    const form = await superValidate(formData, zod(formSchema));
+    const form = await superValidate(formData, zod4(formSchema));
 
     if (!form.valid) {
       return fail(422, { form, text: ERROR_CODES.forms.VALIDATION_FAILED.message });
@@ -155,7 +155,7 @@ export const actions: Actions = {
   },
   delete: async ({ request, url, locals }) => {
     const formData = await request.formData();
-    const form = await superValidate(formData, zod(deleteFormSchema));
+    const form = await superValidate(formData, zod4(deleteFormSchema));
 
     if (!form.valid) {
       return fail(422, { form });

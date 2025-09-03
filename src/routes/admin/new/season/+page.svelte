@@ -130,11 +130,28 @@
 			</label>
 			<label class="input w-full">
 				<span class="label">Title romaji</span>
-				<input type="text" bind:value={$form.titleRomaji} />
+				<input
+					type="text"
+					bind:value={
+						() => $form.titleRomaji || '', (v) => ($form.titleRomaji = v === '' ? null : v)
+					}
+				/>
 			</label>
 			<label class="input w-full">
 				<span class="label">Title english</span>
-				<input type="text" bind:value={$form.titleEnglish} />
+				<input
+					type="text"
+					bind:value={
+						() => $form.titleEnglish || '', (v) => ($form.titleEnglish = v === '' ? null : v)
+					}
+				/>
+			</label>
+			<label class="input w-full">
+				<span class="label">Short title</span>
+				<input
+					type="text"
+					bind:value={() => $form.shortTitle || '', (v) => ($form.shortTitle = v === '' ? null : v)}
+				/>
 			</label>
 			<label class="select w-full">
 				<span class="label">Format</span>
@@ -147,6 +164,7 @@
 			<label class="select w-full">
 				<span class="label">Season</span>
 				<select class="select" bind:value={$form.season}>
+					<option value={null}>N/A</option>
 					{#each data.seasons as season}
 						<option value={season}>{season}</option>
 					{/each}
@@ -154,11 +172,20 @@
 			</label>
 			<label class="input w-full">
 				<span class="label">Year</span>
-				<input type="number" bind:value={$form.year} min={1900} max={2100} />
+				<input
+					type="number"
+					bind:value={() => $form.year || '', (v) => ($form.year = v === '' ? null : v)}
+					min={1900}
+					max={2100}
+				/>
 			</label>
 			<label class="input w-full">
 				<span class="label">Episodes</span>
-				<input type="number" bind:value={$form.episodes} min={1} />
+				<input
+					type="number"
+					bind:value={() => $form.episodes || '', (v) => ($form.episodes = v === '' ? null : v)}
+					min={1}
+				/>
 			</label>
 			<label class="input w-full">
 				<span class="label">Anilist URL</span>

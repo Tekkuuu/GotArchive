@@ -92,6 +92,15 @@
 						}
 					/>
 				</label>
+				<label class="input w-full">
+					<span class="label">Short title</span>
+					<input
+						type="text"
+						bind:value={
+							() => $form.shortTitle || '', (v) => ($form.shortTitle = v === '' ? null : v)
+						}
+					/>
+				</label>
 				<label class="select w-full">
 					<span class="label">Format</span>
 					<select bind:value={$form.format}>

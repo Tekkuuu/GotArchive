@@ -10,6 +10,7 @@ export const formSchema = z.object({
   titleNative: z.string().nonempty(),
   titleRomaji: z.string().nonempty().nullable(),
   titleEnglish: z.string().nonempty().nullable(),
+  shortTitle: z.string().nonempty().nullable(),
   season: zodSeason.nullable(),
   year: z.number().int().positive().nullable(),
   episodes: z.number().int().positive().nullable(),

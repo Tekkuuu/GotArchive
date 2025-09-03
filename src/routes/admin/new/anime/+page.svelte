@@ -100,11 +100,35 @@
 			</label>
 			<label class="input w-full">
 				<span class="label">Title romaji</span>
-				<input type="text" bind:value={$form.titleRomaji} />
+				<input
+					type="text"
+					bind:value={
+						() => $form.titleRomaji || '', (v) => ($form.titleRomaji = v === '' ? null : v)
+					}
+				/>
 			</label>
 			<label class="input w-full">
 				<span class="label">Title english</span>
-				<input type="text" bind:value={$form.titleEnglish} />
+				<input
+					type="text"
+					bind:value={
+						() => $form.titleEnglish || '', (v) => ($form.titleEnglish = v === '' ? null : v)
+					}
+				/>
+			</label>
+			<label class="input w-full">
+				<span class="label">Short title</span>
+				<input
+					type="text"
+					bind:value={() => $form.shortTitle || '', (v) => ($form.shortTitle = v === '' ? null : v)}
+				/>
+			</label>
+			<label class="input w-full">
+				<span class="label">Logo url</span>
+				<input
+					type="text"
+					bind:value={() => $form.logoUrl || '', (v) => ($form.logoUrl = v === '' ? null : v)}
+				/>
 			</label>
 			<label class="select w-full">
 				<span class="label">Genres</span>

@@ -63,6 +63,8 @@ export const anime = pgTable('anime', {
   titleNative: varchar('title_native').notNull(),
   titleRomaji: varchar('title_romaji'),
   titleEnglish: varchar('title_english'),
+  logoUrl: varchar('logo_url'),
+  shortTitle: varchar('short_title')
 }, (table) => [
   unique('anime_titles_unique').on(table.titleNative, table.titleRomaji, table.titleEnglish),
   adminCRUD('Enable CRUD for admin user'),
@@ -76,6 +78,7 @@ export const animeSeason = pgTable('anime_season', {
   titleNative: varchar('title_native').notNull(),
   titleRomaji: varchar('title_romaji'),
   titleEnglish: varchar('title_english'),
+  shortTitle: varchar('short_title'),
   season: typeSeason('season'),
   year: smallint('year'),
   episodes: integer('episodes'),

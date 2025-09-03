@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import * as z from 'zod';
+import * as z from 'zod/v4';
 
 export const formSchema = z.object({
   anime: z.object({
@@ -7,13 +7,15 @@ export const formSchema = z.object({
     titleNative: z.string().nonempty(),
     titleRomaji: z.string().nonempty().nullable(),
     titleEnglish: z.string().nonempty().nullable(),
+    shortTitle: z.string().nonempty().nullable(),
+    logoUrl: z.url().nonempty().nullable(),
   }),
   genres: z.array(z.object({
     genreId: z.number(),
     name: z.string().min(1)
   })),
   links: z.array(z.object({
-    url: z.string().url(),
+    url: z.url().nonempty(),
     platformId: z.number(),
     note: z.string().nullable(),
   })),

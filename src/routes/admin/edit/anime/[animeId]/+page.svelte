@@ -3,7 +3,7 @@
 	import _ from 'lodash';
 	import { Minus, Pencil, Plus, X } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';
-	import { zod } from 'sveltekit-superforms/adapters';
+	import { zod4 } from 'sveltekit-superforms/adapters';
 	import type { PageProps } from './$types';
 	import { formSchema, deleteFormSchema } from './util';
 	import { confirm } from '$lib/util';
@@ -17,7 +17,7 @@
 
 	const { form, enhance, errors } = superForm(data.form, {
 		dataType: 'json',
-		validators: zod(formSchema),
+		validators: zod4(formSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		invalidateAll: 'force',
@@ -37,7 +37,7 @@
 		submit: deleteSubmit
 	} = superForm(data.deleteForm, {
 		dataType: 'json',
-		validators: zod(deleteFormSchema),
+		validators: zod4(deleteFormSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		invalidateAll: 'force',
@@ -97,6 +97,25 @@
 						bind:value={
 							() => $form.anime.titleEnglish || '',
 							(v) => ($form.anime.titleEnglish = v === '' ? null : v)
+						}
+					/>
+				</label>
+				<label class="input w-full">
+					<span class="label">Short title</span>
+					<input
+						type="text"
+						bind:value={
+							() => $form.anime.shortTitle || '',
+							(v) => ($form.anime.shortTitle = v === '' ? null : v)
+						}
+					/>
+				</label>
+				<label class="input w-full">
+					<span class="label">Logo url</span>
+					<input
+						type="text"
+						bind:value={
+							() => $form.anime.logoUrl || '', (v) => ($form.anime.logoUrl = v === '' ? null : v)
 						}
 					/>
 				</label>

@@ -23,7 +23,7 @@ export const scheduleMiscDetail = z.object({
 const baseScheduleEntry = {
   date: z.iso.date(),
   time: z.iso.time().nullable(),
-  platformIds: z.array(z.number().int().positive()),
+  platformIds: z.array(z.number().int().positive()).nonempty(),
   note: z.string().nullable(),
 };
 

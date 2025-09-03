@@ -90,19 +90,6 @@
 	onMount(() => {
 		$form.schedule.year = getYear(addWeeks(today, 1));
 		$form.schedule.week = getWeek(addWeeks(today, 1));
-		(async () => {
-			addEntry(0);
-			(document.getElementById('entry_modal') as HTMLDialogElement).close();
-			$form.entries[0].platformIds = [1, 2];
-			$form.entries[0].time = '16:30:00';
-			$form.entries[0].note = 'funny note fot this entry';
-			if ($form.entries[0].type === 'anime') {
-				$form.entries[0].data.animeId = 4;
-				await fetchAnimeEpisodes(4);
-				$form.entries[0].data.watchedAfter = '1h45m30s';
-				$form.entries[0].data.animeEpisodeIds = [112, 113];
-			}
-		})();
 	});
 </script>
 

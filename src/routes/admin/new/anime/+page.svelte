@@ -62,8 +62,6 @@
 			return;
 		}
 	}
-
-	$inspect($errors.titleNative);
 </script>
 
 <svelte:head>

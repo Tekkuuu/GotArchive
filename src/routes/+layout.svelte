@@ -41,8 +41,6 @@
 	onMount(() => {
 		getAnonymousUUIDStore();
 	});
-
-	$inspect(page);
 </script>
 
 <div class="flex min-h-screen flex-col">

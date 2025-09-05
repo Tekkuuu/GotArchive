@@ -31,7 +31,7 @@
 	</div>
 {/snippet}
 
-<div class="grid grid-cols-1 gap-6 px-2 md:grid-cols-2">
+<div class="grid grid-cols-1 gap-2 md:grid-cols-2">
 	{#each changelogs as c}
 		{@render entry(c)}
 	{/each}

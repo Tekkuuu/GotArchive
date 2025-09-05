@@ -17,7 +17,7 @@
 </svelte:head>
 
 {#if changelog}
-	<div class="card bg-base-300 mx-auto my-auto w-3xl">
+	<div class="card bg-base-300 mx-auto my-auto max-w-3xl">
 		<div class="card-body">
 			<h1 class="card-title text-4xl font-bold">{changelog.title}</h1>
 			<span class="mb-6 text-sm">

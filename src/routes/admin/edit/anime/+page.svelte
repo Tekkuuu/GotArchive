@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import _ from 'lodash';
-	import { X, Pencil } from 'lucide-svelte';
+	import { X, Pencil, Check } from 'lucide-svelte';
 	import { toast } from '$lib/components/ui/toaster';
 	import { superForm } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
@@ -67,8 +67,16 @@
 			<tbody>
 				{#each filterAnime() as rowData}
 					<tr>
-						{#each _.values(rowData) as cell}
-							<td>{cell}</td>
+						{#each _.entries(rowData) as cell}
+							{#if cell[0] === 'logoUrl'}
+								{#if cell[1]}
+									<td class="badge badge-xs badge-success"><Check /></td>
+								{:else}
+									<td class="badge badge-xs badge-error"><X /></td>
+								{/if}
+							{:else}
+								<td>{cell[1]}</td>
+							{/if}
 						{/each}
 						<td class="flex flex-nowrap gap-2">
 							<a href={`/admin/edit/anime/${rowData.animeId}`} class="btn btn-xs btn-warning">

@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, isNotNull } from 'drizzle-orm';
 import { schema, services } from '$lib/server/db';
 import type * as DB from '$lib/server/db';
 import type { ScheduleEntry } from './types';
@@ -113,7 +113,7 @@ export async function useSchedule(
     return { scheduleInfo: undefined, scheduleEntries: [] }
   }
 
-  let result = await db
+  const animeEntries = await db
     .select({
       scheduleEntry: {
         scheduleEntryId: schema.scheduleEntry.scheduleEntryId,
@@ -124,7 +124,6 @@ export async function useSchedule(
         platformId: schema.scheduleEntryPlatform.platformId,
       },
       anime: animeSelect,
-      misc: miscSelect,
     })
     .from(schema.scheduleEntry)
     .innerJoin(schema.scheduleEntryPlatform, eq(schema.scheduleEntryPlatform.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
@@ -133,7 +132,6 @@ export async function useSchedule(
     .leftJoin(schema.animeEpisode, eq(schema.animeEpisode.animeEpisodeId, schema.scheduleAnimeEpisode.animeEpisodeId))
     .leftJoin(schema.animeSeason, and(eq(schema.animeSeason.animeId, schema.animeEpisode.animeId), eq(schema.animeSeason.sequence, schema.animeEpisode.sequence)))
     .innerJoin(schema.anime, eq(schema.anime.animeId, schema.animeSeason.animeId))
-    .leftJoin(schema.scheduleMiscDetail, eq(schema.scheduleMiscDetail.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
     .where(eq(schema.scheduleEntry.scheduleId, scheduleInfo.scheduleId))
     .groupBy(
       schema.anime.logoUrl,
@@ -148,10 +146,50 @@ export async function useSchedule(
       schema.animeSeason.titleEnglish,
       schema.animeSeason.titleNative,
       schema.animeSeason.titleRomaji,
+      schema.animeSeason.shortTitle
+    )
+    .orderBy(schema.scheduleEntry.date, schema.scheduleEntry.time, schema.animeSeason.animeId, schema.animeSeason.sequence);
+
+  const miscEntries = await db
+    .select({
+      scheduleEntry: {
+        scheduleEntryId: schema.scheduleEntry.scheduleEntryId,
+        type: schema.scheduleEntry.type,
+        date: schema.scheduleEntry.date,
+        time: schema.scheduleEntry.time,
+        note: schema.scheduleEntry.note,
+        platformId: schema.scheduleEntryPlatform.platformId,
+      },
+      misc: {
+        title: schema.scheduleMiscDetail.title,
+        description: schema.scheduleMiscDetail.description,
+      }
+    })
+    .from(schema.scheduleEntry)
+    .innerJoin(schema.scheduleEntryPlatform, eq(schema.scheduleEntryPlatform.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
+    .leftJoin(schema.scheduleMiscDetail, eq(schema.scheduleMiscDetail.scheduleEntryId, schema.scheduleEntry.scheduleEntryId))
+    .where(and(eq(schema.scheduleEntry.scheduleId, scheduleInfo.scheduleId), isNotNull(schema.scheduleMiscDetail.title)))
+    .groupBy(
+      schema.scheduleEntry.scheduleEntryId,
+      schema.scheduleEntry.type,
+      schema.scheduleEntry.date,
+      schema.scheduleEntry.time,
+      schema.scheduleEntryPlatform.platformId,
       schema.scheduleMiscDetail.title,
       schema.scheduleMiscDetail.description
     )
-    .orderBy(schema.scheduleEntry.date, schema.scheduleEntry.time, schema.animeSeason.animeId, schema.animeSeason.sequence)
+    .orderBy(schema.scheduleEntry.date, schema.scheduleEntry.time);
 
-  return { scheduleInfo: scheduleInfo, scheduleEntries: result };
+  const animeMap = _.keyBy(animeEntries, e => e.scheduleEntry.scheduleEntryId);
+  const miscMap = _.keyBy(miscEntries, e => e.scheduleEntry.scheduleEntryId);
+
+  const allIds = _.union(_.keys(animeMap), _.keys(miscMap));
+
+  const scheduleEntries = allIds.map(id => ({
+    scheduleEntry: animeMap[id]?.scheduleEntry || miscMap[id]?.scheduleEntry,
+    anime: animeMap[id]?.anime ?? null,
+    misc: miscMap[id]?.misc ?? null,
+  }));
+
+  return { scheduleInfo, scheduleEntries };
 };

@@ -1,8 +1,8 @@
 import { db } from '$lib/server/db';
-import * as z from 'zod/v4';
+import * as z from 'zod';
 import { fail } from '@sveltejs/kit';
 import { superValidate, fail as failWithFiles } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
+import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 import { formSchema, validate } from './util';
 import { services } from '$lib/server/db';
@@ -14,14 +14,14 @@ import _ from 'lodash';
 import { anilistServices, extractId } from '$lib/anilist';
 
 export const load: PageServerLoad = async ({ request }) => {
-  const form = await superValidate(zod4(formSchema));
+  const form = await superValidate(zod(formSchema));
 
   return { form };
 }
 
 export const actions = {
   create: async ({ request, locals, url }) => {
-    const form = await superValidate(request, zod4(formSchema));
+    const form = await superValidate(request, zod(formSchema));
 
     if (!form.valid) {
       return failWithFiles(422, { form, text: ERROR_CODES.forms.VALIDATION_FAILED.message });

@@ -3,7 +3,7 @@
 	import _ from 'lodash';
 	import { Minus, Pencil, Plus, X } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';
-	import { zod4 } from 'sveltekit-superforms/adapters';
+	import { zod } from 'sveltekit-superforms/adapters';
 	import type { PageProps } from './$types';
 	import { formSchema, deleteFormSchema } from './util';
 	import { confirm } from '$lib/util';
@@ -17,7 +17,7 @@
 
 	const { form, enhance, errors } = superForm(data.form, {
 		dataType: 'json',
-		validators: zod4(formSchema),
+		validators: zod(formSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		invalidateAll: 'force',
@@ -37,7 +37,7 @@
 		submit: deleteSubmit
 	} = superForm(data.deleteForm, {
 		dataType: 'json',
-		validators: zod4(deleteFormSchema),
+		validators: zod(deleteFormSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		invalidateAll: 'force',

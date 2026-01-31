@@ -4,8 +4,8 @@ import { error, fail } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import _ from 'lodash';
 import { superValidate } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
-import * as z from 'zod/v4';
+import { zod } from 'sveltekit-superforms/adapters';
+import * as z from 'zod';
 import type { PageServerLoad } from './$types';
 import { formSchema, updateEpisodesFormSchema } from './util';
 import type { Actions } from '../$types';
@@ -39,12 +39,12 @@ export const load: PageServerLoad = async ({ params }) => {
     error(404, "Not found");
   }
 
-  const form = await superValidate({ ...currentSeason, anilistLink: currentSeason.anilistLink ?? '' }, zod4(formSchema))
+  const form = await superValidate({ ...currentSeason, anilistLink: currentSeason.anilistLink ?? '' }, zod(formSchema))
   const updateEpisodesForm = await superValidate(
     {
       episodes: episodes.map(e => ({ animeEpisodeId: e.animeEpisodeId, episodeNumber: e.episodeNumber, watched: e.watched }))
     },
-    zod4(updateEpisodesFormSchema)
+    zod(updateEpisodesFormSchema)
   );
 
   return {
@@ -63,7 +63,7 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
   update: async ({ request, url, locals }) => {
     const formData = await request.formData();
-    const form = await superValidate(formData, zod4(formSchema));
+    const form = await superValidate(formData, zod(formSchema));
 
     if (!form.valid) {
       return fail(422, { form, text: ERROR_CODES.forms.VALIDATION_FAILED.message });
@@ -97,7 +97,7 @@ export const actions: Actions = {
   },
   updateEpisodes: async ({ request, url, locals }) => {
     const formData = await request.formData();
-    const form = await superValidate(formData, zod4(updateEpisodesFormSchema));
+    const form = await superValidate(formData, zod(updateEpisodesFormSchema));
 
     if (!form.valid) {
       return fail(422, { form, text: ERROR_CODES.forms.VALIDATION_FAILED.message });

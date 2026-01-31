@@ -13,30 +13,15 @@
 		List,
 		Info
 	} from 'lucide-svelte';
-	import { FeedbackModal, CookieConsent } from '$lib/components/ui/';
+	import { CookieConsent } from '$lib/components/ui/';
 	import { Toaster } from '$lib/components/ui/toaster';
-	import { invalidate } from '$app/navigation';
 	import { getDarkModeStore, getAnonymousUUIDStore, getCookieConsentStore } from '$lib/stores';
 	import { onMount } from 'svelte';
 
 	let { children, data }: LayoutProps = $props();
-	let { session, supabase } = $derived(data);
+	let { session } = $derived(data);
 
 	let darkMode = getDarkModeStore();
-
-	$effect(() => {
-		if (supabase) {
-			const { data: authListener } = supabase.auth.onAuthStateChange((_, newSession) => {
-				if (newSession?.expires_at !== session?.expires_at) {
-					invalidate('supabase:auth');
-				}
-			});
-
-			return () => {
-				authListener?.subscription.unsubscribe();
-			};
-		}
-	});
 
 	onMount(() => {
 		getAnonymousUUIDStore();
@@ -316,24 +301,13 @@
 			</ul>
 		</div>
 		<div class="navbar-end">
-			{#if session?.user}
-				<button
-					class="btn"
-					type="button"
-					onclick={() => {
-						supabase.auth.signOut();
-					}}
-				>
-					Logout
-				</button>
-			{/if}
+			<!-- Logout button is available in the admin dashboard -->
 		</div>
 	</div>
 	<Toaster />
 	<main class="mx-2 mt-20 mb-2 flex grow flex-col">
 		{@render children()}
 	</main>
-	<FeedbackModal formData={data.feedbackForm} />
 	<footer class="bg-base-300 flex w-full gap-2 p-2">
 		<nav class="flex gap-2">
 			<label class="swap swap-rotate btn btn-secondary btn-outline">

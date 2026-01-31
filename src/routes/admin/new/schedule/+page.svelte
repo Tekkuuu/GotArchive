@@ -3,8 +3,8 @@
 	import { onMount } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { formSchema, scheduleAnimeDetail, scheduleMiscDetail } from './util';
-	import * as z from 'zod/v4';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import * as z from 'zod';
+	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { toast } from '$lib/components/ui/toaster';
 	import { Pencil, X } from 'lucide-svelte';
 	import { addDays, addWeeks, getWeek, getYear, startOfISOWeek, format } from 'date-fns';
@@ -20,7 +20,7 @@
 	let { data }: PageProps = $props();
 	let { form, enhance, errors } = superForm(data.form, {
 		dataType: 'json',
-		validators: zod4Client(formSchema),
+		validators: zodClient(formSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		onResult: ({ result }) => {

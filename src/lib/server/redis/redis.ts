@@ -1,7 +1,7 @@
 import { Redis } from '@upstash/redis';
 import { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } from '$env/static/private';
 import { addDays } from 'date-fns';
-import * as z from 'zod/v4';
+import * as z from 'zod';
 
 export const redis = new Redis({
   url: UPSTASH_REDIS_REST_URL,

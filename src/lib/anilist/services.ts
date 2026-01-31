@@ -1,6 +1,6 @@
 import { createApiMethod } from './factory';
 import * as u from './util';
-import * as z from 'zod/v4';
+import * as z from 'zod';
 import { AnilistError, ERROR_CODES } from '$lib/errors';
 import { addDays } from 'date-fns';
 import _ from 'lodash';

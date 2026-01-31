@@ -3,7 +3,7 @@
 	import { toast } from '$lib/components/ui/toaster';
 	import _ from 'lodash';
 	import { MoveLeft, MoveRight } from 'lucide-svelte';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { superForm } from 'sveltekit-superforms/client';
 	import type { PageProps } from './$types';
 	import { formSchema, updateEpisodesFormSchema } from './util';

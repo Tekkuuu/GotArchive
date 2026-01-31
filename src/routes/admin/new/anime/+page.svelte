@@ -5,14 +5,14 @@
 	import _ from 'lodash';
 	import { Minus, Plus } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';
-	import { zod4 } from 'sveltekit-superforms/adapters';
+	import { zod } from 'sveltekit-superforms/adapters';
 	import type { PageProps } from './$types';
 	import { formSchema } from './util';
 
 	let { data }: PageProps = $props();
 	let { form, enhance, errors } = superForm(data.form, {
 		dataType: 'json',
-		validators: zod4(formSchema),
+		validators: zod(formSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		onResult: ({ result }) => {

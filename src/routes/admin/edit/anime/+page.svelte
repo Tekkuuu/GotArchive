@@ -4,7 +4,7 @@
 	import { X, Pencil, Check } from 'lucide-svelte';
 	import { toast } from '$lib/components/ui/toaster';
 	import { superForm } from 'sveltekit-superforms';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { formSchema } from './util';
 	import Fuse from 'fuse.js';
 
@@ -12,7 +12,7 @@
 
 	let { form, enhance, errors, submit } = superForm(data.form, {
 		dataType: 'json',
-		validators: zod4Client(formSchema),
+		validators: zodClient(formSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		onResult: ({ result }) => {

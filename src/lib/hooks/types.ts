@@ -1,28 +1,31 @@
-import { useSchedule } from "./useSchedule";
-import { useWatchingWeek } from "./useWatchingWeek";
+import { useSchedule } from './useSchedule';
+import { useWatchingWeek } from './useWatchingWeek';
 import type * as DB from '$lib/server/db';
 
 export type RawSchedule = Awaited<ReturnType<typeof useSchedule>>;
 export type Schedule = {
-  scheduleInfo: DB.Schedule;
-  scheduleEntries: ScheduleEntry[];
-}
+	scheduleInfo: DB.Schedule;
+	scheduleEntries: ScheduleEntry[];
+};
 
 export type WatchingWeek = Awaited<ReturnType<typeof useWatchingWeek>>;
 
 export type ScheduleEntry = {
-  scheduleEntry: Omit<DB.ScheduleEntry, 'scheduleId'> & { platformId: number };
-  anime?: {
-    animeId: number;
-    sequence: number;
-    titleEnglish: string;
-    titleNative: string;
-    titleRomaji: string;
-    episodes: number[];
-    watchedAfter?: Date;
-  } | null;
-  misc?: {
-    title: string;
-    description: string | null;
-  } | null;
+	scheduleEntry: Omit<DB.ScheduleEntry, 'scheduleId'> & { platformId: string };
+	anime?: {
+		animeSeasonId: string | null;
+		animeId: string | null;
+		sequence: number | null;
+		titleEnglish: string | null;
+		titleNative: string | null;
+		titleRomaji: string | null;
+		shortTitle: string | null;
+		episodes: number | null;
+		episodeProgress: number | null;
+		logoUrl: string | null;
+	} | null;
+	misc?: {
+		title: string | null;
+		description: string | null;
+	} | null;
 };

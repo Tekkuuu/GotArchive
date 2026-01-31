@@ -1,1 +1,0 @@
-ALTER TABLE "feedback" RENAME COLUMN "email" TO "anonymouse_uuid";

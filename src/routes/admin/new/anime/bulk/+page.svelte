@@ -3,7 +3,7 @@
 	import { toast } from '$lib/components/ui/toaster';
 	import _ from 'lodash';
 	import { superForm, fileProxy } from 'sveltekit-superforms';
-	import { zod4 } from 'sveltekit-superforms/adapters';
+	import { zod } from 'sveltekit-superforms/adapters';
 	import type { PageProps } from './$types';
 	import { formSchema } from './util';
 
@@ -11,7 +11,7 @@
 
 	let { form, enhance, errors } = superForm(data.form, {
 		dataType: 'json',
-		validators: zod4(formSchema),
+		validators: zod(formSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		onResult: ({ result }) => {

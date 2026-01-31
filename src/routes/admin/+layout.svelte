@@ -1,6 +1,7 @@
 <script lang="ts">
-	let { data, children } = $props();
-	let { supabase } = $derived(data);
+	import type { LayoutData } from './$types';
+
+	let { data, children }: { data: LayoutData; children: any } = $props();
 </script>
 
 <div>

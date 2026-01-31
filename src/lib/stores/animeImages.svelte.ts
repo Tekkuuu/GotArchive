@@ -1,4 +1,4 @@
-import * as z from 'zod/v4';
+import { z } from 'zod/v4';
 import _ from 'lodash';
 import { localStore } from './localStore.svelte';
 import { anilistServices as s, extractId } from '$lib/anilist/';

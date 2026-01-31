@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as z from 'zod/v4';
+	import * as z from 'zod';
 
 	interface Props {
 		children?: any;

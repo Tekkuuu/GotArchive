@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { services, db, schema } from '$lib/server/db';
 import { eq, and, SQL } from 'drizzle-orm';
-import * as z from 'zod/v4';
+import * as z from 'zod';
 import { handleApiError } from '$lib/api';
 import { sentry } from '$lib/sentry';
 

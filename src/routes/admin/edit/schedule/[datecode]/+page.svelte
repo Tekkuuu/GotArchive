@@ -4,7 +4,7 @@
 	import { format } from 'date-fns';
 	import _ from 'lodash';
 	import { superForm } from 'sveltekit-superforms';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { updateFormSchema, createFormSchema, deleteFormSchema } from './util';
 	import { toast } from '$lib/components/ui/toaster';
 	import { X, Pencil } from 'lucide-svelte';

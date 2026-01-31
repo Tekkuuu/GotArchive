@@ -3,7 +3,7 @@ import { fail, error } from '@sveltejs/kit';
 import { db, schema, services } from '$lib/server/db';
 import { AppError, ERROR_CODES, FormError, ServiceError } from '$lib/errors';
 import { superValidate } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
+import { zod } from 'sveltekit-superforms/adapters';
 import { updateFormSchema, createFormSchema, deleteFormSchema } from './util';
 import { useSchedule, type Schedule } from '$lib/hooks';
 import _ from 'lodash';
@@ -27,9 +27,9 @@ export const load: PageServerLoad = async ({ params }) => {
   const anime = await services.anime.select(db);
   const platforms = await services.platform.select(db);
 
-  const updateForm = await superValidate(zod4(updateFormSchema));
-  const createForm = await superValidate(zod4(createFormSchema));
-  const deleteForm = await superValidate(zod4(deleteFormSchema));
+  const updateForm = await superValidate(zod(updateFormSchema));
+  const createForm = await superValidate(zod(createFormSchema));
+  const deleteForm = await superValidate(zod(deleteFormSchema));
 
   return {
     schedule,
@@ -44,7 +44,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 export const actions: Actions = {
   update: async ({ request, locals, url }) => {
-    const form = await superValidate(request, zod4(updateFormSchema));
+    const form = await superValidate(request, zod(updateFormSchema));
 
     try {
       await db.transaction(async (tx) => {
@@ -235,7 +235,7 @@ export const actions: Actions = {
     }
   },
   create: async ({ request, url, locals }) => {
-    const form = await superValidate(request, zod4(createFormSchema));
+    const form = await superValidate(request, zod(createFormSchema));
 
     if (!form.valid) {
       return fail(400, { form, message: "Form validation failed." });
@@ -339,7 +339,7 @@ export const actions: Actions = {
     }
   },
   delete: async ({ request, locals, url }) => {
-    const form = await superValidate(request, zod4(deleteFormSchema));
+    const form = await superValidate(request, zod(deleteFormSchema));
 
     if (!form.valid) {
       return fail(400, { form, message: "Form validation failed." });

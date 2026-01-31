@@ -1,2 +1,0 @@
-CREATE POLICY "Enable select for admin user" ON "feedback" AS PERMISSIVE FOR SELECT TO "authenticated" USING (EXISTS (SELECT 1 FROM "users" WHERE "users"."supabase_id"=(select auth.uid()) AND "users"."role"='admin'));--> statement-breakpoint
-CREATE POLICY "Enable delete for admin user" ON "feedback" AS PERMISSIVE FOR DELETE TO "authenticated" USING (EXISTS (SELECT 1 FROM "users" WHERE "users"."supabase_id"=(select auth.uid()) AND "users"."role"='admin'));

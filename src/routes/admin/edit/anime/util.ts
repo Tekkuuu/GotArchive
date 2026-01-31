@@ -1,5 +1,5 @@
-import * as z from 'zod/v4';
+import * as z from 'zod';
 
 export const formSchema = z.object({
-  animeId: z.number().int().positive(),
-})
+	animeId: z.string().uuid()
+});

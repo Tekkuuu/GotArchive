@@ -1,4 +1,4 @@
-import * as z from 'zod/v4';
+import * as z from 'zod';
 import _ from 'lodash';
 import { getISOWeek } from 'date-fns';
 

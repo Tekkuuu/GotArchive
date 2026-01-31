@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
-import { services, db } from '$lib/server/db';
+import { db, schema } from '$lib/server/db';
 
 export const load: PageServerLoad = async () => {
-  const data = await services.platform.select(db);
+	const platforms = await db.select().from(schema.platform);
 
-  return { platforms: data }
-}
+	return { platforms };
+};

@@ -1,39 +1,34 @@
-import type { LayoutServerLoad } from "./$types";
+import type { LayoutServerLoad } from './$types';
 import type { AnimeCard } from './types';
 import { schema } from '$lib/server/db';
-import { db } from "$lib/server/db";
+import { db } from '$lib/server/db';
 import { eq, sql, sum } from 'drizzle-orm';
 
-export const load: LayoutServerLoad = async ({ locals, url }) => {
-  let data: AnimeCard[] = [];
-
-  const animeEpisodes = db.$with('animeEpisodes').as(
+export const load: LayoutServerLoad = async ({ }) => {
+  const mainSeason = db.$with('mainSeason').as(
     db
       .select({
         animeId: schema.animeSeason.animeId,
-        totalEpisodes: sum(schema.animeSeason.episodes).as('totalEpisodes'),
+        anilistId: schema.animeSeasonMetadata.anilistId,
+        malId: schema.animeSeasonMetadata.malId
+      })
+      .from(schema.animeSeason)
+      .innerJoin(
+        schema.animeSeasonMetadata,
+        eq(schema.animeSeason.animeSeasonId, schema.animeSeasonMetadata.animeSeasonId)
+      )
+      .where(eq(schema.animeSeason.sequence, 1))
+  );
+
+  const animeEpisodes = db.$with('totalEpisodes').as(
+    db
+      .select({
+        animeId: schema.animeSeason.animeId,
+        totalEpisodes: sum(schema.animeSeason.episodes).mapWith(Number).as('totalEpisodes'),
+        totalEpisodesWatched: sum(schema.animeSeason.episodeProgress).mapWith(Number).as('totalEpisodesWatched')
       })
       .from(schema.animeSeason)
       .groupBy(schema.animeSeason.animeId)
-  );
-
-  const animeEpisodesWatched = db.$with('animeEpisodesWatched').as(
-    db
-      .select({
-        animeId: schema.animeEpisode.animeId,
-        totalEpisodesWatched: sql<number>`COUNT(*) FILTER (WHERE ${schema.animeEpisode.watched})`.as('totalEpisodesWatched'),
-      })
-      .from(schema.animeEpisode)
-      .groupBy(schema.animeEpisode.animeId)
-  );
-
-  const mainSeason = db.$with('mainSeason').as(
-    db.select({
-      animeId: schema.animeSeason.animeId,
-      anilistLink: schema.animeSeason.anilistLink
-    })
-      .from(schema.animeSeason)
-      .where(eq(schema.animeSeason.sequence, 1))
   );
 
   const links = sql<Array<[string, string | null]>>`
@@ -49,10 +44,10 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
       ),
       '[]'
     )
-  `
+  `;
 
-  data = await db
-    .with(animeEpisodes, animeEpisodesWatched, mainSeason)
+  let data = await db
+    .with(mainSeason, animeEpisodes)
     .select({
       animeId: schema.anime.animeId,
       titleNative: schema.anime.titleNative,
@@ -61,12 +56,14 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
       genres: sql<Array<string>>`ARRAY_AGG(DISTINCT ${schema.genre.name})`,
       links: links,
       totalEpisodes: animeEpisodes.totalEpisodes,
-      totalEpisodesWatched: sql<number>`COALESCE(${animeEpisodesWatched.totalEpisodesWatched},0)`.as('totalEpisodesWatched'),
-      mainSeason: mainSeason.anilistLink
+      totalEpisodesWatched: animeEpisodes.totalEpisodesWatched,
+      external: sql<{
+        anilistId: number | null;
+        malId: number | null;
+      }>`json_build_object('anilistId', ${mainSeason.anilistId}, 'malId', ${mainSeason.malId})`
     })
     .from(schema.anime)
     .innerJoin(animeEpisodes, eq(animeEpisodes.animeId, schema.anime.animeId))
-    .leftJoin(animeEpisodesWatched, eq(animeEpisodesWatched.animeId, schema.anime.animeId))
     .innerJoin(mainSeason, eq(mainSeason.animeId, schema.anime.animeId))
     .innerJoin(schema.animeGenre, eq(schema.anime.animeId, schema.animeGenre.animeId))
     .innerJoin(schema.genre, eq(schema.genre.genreId, schema.animeGenre.genreId))
@@ -76,10 +73,11 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
       schema.anime.titleNative,
       schema.anime.titleRomaji,
       schema.anime.titleEnglish,
-      mainSeason.anilistLink,
+      mainSeason.anilistId,
+      mainSeason.malId,
       animeEpisodes.totalEpisodes,
-      animeEpisodesWatched.totalEpisodesWatched
-    )
+      animeEpisodes.totalEpisodesWatched
+    );
 
-  return { anime: data }
-}
+  return { anime: data };
+};

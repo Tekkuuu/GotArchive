@@ -1,22 +1,22 @@
-import * as z from 'zod';
+import { z } from 'zod/v4';
 
 const link = z.object({
-  url: z.string().url().nonempty(),
-  platformId: z.string().uuid(),
+  url: z.url(),
+  platformId: z.uuid(),
   note: z.string().nullable()
 });
 
 const genre = z.object({
-  genreId: z.string().uuid(),
-  name: z.string().nonempty()
+  genreId: z.uuid(),
+  name: z.string().min(1)
 });
 
 export const formSchema = z.object({
-  titleNative: z.string().nonempty(),
-  titleRomaji: z.string().nonempty().nullable(),
-  titleEnglish: z.string().nonempty().nullable(),
-  shortTitle: z.string().nonempty().nullable(),
-  logoUrl: z.string().url().nonempty().nullable(),
+  titleNative: z.string().min(1),
+  titleRomaji: z.string().min(1).nullable(),
+  titleEnglish: z.string().min(1).nullable(),
+  shortTitle: z.string().min(1).nullable(),
+  logoUrl: z.url().nullable(),
   genres: z.array(genre),
-  links: z.array(link)
+  links: z.array(link),
 });

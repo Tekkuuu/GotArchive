@@ -28,7 +28,21 @@ export const auth = betterAuth({
 	},
 	secret: env.BETTER_AUTH_SECRET || 'your-secret-key-change-this',
 	baseURL: env.BETTER_AUTH_URL || 'http://localhost:5173',
-	trustedOrigins: [env.BETTER_AUTH_URL || 'http://localhost:5173']
+	basePath: '/api/auth',
+	trustedOrigins: [env.BETTER_AUTH_URL || 'http://localhost:5173'],
+	advanced: {
+		cookies: {
+			sessionToken: {
+				name: 'better-auth.session_token',
+				options: {
+					httpOnly: true,
+					sameSite: 'lax',
+					path: '/',
+					secure: false // Set to true in production with HTTPS
+				}
+			}
+		}
+	}
 });
 
 export type Session = typeof auth.$Infer.Session.session;

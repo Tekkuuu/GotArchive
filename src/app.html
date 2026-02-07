@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr" data-theme="gotlight">
+<html lang="en" dir="ltr" data-theme="gotdark">
 
 <head>
   <meta charset="utf-8" />
@@ -11,7 +11,7 @@
     // Theme handler
     (function () {
       var darkMode = localStorage.getItem('darkMode') === 'true';
-      if(darkMode) {
+      if (darkMode) {
         document.documentElement.setAttribute('data-theme', 'gotdark')
       } else {
         document.documentElement.setAttribute('data-theme', 'gotlight')
@@ -20,7 +20,7 @@
   </script>
 </head>
 
-<body data-sveltekit-preload-data="hover" class="bg-base-200 flex flex-col min-h-screen">
+<body data-sveltekit-preload-data="hover" class="bg-base-100 flex flex-col min-h-screen">
   <div style="display: contents">%sveltekit.body%</div>
 </body>
 

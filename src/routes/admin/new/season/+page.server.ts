@@ -1,92 +1,85 @@
 import { ERROR_CODES, FormError, AppError } from '$lib/errors';
 import { sentry, type SentryLoggerOptions } from '$lib/sentry';
-import { db, schema, services } from '$lib/server/db';
+import { db, schema } from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
 import _ from 'lodash';
 import { superValidate } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { formSchema } from './util';
 
-export const load: PageServerLoad = async ({ request }) => {
-  sentry.addBreadcrumb({ message: "Select anime seasons" });
-  const animeSeasons = await services.animeSeason.select(db);
-  sentry.addBreadcrumb({ message: "Select anime" });
-  const anime = await services.anime.select(db);
-  const seasons = schema.typeSeason.enumValues;
-  const formats = schema.typeFormat.enumValues;
-  sentry.addBreadcrumb({ message: "Select anime formats" });
-  const platforms = await services.platform.select(db);
+export const load: PageServerLoad = async ({}) => {
+	const form = await superValidate(zod4(formSchema));
 
-  sentry.addBreadcrumb({ message: "Form creation" });
-  const form = await superValidate(zod(formSchema));
+	const anime = await db.select().from(schema.anime);
+	const seasons = schema.typeSeason.enumValues;
+	const formats = schema.typeFormat.enumValues;
 
-  return { animeSeasons, platforms, anime, seasons, formats, form }
-}
+	return { anime, seasons, formats, form };
+};
 
 export const actions: Actions = {
-  create: async ({ request, url, locals }) => {
-    const form = await superValidate(request, zod(formSchema));
+	create: async ({ request, url }) => {
+		const form = await superValidate(request, zod4(formSchema));
 
-    if (!form.valid) {
-      return fail(400, { form, text: ERROR_CODES.forms.VALIDATION_FAILED.message });
-    }
+		if (!form.valid) {
+			return fail(422, { form, text: ERROR_CODES.forms.VALIDATION_FAILED.message });
+		}
 
-    try {
-      await db.transaction(async (tx) => {
-        await services.animeSeason.insert(tx, _.omit(form.data, ['episodeData']));
+		try {
+			await db.transaction(async (tx) => {
+				// Insert anime_season
+				const animeSeasonData = _.pick(form.data, [
+					'animeId',
+					'sequence',
+					'format',
+					'titleNative',
+					'titleRomaji',
+					'titleEnglish',
+					'shortTitle',
+					'season',
+					'year',
+					'episodes'
+				]);
 
-        let episodeData: Array<typeof schema.animeEpisode.$inferInsert> = [];
-        for (let e of form.data.episodeData) {
-          episodeData.push({
-            animeId: form.data.animeId,
-            sequence: form.data.sequence,
-            episodeNumber: e.episodeNumber,
-            watched: e.watched || false
-          })
-        }
+				const animeSeasonId = (
+					await tx.insert(schema.animeSeason).values(animeSeasonData).returning()
+				).at(0)?.animeSeasonId;
 
-        const animeEpisodeInsertedRows = await services.animeEpisode.insert(tx, episodeData);
+				if (!animeSeasonId) {
+					throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+						form: 'new-season'
+					});
+				}
 
-        let linksData: Array<typeof schema.episodeLink.$inferInsert> = [];
+				// Insert anime_season_metadata
+				const metadataData = {
+					animeSeasonId,
+					anilistId: form.data.anilistId,
+					malId: form.data.malId,
+					note: form.data.note
+				};
 
-        for (let e of form.data.episodeData) {
-          for (let l of e.links) {
-            linksData.push({
-              animeEpisodeId: animeEpisodeInsertedRows.find(i => i.episodeNumber === e.episodeNumber)?.animeEpisodeId || -1,
-              url: l.url,
-              platformId: l.platformId,
-              note: l.note
-            });
-          }
-        }
+				await tx.insert(schema.animeSeasonMetadata).values(metadataData);
+			});
+		} catch (err) {
+			if (!(err instanceof FormError)) {
+				let context: SentryLoggerOptions = {
+					tags: {
+						url: url.pathname,
+						form: 'new-season'
+					}
+				};
+				sentry.logServer(err, context);
+			}
 
-        if (_.some(linksData, { animeEpisodeId: -1 })) {
-          throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, { form: 'new-animeseason' });
-        }
-
-        if (linksData.length > 0) {
-          await services.episodeLink.insert(tx, linksData);
-        }
-      });
-    } catch (err) {
-      if (!(err instanceof FormError)) {
-        let context: SentryLoggerOptions = {
-          tags: {
-            url: url.pathname,
-            form: 'new-animeseason',
-          }
-        }
-        sentry.logServer(err, context);
-      }
-
-      if (err instanceof AppError) {
-        return fail(err.httpStatus, { form, text: err.message })
-      } else if (err instanceof Error) {
-        return fail(500, { form, text: err.message })
-      } else {
-        return fail(500, { form, text: 'Unexpected error occurred' });
-      }
-    }
-  },
-}
+			if (err instanceof AppError) {
+				return fail(err.httpStatus, { form, text: err.message });
+			} else if (err instanceof Error) {
+				return fail(500, { form, text: err.message });
+			} else {
+				return fail(500, { form, text: 'Unexpected error occurred' });
+			}
+		}
+	}
+};

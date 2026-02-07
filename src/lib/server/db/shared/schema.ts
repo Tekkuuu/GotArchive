@@ -94,6 +94,24 @@ export const animeSeason = pgTable(
 	]
 );
 
+export const animeSeasonMetadata = pgTable(
+	'anime_season_metadata',
+	{
+		animeSeasonMetadataId: uuid('anime_season_metadata_id').primaryKey().defaultRandom(),
+		animeSeasonId: uuid('anime_season_id').notNull(),
+		anilistId: integer('anilist_id').unique(),
+		malId: integer('mal_id').unique(),
+		note: text('note')
+	},
+	(table) => [
+		foreignKey({
+			name: 'anime_season_fk',
+			columns: [table.animeSeasonId],
+			foreignColumns: [animeSeason.animeSeasonId]
+		}).onDelete('cascade')
+	]
+);
+
 export const animeGenre = pgTable(
 	'anime_genre',
 	{
@@ -160,9 +178,11 @@ export const scheduleSlot = pgTable(
 		dayOfWeek: smallint('day_of_week').notNull(), // 0 = Sunday, 6 = Saturday
 		time: time('time'), // Optional - can be null for partial slot definitions
 		type: typeScheduleEntry('type'), // Optional - can be null for partial slot definitions
-		animeSeasonId: uuid('anime_season_id'), // Optional - can be null
-		title: varchar('title'), // Optional - can be null for partial slot definitions
-		description: text('description'), // Optional - can be null
+		animeId: uuid('anime_id'), // Optional - starting anime for anime-type slots
+		startingSequence: smallint('starting_sequence'), // Optional - starting season sequence (e.g., 2 for S2)
+		startingEpisode: smallint('starting_episode'), // Optional - starting episode number in that season
+		title: varchar('title'), // Optional - for non-anime slots or title override
+		description: text('description'), // Optional - for non-anime slots
 		logoUrl: varchar('logo_url'), // Optional - can be null
 		episodeCount: smallint('episode_count'), // Optional - for anime, number of episodes per stream
 		cancelledText: text('cancelled_text'), // Optional - default text if slot is cancelled
@@ -177,9 +197,9 @@ export const scheduleSlot = pgTable(
 	},
 	(table) => [
 		foreignKey({
-			name: 'anime_season_fk',
-			columns: [table.animeSeasonId],
-			foreignColumns: [animeSeason.animeSeasonId]
+			name: 'anime_fk',
+			columns: [table.animeId],
+			foreignColumns: [anime.animeId]
 		}).onDelete('set null'),
 		check('check_day_of_week_range', sql`${table.dayOfWeek} BETWEEN 0 AND 6`)
 	]
@@ -195,9 +215,8 @@ export const scheduleEntry = pgTable(
 		time: time('time'),
 		note: text('note'),
 		logoUrl: varchar('logo_url'),
-		animeSeasonId: uuid('anime_season_id'),
-		title: varchar('title'),
-		description: text('description'),
+		title: varchar('title'), // For non-anime entries or title override
+		description: text('description'), // For non-anime entries
 		cancelledText: text('cancelled_text'), // Text to display if this entry is cancelled
 		isCancelled: boolean('is_cancelled').notNull().default(false) // Whether this entry is cancelled
 	},
@@ -206,12 +225,29 @@ export const scheduleEntry = pgTable(
 			name: 'schedule_fk',
 			columns: [table.scheduleId],
 			foreignColumns: [schedule.scheduleId]
+		}).onDelete('cascade')
+	]
+);
+
+export const scheduleEntryAnimeSeason = pgTable(
+	'schedule_entry_anime_season',
+	{
+		scheduleEntryId: uuid('schedule_entry_id').notNull(),
+		animeSeasonId: uuid('anime_season_id').notNull(),
+		episodes: text('episodes').notNull() // Episode ranges like "1-4", "10-12", etc.
+	},
+	(table) => [
+		primaryKey({ columns: [table.scheduleEntryId, table.animeSeasonId] }),
+		foreignKey({
+			name: 'schedule_entry_fk',
+			columns: [table.scheduleEntryId],
+			foreignColumns: [scheduleEntry.scheduleEntryId]
 		}).onDelete('cascade'),
 		foreignKey({
 			name: 'anime_season_fk',
 			columns: [table.animeSeasonId],
 			foreignColumns: [animeSeason.animeSeasonId]
-		}).onDelete('set null')
+		}).onDelete('cascade')
 	]
 );
 
@@ -254,27 +290,6 @@ export const scheduleEntryPlatform = pgTable(
 			columns: [table.platformId],
 			foreignColumns: [platform.platformId]
 		})
-	]
-);
-
-export const scheduleEntrySlot = pgTable(
-	'schedule_entry_slot',
-	{
-		scheduleEntryId: uuid('schedule_entry_id').notNull(),
-		scheduleSlotId: uuid('schedule_slot_id').notNull()
-	},
-	(table) => [
-		primaryKey({ columns: [table.scheduleEntryId] }), // Each entry can only come from one slot
-		foreignKey({
-			name: 'schedule_entry_fk',
-			columns: [table.scheduleEntryId],
-			foreignColumns: [scheduleEntry.scheduleEntryId]
-		}).onDelete('cascade'),
-		foreignKey({
-			name: 'schedule_slot_fk',
-			columns: [table.scheduleSlotId],
-			foreignColumns: [scheduleSlot.scheduleSlotId]
-		}).onDelete('cascade')
 	]
 );
 

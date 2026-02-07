@@ -10,322 +10,119 @@
 		Sun,
 		Moon,
 		Globe,
-		List,
-		Info
+		Info,
+		Menu,
+    User,
+    LogOut,
+    ShieldUser,
+    type Icon,
 	} from 'lucide-svelte';
-	import { CookieConsent } from '$lib/components/ui/';
 	import { Toaster } from '$lib/components/ui/toaster';
-	import { getDarkModeStore, getAnonymousUUIDStore, getCookieConsentStore } from '$lib/stores';
-	import { onMount } from 'svelte';
+	import { getDarkModeStore } from '$lib/stores';
+  import { session, signOut } from '$lib/auth';
 
 	let { children, data }: LayoutProps = $props();
-	let { session } = $derived(data);
-
 	let darkMode = getDarkModeStore();
+  let expand = $state(false);
 
-	onMount(() => {
-		getAnonymousUUIDStore();
+	// Function to toggle theme
+	function toggleTheme() {
+		const newValue = !darkMode.value;
+		darkMode.set(newValue);
+		// Update data-theme attribute on html element
+		if (typeof document !== 'undefined') {
+			document.documentElement.setAttribute('data-theme', newValue ? 'gotdark' : 'gotlight');
+		}
+	}
+
+  function handleLogut(e: Event) {
+    e.preventDefault();
+    signOut();
+  }
+
+	// Initialize theme on mount
+	$effect(() => {
+		if (typeof document !== 'undefined') {
+			document.documentElement.setAttribute('data-theme', darkMode.value ? 'gotdark' : 'gotlight');
+		}
 	});
 </script>
 
+{#snippet navTab(route: typeof page.route.id, icon: typeof Icon, label: string, expand: boolean = false)}
+  {@const RouteIcon = icon}
+  <a
+    href={route}
+    class={[
+      !expand && 'tooltip tooltip-bottom',
+      page.route.id === route && 'btn-secondary',
+      "join-item btn flex grow"
+    ]}
+    data-tip={label}
+  >
+    <RouteIcon />
+    {#if expand}
+      {label}
+    {/if}
+  </a>
+{/snippet}
+
+
+{#snippet navBtn(action: (e: Event) => void, icon: typeof Icon, label: string, expand: boolean = false)}
+  {@const RouteIcon = icon}
+  <button
+    type="button"
+    class={[
+      !expand && 'tooltip tooltip-bottom',
+      "join-item btn flex grow"
+    ]}
+    data-tip={label}
+    onclick={action}
+  >
+    <RouteIcon />
+    {#if expand}
+      {label}
+    {/if}
+  </button>
+{/snippet}
+
 <div class="flex min-h-screen flex-col">
-	<CookieConsent />
-	<div class="navbar bg-base-300 fixed z-50 shadow-sm">
-		<div class="navbar-start">
-			<div class="dropdown">
-				<div tabindex="0" role="button" class="btn btn-ghost lg:hidden">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-5 w-5"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 6h16M4 12h8m-8 6h16"
-						/>
-					</svg>
-				</div>
-				<ul class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-4 p-2 shadow">
-					<li>
-						<a href="/">Dashboard</a>
-					</li>
-					<li>
-						<a href="/gotgames/schedule">Schedule</a>
-					</li>
-					<li>
-						<details>
-							<summary>Reactions</summary>
-							<ul class="**:text-nowrap">
-								<li>
-									<a href="/gotgames/anime/list">Anime</a>
-								</li>
-							</ul>
-						</details>
-					</li>
-					<li>
-						<a href="/changelog">Changelog</a>
-					</li>
-					<li>
-						<a href="/about">About</a>
-					</li>
-					<li>
-						<details>
-							<summary>Socials</summary>
-							<ul class="**:text-nowrap">
-								<li>
-									<a target="_blank" href="https://www.youtube.com/c/GOTGames">
-										G.O.T Games Youtube
-									</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://www.youtube.com/@GOTExtraChannel">
-										G.O.T Extra Youtube
-									</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://www.youtube.com/@GOT_Clips">
-										G.O.T Clips Youtube
-									</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://www.twitch.tv/gotgames_tb">Twitch</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://x.com/GOTGAMES_TB">X (Twitter)</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://discord.gg/MXTebs9yb2">Discord</a>
-								</li>
-							</ul>
-						</details>
-					</li>
-					{#if session?.user}
-						<li>
-							<details>
-								<summary> Admin </summary>
-								<ul class="**:text-nowrap">
-									<li>
-										<a href="/admin/feedback">Feedback</a>
-									</li>
-									<li>
-										<details>
-											<summary>New</summary>
-											<ul>
-												<li>
-													<a href="/admin/new/anime">Anime</a>
-												</li>
-												<li>
-													<a href="/admin/new/season">Season</a>
-												</li>
-												<li>
-													<a href="/admin/new/schedule">Schedule</a>
-												</li>
-											</ul>
-										</details>
-									</li>
-									<li>
-										<details>
-											<summary>Edit</summary>
-											<ul>
-												<li>
-													<a href="/admin/edit/anime">Anime</a>
-												</li>
-												<li>
-													<a href="/admin/edit/schedule">Schedule</a>
-												</li>
-											</ul>
-										</details>
-									</li>
-								</ul>
-							</details>
-						</li>
-					{/if}
-				</ul>
-			</div>
-			<a href="/" class="btn btn-ghost text-xl">GotArchive</a>
-		</div>
-		<div class="navbar-center hidden lg:flex">
-			<ul class="menu menu-horizontal gap-2 px-1">
-				<li>
-					<a href="/" class="btn {page.route.id === '/' && 'btn-secondary'}">
-						<Home />
-						Dashboard
-					</a>
-				</li>
-				<li>
-					<a
-						href="/gotgames/schedule"
-						class="btn {page.route.id === '/gotgames/schedule' && 'btn-secondary'}"
-					>
-						<Calendar />
-						Schedule
-					</a>
-				</li>
-				<li>
-					<details>
-						<summary class="btn {page.route.id?.startsWith('/gotgames/anime') && 'btn-secondary'}">
-							<TvMinimalPlay />
-							Reactions
-						</summary>
-						<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
-							<li>
-								<a
-									href="/gotgames/anime/list"
-									class={[page.route.id === '/gotgames/anime/list' && 'underline']}
-								>
-									Anime
-								</a>
-							</li>
-						</ul>
-					</details>
-				</li>
-				<li>
-					<a href="/changelog" class="btn {page.route.id === '/changelog' && 'btn-secondary'}">
-						<List />
-						Changelog
-					</a>
-				</li>
-				<li>
-					<a href="/about" class="btn {page.route.id === '/about' && 'btn-secondary'}">
-						<Info />
-						About
-					</a>
-				</li>
-				<li>
-					<details>
-						<summary class="btn">
-							<Globe />
-							Socials
-						</summary>
-						<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
-							<li>
-								<a target="_blank" href="https://www.youtube.com/c/GOTGames">
-									G.O.T Games Youtube
-								</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://www.youtube.com/@GOTExtraChannel">
-									G.O.T Extra Youtube
-								</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://www.youtube.com/@GOT_Clips">
-									G.O.T Clips Youtube
-								</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://www.twitch.tv/gotgames_tb">Twitch</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://x.com/GOTGAMES_TB">X (Twitter)</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://discord.gg/MXTebs9yb2">Discord</a>
-							</li>
-						</ul>
-					</details>
-				</li>
-				{#if session?.user}
-					<li>
-						<details>
-							<summary class={['btn', page.route.id?.startsWith('/admin') && 'btn-secondary']}>
-								<Database />
-								Admin
-							</summary>
-							<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
-								<li>
-									<a
-										href="/admin/feedback"
-										class={[page.route.id === '/admin/feedback' && 'underline']}>Feedback</a
-									>
-								</li>
-								<li>
-									<details>
-										<summary class={[page.route.id?.startsWith('/admin/new') && 'underline']}
-											>New</summary
-										>
-										<ul>
-											<li>
-												<a
-													href="/admin/new/anime"
-													class={[page.route.id === '/admin/new/anime' && 'underline']}>Anime</a
-												>
-											</li>
-											<li>
-												<a
-													href="/admin/new/season"
-													class={[page.route.id === '/admin/new/season' && 'underline']}>Season</a
-												>
-											</li>
-											<li>
-												<a
-													href="/admin/new/schedule"
-													class={[page.route.id === '/admin/new/schedule' && 'underline']}
-													>Schedule</a
-												>
-											</li>
-										</ul>
-									</details>
-								</li>
-								<li>
-									<details>
-										<summary class={[page.route.id?.startsWith('/admin/edit') && 'underline']}
-											>Edit</summary
-										>
-										<ul>
-											<li>
-												<a
-													href="/admin/edit/anime"
-													class={[page.route.id === '/admin/edit/anime' && 'underline']}>Anime</a
-												>
-											</li>
-											<li>
-												<a
-													href="/admin/edit/schedule"
-													class={[page.route.id === '/admin/edit/schedule' && 'underline']}
-												>
-													Schedule
-												</a>
-											</li>
-										</ul>
-									</details>
-								</li>
-							</ul>
-						</details>
-					</li>
-				{/if}
-			</ul>
-		</div>
-		<div class="navbar-end">
-			<!-- Logout button is available in the admin dashboard -->
-		</div>
-	</div>
+  <nav class="flex gap-4 h-16 bg-base-300 fixed w-full z-50">
+    <div class="flex justify-center items-center p-4">
+      <a href="/" class="font-bold text-2xl hover:text-primary transition-all duration-150">GotArchive</a>
+    </div>
+    <div class="flex grow justify-center items-center p-4">
+      <div class="join *:min-w-20">
+        {@render navTab('/', Home, 'Dashboard', expand)}
+        {@render navTab('/gotgames/schedule', Calendar, 'Schedule', expand)}
+        {@render navTab('/gotgames/anime/list', TvMinimalPlay, 'Anime reactions', expand)}
+        {@render navTab('/about', Info, 'About', expand)}
+      </div>
+    </div>
+    <div class="flex justify-center items-center p-4">
+      {#if $session.data}
+        <div class="join">
+          {@render navTab('/admin', ShieldUser, 'Admin', expand)}
+          {@render navBtn(handleLogut, LogOut, "Logout", expand)}
+        </div>
+      {/if}
+    </div>
+  </nav>
 	<Toaster />
-	<main class="mx-2 mt-20 mb-2 flex grow flex-col">
+	<main class="mx-2 mb-2 mt-16 flex grow flex-col">
 		{@render children()}
 	</main>
-	<footer class="bg-base-300 flex w-full gap-2 p-2">
-		<nav class="flex gap-2">
-			<label class="swap swap-rotate btn btn-secondary btn-outline">
-				<input
-					type="checkbox"
-					class="theme-controller"
-					value="gotdark"
-					bind:checked={() => darkMode.value, (v) => darkMode.update(() => v)}
-				/>
-				<Sun class="swap-off" />
-				<Moon class="swap-on" />
-			</label>
+	<footer class="bg-base-300 flex w-full gap-2 p-2 shadow-sm border-t border-base-content/10">
+		<nav class="flex gap-2 items-center">
 			<button
-				class="btn btn-secondary btn-outline"
-				onclick={() =>
-					(document.getElementById('feedback-modal') as HTMLDialogElement)?.showModal()}
+				class="swap swap-rotate btn btn-secondary btn-outline"
+				onclick={toggleTheme}
+				aria-label="Toggle theme"
 			>
-				Feedback
+				{#if darkMode.value}
+					<Moon class="h-5 w-5" />
+				{:else}
+					<Sun class="h-5 w-5" />
+				{/if}
 			</button>
 			<a href="/privacy" class="btn btn-secondary btn-outline">Privacy</a>
 			<a href="/tos" class="btn btn-secondary btn-outline">Terms</a>

@@ -1,0 +1,2 @@
+ALTER TABLE "anime_season_metadata" ADD COLUMN "anime_season_id" uuid NOT NULL;--> statement-breakpoint
+ALTER TABLE "anime_season_metadata" ADD CONSTRAINT "anime_season_fk" FOREIGN KEY ("anime_season_id") REFERENCES "public"."anime_season"("anime_season_id") ON DELETE cascade ON UPDATE no action;

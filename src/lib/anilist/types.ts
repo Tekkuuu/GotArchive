@@ -1,36 +1,37 @@
 export type Title = {
-  native: string;
-  romaji: null | string;
-  english: null | string;
+	native: string;
+	romaji: null | string;
+	english: null | string;
 };
 
 export type Anime = {
-  id: number;
-  title: Title;
-  genres: string[]
+	id: number;
+	title: Title;
+	genres: string[];
 };
 
 export type AnimeSeason = {
-  id: number;
-  title: Title;
-  format: 'TV' | 'TV_SHORT' | 'MOVIE' | 'SPECIAL' | 'OVA' | 'ONA' | 'MUSIC';
-  season: 'WINTER' | 'SPRING' | 'SUMMER' | 'FALL';
-  seasonYear: number;
-  episodes: number;
-  siteUrl: string
+	id: number;
+	idMal: number | null;
+	title: Title;
+	format: 'TV' | 'TV_SHORT' | 'MOVIE' | 'SPECIAL' | 'OVA' | 'ONA' | 'MUSIC';
+	season: 'WINTER' | 'SPRING' | 'SUMMER' | 'FALL';
+	seasonYear: number;
+	episodes: number;
+	siteUrl: string;
 };
 
 export type CoverImage = {
-  id: number;
-  coverImage: {
-    extraLarge: string;
-    medium: string;
-  };
-  bannerImage: string | null;
-  expDate: Date;
+	id: number;
+	coverImage: {
+		extraLarge: string;
+		medium: string;
+	};
+	bannerImage: string | null;
+	expDate: Date;
 };
 
 export type AnimeSeasonBulk = Array<{
-  anime: Anime;
-  seasons: AnimeSeason[];
+	anime: Anime;
+	seasons: AnimeSeason[];
 }>;

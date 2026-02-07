@@ -4,25 +4,28 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import Fuse from 'fuse.js';
 	import _ from 'lodash';
-	import { Input, Button } from '$lib/components/forms/';
 	import * as Suspense from '$lib/components/ui/suspense';
-	import { Search, ListVideo, Grid2x2, Grid3x3, Link2 } from 'lucide-svelte';
-	import { extractId } from '$lib/anilist/';
+	import { Search, List, Grid3x3, Grid2x2, ExternalLink, ListVideo, X, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import { getAnimeImagesStore } from '$lib/stores';
 	import { toast } from '$lib/components/ui/toaster';
+	import { fade } from 'svelte/transition';
 
-	const mqBannerImage = new MediaQuery('max-width: 63.999rem');
+	const mqMobile = new MediaQuery('(max-width: 767px)');
 
 	let { data }: PageProps = $props();
 	let images = getAnimeImagesStore();
 	let searchInput: string = $state('');
-	let displayType: 'more' | 'less' = $state('more');
+	let displayType: 'list' | 'more' | 'less' = $state('list');
 	let displayAmount = $state(24);
 
 	let modalData = $state<AnimeCard | null>(null);
+	let hoveredAnimeId: string | null = $state(null);
 
 	let mediumLoaded: Record<number, boolean> = $state({});
 	let extraLargeLoaded: Record<number, boolean> = $state({});
+
+	// Track card position for viewport-aware positioning
+	let cardPositions: Record<string, 'bottom' | 'top'> = $state({});
 
 	function handleMediumLoad(id: number) {
 		mediumLoaded = { ...mediumLoaded, [id]: true };
@@ -32,27 +35,47 @@
 		extraLargeLoaded = { ...extraLargeLoaded, [id]: true };
 	}
 
-	function filterAnime(anime: Array<AnimeCard>): Array<AnimeCard> {
-		const normalizedInput = _.deburr(searchInput);
-
-		if (normalizedInput.length < 2) {
-			return anime;
+	// Derived filtered anime list with Fuse.js
+	let filteredAnime = $derived.by(() => {
+		if (!searchInput || searchInput.length < 2) {
+			return data.anime;
 		}
-
-		const animeWithNotes = anime.map((a) => ({
-			...a,
-			allNotes: a.links.map((link) => link[1]).filter((note) => !!note)
-		}));
-
-		const fuse = new Fuse(animeWithNotes, {
-			keys: ['titleEnglish', 'titleNative', 'titleRomaji', 'allNotes'],
-			threshold: 0.2,
+		const fuse = new Fuse(data.anime, {
+			keys: ['titleEnglish', 'titleNative', 'titleRomaji', 'genres'],
+			threshold: 0.3,
 			ignoreLocation: true,
 			minMatchCharLength: 2
 		});
+		return fuse.search(searchInput).map((result) => result.item);
+	});
 
-		const result = fuse.search(normalizedInput);
-		return result.map((r) => _.omit(r.item, 'allNotes'));
+	// Build AniList URL from ID
+	function getAniListUrl(anilistId: number | null): string | null {
+		return anilistId ? `https://anilist.co/anime/${anilistId}` : null;
+	}
+
+	// Build MAL URL from ID
+	function getMalUrl(malId: number | null): string | null {
+		return malId ? `https://myanimelist.net/anime/${malId}` : null;
+	}
+
+	// Get anime image data
+	function getAnimeImage(anilistId: number | null) {
+		return images.value.find((x) => x.id === anilistId);
+	}
+
+	// Check if card should appear above or below based on viewport
+	function handleListItemHover(event: MouseEvent, animeId: string) {
+		const target = event.currentTarget as HTMLElement;
+		const rect = target.getBoundingClientRect();
+		const cardHeight = 400; // Approximate card height
+		const spaceBelow = window.innerHeight - rect.bottom;
+		
+		// Position above if not enough space below
+		cardPositions = {
+			...cardPositions,
+			[animeId]: spaceBelow < cardHeight ? 'top' : 'bottom'
+		};
 	}
 </script>
 
@@ -64,177 +87,327 @@
 	/>
 </svelte:head>
 
-{#snippet card(details: AnimeCard)}
-	<div class="bg-base-300 card card-side shadow-sm">
-		<figure class="h-60 w-45 shrink-0">
-			{#if images.value.find((x) => x.id)}
-				{#key extractId(details.mainSeason)}
-					{#if !extraLargeLoaded[extractId(details.mainSeason) ?? 0]}
-						<img
-							loading="lazy"
-							alt={`Medium cover image for ${details.titleEnglish || details.titleRomaji || details.titleNative}`}
-							src={images.value.find((x) => x.id === extractId(details.mainSeason))?.coverImage
-								.medium || ''}
-							onload={() => handleMediumLoad(extractId(details.mainSeason) ?? 0)}
-						/>
-					{/if}
-					{#if mediumLoaded[extractId(details.mainSeason) ?? 0]}
-						<img
-							loading="lazy"
-							class={[
-								extraLargeLoaded[extractId(details.mainSeason) ?? 0]
-									? 'opacity-100'
-									: 'absolute opacity-0'
-							]}
-							src={images.value.find((x) => x.id === extractId(details.mainSeason))?.coverImage
-								.extraLarge || ''}
-							alt={`Cover image for ${details.titleEnglish}`}
-							onload={() => handleExtraLargeLoad(extractId(details.mainSeason) ?? 0)}
-						/>
-					{/if}
-				{/key}
-			{:else}
-				<Suspense.Image />
-			{/if}
-		</figure>
-		<div class="card-body">
-			<a href={`/gotgames/anime/${details.animeId}`} class="card-title link text-xl font-bold">
-				{details.titleEnglish ?? details.titleRomaji ?? details.titleNative ?? ''}
-			</a>
-			<div class="flex flex-wrap gap-1">
-				{#each details.genres as genre}
-					<div class="badge badge-accent">{genre}</div>
-				{/each}
-			</div>
-			<p>
-				Watched: {details.totalEpisodesWatched}/{details.totalEpisodes}
-			</p>
-			<div class="card-actions justify-end">
-				<button
-					class="btn btn-primary"
-					onclick={() => {
-						modalData = details;
-						(document.getElementById('watch_modal') as HTMLDialogElement).showModal();
-					}}
-				>
-					Watch
-				</button>
-				<a class="btn btn-primary" href={details.mainSeason} target="_blank"> AniList </a>
-			</div>
-		</div>
-	</div>
+{#snippet cardList(details: AnimeCard)}
+  {@const image = getAnimeImage(details.external.anilistId)}
+  {@const position = cardPositions[details.animeId] ?? 'bottom'}
+  <li
+    class="list-row hover:bg-base-200 transition-all duration-75"
+    onmouseenter={(e) => {
+      handleListItemHover(e, details.animeId);
+      hoveredAnimeId = details.animeId;
+    }}
+    onmouseleave={() => hoveredAnimeId = null}
+  >
+    <a href={`/gotgames/anime/${details.animeId}`}>
+      {#if image}
+        <img class="size-10 rounded-box object-cover" src={image.coverImage.medium} alt={details.titleEnglish} />
+      {/if}
+    </a>
+    <div class="max-md:flex max-md:items-center">
+      <div>{details.titleEnglish}</div>
+      {#if mqMobile.current === false}
+        <div class="opacity-60 text-xs">{details.titleNative}</div>
+      {/if}
+    </div>
+    {#if mqMobile.current === false}
+      <div class="flex items-center">
+        <span>{details.totalEpisodesWatched ?? 0}/{details.totalEpisodes ?? '?'} eps</span>
+      </div>
+    {/if}
+    {#if details.external.anilistId && !mqMobile.current}
+      <div>
+        <a
+          class={[
+            "*:fill-base-content *:size-4",
+            "flex items-center justify-center",
+            "btn invert"
+          ]}
+          href={getAniListUrl(details.external.anilistId)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <title>AniList</title>
+            <path d="M24 17.53v2.421c0 .71-.391 1.101-1.1 1.101h-5l-.057-.165L11.84 3.736c.106-.502.46-.788 1.053-.788h2.422c.71 0 1.1.391 1.1 1.1v12.38H22.9c.71 0 1.1.392 1.1 1.101zM11.034 2.947l6.337 18.104h-4.918l-1.052-3.131H6.019l-1.077 3.131H0L6.361 2.948h4.673zm-.66 10.96-1.69-5.014-1.541 5.015h3.23z"/>
+          </svg>
+        </a>
+      </div>
+    {/if}
+    {#if details.external.malId && !mqMobile.current}
+      <div>
+        <a
+          class={[
+            "*:fill-base-content *:size-4",
+            "flex items-center justify-center",
+            "btn invert"
+          ]}
+          href={getMalUrl(details.external.malId)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <title>Malwarebytes</title>
+            <path d="M10.87 22.9027c.1571 0 .2796-.1236.2796-.2824 0-.124-.0874-.2828-.2445-.2828h-.088l-.1926-.0352c-3.2382-.636-5.6358-3.5505-5.6358-6.96 0-1.4478.4376-2.8256 1.19-3.938.1229-.1593.315-.2828.5254-.0884l5.1113 5.2277c.0342.0352.122.0883.1921.0883.0875 0 .1576-.0353.1927-.0883l5.1458-5.1924c.1927-.1944.368-.1588.473.0352a7.1 7.1 0 0 1 1.19 3.9385c0 1.819-.6826 3.4622-1.8032 4.7164-.0347.0353-.087.0883-.1222.1236 0 .0353-.035.0883-.035.1235 0 .1593.1225.2828.28.2828h.0351c.035 0 .0875-.0352.1225-.0352 6.8262-2.897 6.5116-9.75 6.5116-9.75 0-3.9036-1.8384-7.4184-4.6737-9.6263-.1224-.0883-.3151-.0883-.403.0352l-6.7033 6.8534c-.1228.1235-.3154.1235-.4376 0L5.0234 1.1949c-.1225-.1235-.2797-.1235-.4022-.0352C1.8379 3.3676 0 6.8293 0 10.786c0 6.2875 4.7086 11.4806 10.7825 12.1167Z"/>
+          </svg>
+        </a>
+      </div>
+    {/if}
+    <div>
+      {#if !mqMobile.current}
+        <button class="btn btn-primary" onclick={() => {
+          modalData = details;
+          (document.getElementById('watch_modal') as HTMLDialogElement).showModal();
+        }}>
+          <ListVideo class="h-3 w-3" />
+        </button>
+      {:else}
+        <button
+          class="btn btn-sm btn-primary" 
+          onclick={(e) => {
+            if (hoveredAnimeId === details.animeId) {
+              hoveredAnimeId = null;
+            } else {
+              handleListItemHover(e, details.animeId);
+              hoveredAnimeId = details.animeId;
+            }
+          }}
+        >
+          <ChevronDown
+            class="size-4 transition-all duration-150 {(hoveredAnimeId === details.animeId) ? "rotate-180" : ""}"
+          />
+        </button>
+      {/if}
+    </div>
+    {#if hoveredAnimeId === details.animeId}
+      <div
+        class={[
+          "card bg-base-300 min-w-80 max-w-96 w-full",
+          "absolute left-1/2 -translate-x-1/2",
+          position === 'top' ? 'bottom-full mb-6' : 'top-full mt-2',
+          "z-50"
+        ]}
+        transition:fade={{ duration: 150 }}
+      >
+        <figure class="h-24">
+          <img
+            class="object-cover w-full h-full"
+            src={image?.bannerImage || image?.coverImage.extraLarge || ''}
+            alt={details.titleEnglish}
+          />
+        </figure>
+        <div class="card-body">
+          <h2 class="card-title">{details.titleEnglish}</h2>
+          <div class="flex flex-wrap gap-1">
+            {#each details.genres as genre}
+              <div class="badge badge-primary">{genre}</div>
+            {/each}
+          </div>
+          {#if mqMobile.current}
+            <div>
+              <span>{details.totalEpisodesWatched ?? 0}/{details.totalEpisodes ?? '?'} eps</span>
+            </div>
+            <div class="card-actions justify-end">
+              {#if details.external.anilistId}
+                <div>
+                  <a
+                    class={[
+                      "*:fill-base-content *:size-4",
+                      "flex items-center justify-center",
+                      "btn invert"
+                    ]}
+                    href={getAniListUrl(details.external.anilistId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <title>AniList</title>
+                      <path d="M24 17.53v2.421c0 .71-.391 1.101-1.1 1.101h-5l-.057-.165L11.84 3.736c.106-.502.46-.788 1.053-.788h2.422c.71 0 1.1.391 1.1 1.1v12.38H22.9c.71 0 1.1.392 1.1 1.101zM11.034 2.947l6.337 18.104h-4.918l-1.052-3.131H6.019l-1.077 3.131H0L6.361 2.948h4.673zm-.66 10.96-1.69-5.014-1.541 5.015h3.23z"/>
+                    </svg>
+                  </a>
+                </div>
+              {/if}
+              {#if details.external.malId}
+                <div>
+                  <a
+                    class={[
+                      "*:fill-base-content *:size-4",
+                      "flex items-center justify-center",
+                      "btn invert"
+                    ]}
+                    href={getMalUrl(details.external.malId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <title>Malwarebytes</title>
+                      <path d="M10.87 22.9027c.1571 0 .2796-.1236.2796-.2824 0-.124-.0874-.2828-.2445-.2828h-.088l-.1926-.0352c-3.2382-.636-5.6358-3.5505-5.6358-6.96 0-1.4478.4376-2.8256 1.19-3.938.1229-.1593.315-.2828.5254-.0884l5.1113 5.2277c.0342.0352.122.0883.1921.0883.0875 0 .1576-.0353.1927-.0883l5.1458-5.1924c.1927-.1944.368-.1588.473.0352a7.1 7.1 0 0 1 1.19 3.9385c0 1.819-.6826 3.4622-1.8032 4.7164-.0347.0353-.087.0883-.1222.1236 0 .0353-.035.0883-.035.1235 0 .1593.1225.2828.28.2828h.0351c.035 0 .0875-.0352.1225-.0352 6.8262-2.897 6.5116-9.75 6.5116-9.75 0-3.9036-1.8384-7.4184-4.6737-9.6263-.1224-.0883-.3151-.0883-.403.0352l-6.7033 6.8534c-.1228.1235-.3154.1235-.4376 0L5.0234 1.1949c-.1225-.1235-.2797-.1235-.4022-.0352C1.8379 3.3676 0 6.8293 0 10.786c0 6.2875 4.7086 11.4806 10.7825 12.1167Z"/>
+                    </svg>
+                  </a>
+                </div>
+              {/if}
+              <button class="btn btn-primary" onclick={() => {
+                modalData = details;
+                (document.getElementById('watch_modal') as HTMLDialogElement).showModal();
+              }}>
+                <ListVideo class="h-3 w-3" />
+              </button>
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/if}
+  </li>
 {/snippet}
 
-{#snippet cardLess(details: AnimeCard)}
-	<div class="card image-full h-60">
-		<figure>
-			{#if images.value.find((x) => x.id)}
-				<img
-					loading="lazy"
-					src={images.value.find((x) => x.id === extractId(details.mainSeason))?.bannerImage || ''}
-					alt={`Cover image for ${details.titleEnglish || details.titleRomaji || details.titleNative}`}
-				/>
-			{:else}
-				<Suspense.Image />
-			{/if}
-		</figure>
-		<div class="card-body">
-			<a href={`/gotgames/anime/${details.animeId}`} class="card-title link text-xl font-bold">
-				{details.titleEnglish ?? details.titleRomaji ?? details.titleNative ?? ''}
-			</a>
-			<div class="flex flex-wrap gap-2">
-				{#each details.genres as genre}
-					<div class="badge badge-accent">{genre}</div>
-				{/each}
-			</div>
-			<p>
-				Watched: {details.totalEpisodesWatched}/{details.totalEpisodes}
-			</p>
-			<div class="card-actions justify-end">
+<div class="container mx-auto max-w-7xl p-2 md:p-4">
+	<!-- Header and Search -->
+	<div class="mb-4">
+		<h1 class="text-2xl md:text-3xl font-bold text-center mb-3">Anime Collection</h1>
+
+		<div class="flex flex-col items-center sm:flex-row gap-2">
+      <div class="join w-full">
+        <label class="join-item input flex w-full items-center gap-2">
+          <Search class="h-4 w-4 opacity-70" />
+          <input
+            type="text"
+            bind:value={searchInput}
+            placeholder="Search anime..."
+            class="grow"
+          />
+        </label>
+        <button class="join-item btn btn-primary" onclick={() => (searchInput = '')}>
+          <X class="size-4" />
+        </button>
+      </div>
+
+			<!-- Display Type Toggle -->
+			<div class="join w-fit flex justify-center">
 				<button
-					class="btn btn-primary"
-					onclick={() => {
-						modalData = details;
-						(document.getElementById('watch_modal') as HTMLDialogElement).showModal();
-					}}
+					class="btn join-item {displayType === 'list' ? 'btn-active' : ''}"
+					onclick={() => (displayType = 'list')}
+					title="Simple list"
 				>
-					Watch
+					<List class="h-4 w-4" />
+					{#if !mqMobile.current}
+						<span class="ml-1">List</span>
+					{/if}
 				</button>
-				<a class="btn btn-primary" href={details.mainSeason} target="_blank"> AniList </a>
+        <!-- TODO: Implement other display types -->
+				<!-- <button -->
+				<!-- 	class="btn join-item {displayType === 'more' ? 'btn-active' : ''}" -->
+				<!-- 	onclick={() => (displayType = 'more')} -->
+				<!-- 	title="More details" -->
+				<!-- > -->
+				<!-- 	<Grid2x2 class="h-4 w-4" /> -->
+				<!-- 	{#if !mqMobile.current} -->
+				<!-- 		<span class="ml-1">More</span> -->
+				<!-- 	{/if} -->
+				<!-- </button> -->
+				<!-- <button -->
+				<!-- 	class="btn join-item {displayType === 'less' ? 'btn-active' : ''}" -->
+				<!-- 	onclick={() => (displayType = 'less')} -->
+				<!-- 	title="Compact cards" -->
+				<!-- > -->
+				<!-- 	<Grid3x3 class="h-4 w-4" /> -->
+				<!-- 	{#if !mqMobile.current} -->
+				<!-- 		<span class="ml-1">Cards</span> -->
+				<!-- 	{/if} -->
+				<!-- </button> -->
 			</div>
 		</div>
-	</div>
-{/snippet}
 
-<div class="flex flex-col justify-center gap-2">
-	<div class="join w-full">
-		<label class="input join-item w-full">
-			<span class="label">Search</span>
-			<input type="text" bind:value={searchInput} />
-		</label>
-		{#if displayType === 'more'}
-			<button class="join-item btn btn-primary" onclick={() => (displayType = 'less')}>
-				<Grid3x3 />
-			</button>
-		{:else}
-			<button class="join-item btn btn-primary" onclick={() => (displayType = 'more')}>
-				<Grid2x2 />
-			</button>
-		{/if}
-	</div>
-	<div
-		class={[
-			'grid gap-2',
-			displayType === 'more' &&
-				!mqBannerImage.current &&
-				'grid-cols-1 md:grid-cols-2 2xl:grid-cols-3',
-			(displayType === 'less' || mqBannerImage.current) &&
-				'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
-		]}
-	>
-		{#each _.take(filterAnime(data.anime), displayAmount) as a}
-			{#if displayType === 'more' && !mqBannerImage.current}
-				{@render card(a)}
-			{:else}
-				{@render cardLess(a)}
+		<!-- Results count -->
+		<p class="text-xs md:text-sm text-base-content/70 mt-2 text-center">
+			Showing {Math.min(displayAmount, filteredAnime.length)} of {filteredAnime.length} anime
+			{#if searchInput && searchInput.length >= 2}
+				(filtered from {data.anime.length})
 			{/if}
-		{/each}
+		</p>
 	</div>
-	<button
-		class="btn btn-primary"
-		onclick={() => {
-			if (displayAmount < data.anime.length) {
-				displayAmount += 24;
-			} else {
-				toast.info('No more anime to show!');
-			}
-		}}
-	>
-		<span class="font-bold">Show more</span>
-	</button>
-	<dialog class="modal" id="watch_modal">
-		{#if modalData}
-			<div class="modal-box bg-base-300 flex flex-col gap-1">
-				{#each modalData.links.filter((x) => x[0] != 'NULL') as link}
-					<a href={link[0]} class="btn btn-primary">
-						<ListVideo />
-						<span class="flex items-center justify-center gap-1">
-							{link[0].includes('youtube') ? 'YouTube' : 'Patreon'}
-							{#if link[1]}
-								({link[1]})
-							{/if}
-						</span>
-					</a>
-				{/each}
-				<div class="modal-action">
-					<button
-						class="btn"
-						onclick={() => (document.getElementById('watch_modal') as HTMLDialogElement).close()}
-					>
-						Close
-					</button>
-				</div>
-			</div>
-		{/if}
-	</dialog>
+
+	<!-- Anime Grid/List -->
+  {#if displayType === 'list'}
+    <ul class="list bg-base-100 rounded-box shadow-md mb-2">
+      {#each _.take(filteredAnime, displayAmount) as anime}
+        {@render cardList(anime)}
+      {/each}
+    </ul>
+  {/if}
+
+	<!-- Load More Button -->
+	{#if displayAmount < filteredAnime.length}
+		<div class="flex justify-center">
+			<button
+				class="btn btn-primary"
+				onclick={() => {
+          displayAmount += 24
+				}}
+			>
+				Load More
+			</button>
+		</div>
+	{:else if filteredAnime.length === 0}
+		<div class="text-center py-12">
+			<p class="text-base md:text-lg text-base-content/70">
+				No anime found matching your search.
+			</p>
+		</div>
+	{/if}
 </div>
+
+<!-- Watch Modal (Playlist Popup) -->
+<dialog class="modal" id="watch_modal">
+	{#if modalData}
+		<div class="modal-box bg-base-200 max-w-md">
+			<h3 class="font-bold text-base md:text-lg mb-3">
+				{modalData.titleEnglish ?? modalData.titleRomaji ?? modalData.titleNative}
+			</h3>
+
+			{#if modalData.links.length === 0}
+				<p class="text-base-content/70 text-center py-4">No playlists available.</p>
+			{:else}
+				<div class="flex flex-col gap-2">
+					<p class="text-sm text-base-content/70 mb-1">Available Playlists:</p>
+					{#each modalData.links as [url, note]}
+						<a
+							href={url}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="btn btn-primary btn-sm justify-start"
+						>
+							<ListVideo class="h-4 w-4" />
+							<span class="flex-1 text-left truncate">
+								{#if url.includes('youtube')}
+									YouTube
+								{:else if url.includes('patreon')}
+									Patreon
+								{:else}
+									Watch
+								{/if}
+								{#if note}
+									<span class="text-xs opacity-70">({note})</span>
+								{/if}
+							</span>
+							<ExternalLink class="h-3.5 w-3.5 opacity-70" />
+						</a>
+					{/each}
+				</div>
+			{/if}
+
+			<div class="modal-action">
+				<button
+					class="btn btn-sm"
+					onclick={() => {
+						(document.getElementById('watch_modal') as HTMLDialogElement).close();
+						modalData = null;
+					}}
+				>
+					Close
+				</button>
+			</div>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button onclick={() => (modalData = null)}>close</button>
+		</form>
+	{/if}
+</dialog>

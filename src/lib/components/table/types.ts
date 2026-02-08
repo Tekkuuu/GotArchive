@@ -1,6 +1,6 @@
-import type { Snippet } from "svelte"
+import type { Snippet } from 'svelte';
 
 export type ColumnData<T> = {
-  header: string;
-  row: Snippet<[T]>
-}
+	header: string;
+	row: Snippet<[T]>;
+};

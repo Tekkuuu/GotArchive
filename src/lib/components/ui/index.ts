@@ -5,4 +5,3 @@ export { default as HttpError } from './errors/HttpError.svelte';
 export { default as CookieConsent } from './CookieConsent.svelte';
 
 export * from './navbar/';
-

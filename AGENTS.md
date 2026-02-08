@@ -156,6 +156,16 @@ try {
 - Component-specific classes use `class:` directive
 - Avoid inline styles
 
+**Design Philosophy:**
+
+- **Modern and Minimalistic**: Keep designs clean with ample whitespace and simple layouts
+- **Spacing**: Use gap/padding/margin values of **2 or less** (Tailwind units: `gap-1`, `gap-2`, `p-2`, etc.)
+  - Use larger spacing values (3-4) sparingly, only when it significantly improves visual hierarchy
+- **Mobile-First**: Always design for mobile screens as narrow as **384px** (iPhone SE width)
+  - Use responsive breakpoints: `sm:`, `md:`, `lg:` for larger screens
+  - Test layouts at 384px, 768px (tablet), and 1024px+ (desktop) widths
+- **Consistency**: Maintain uniform spacing throughout the application for cohesive design
+
 #### Stores and State
 
 - Use Svelte 5 runes for reactive state

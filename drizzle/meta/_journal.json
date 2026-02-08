@@ -1,55 +1,55 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1769794409089,
-      "tag": "0000_vengeful_ghost_rider",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1769806512293,
-      "tag": "0001_volatile_lockjaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1769893458408,
-      "tag": "0002_icy_epoch",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1769945428163,
-      "tag": "0003_noisy_blacklash",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1769945489856,
-      "tag": "0004_organic_shard",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1769979912609,
-      "tag": "0005_low_corsair",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1770057061563,
-      "tag": "0006_brainy_squadron_sinister",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1769794409089,
+			"tag": "0000_vengeful_ghost_rider",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1769806512293,
+			"tag": "0001_volatile_lockjaw",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1769893458408,
+			"tag": "0002_icy_epoch",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1769945428163,
+			"tag": "0003_noisy_blacklash",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1769945489856,
+			"tag": "0004_organic_shard",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "7",
+			"when": 1769979912609,
+			"tag": "0005_low_corsair",
+			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1770057061563,
+			"tag": "0006_brainy_squadron_sinister",
+			"breakpoints": true
+		}
+	]
 }

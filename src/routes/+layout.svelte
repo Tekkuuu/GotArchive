@@ -7,8 +7,7 @@
 		Database,
 		TvMinimalPlay,
 		Calendar,
-		Sun,
-		Moon,
+		Palette,
 		Globe,
 		Info,
 		Menu,
@@ -18,20 +17,19 @@
     type Icon,
 	} from 'lucide-svelte';
 	import { Toaster } from '$lib/components/ui/toaster';
-	import { getDarkModeStore } from '$lib/stores';
+	import { getThemeStore, AVAILABLE_THEMES, type Theme } from '$lib/stores';
   import { session, signOut } from '$lib/auth';
 
 	let { children, data }: LayoutProps = $props();
-	let darkMode = getDarkModeStore();
+	let theme = getThemeStore();
   let expand = $state(false);
 
-	// Function to toggle theme
-	function toggleTheme() {
-		const newValue = !darkMode.value;
-		darkMode.set(newValue);
+	// Function to change theme
+	function changeTheme(newTheme: Theme) {
+		theme.set(newTheme);
 		// Update data-theme attribute on html element
 		if (typeof document !== 'undefined') {
-			document.documentElement.setAttribute('data-theme', newValue ? 'gotdark' : 'gotlight');
+			document.documentElement.setAttribute('data-theme', newTheme);
 		}
 	}
 
@@ -43,7 +41,7 @@
 	// Initialize theme on mount
 	$effect(() => {
 		if (typeof document !== 'undefined') {
-			document.documentElement.setAttribute('data-theme', darkMode.value ? 'gotdark' : 'gotlight');
+			document.documentElement.setAttribute('data-theme', theme.value);
 		}
 	});
 </script>
@@ -113,17 +111,30 @@
 	</main>
 	<footer class="bg-base-300 flex w-full gap-2 p-2 shadow-sm border-t border-base-content/10">
 		<nav class="flex gap-2 items-center">
-			<button
-				class="swap swap-rotate btn btn-secondary btn-outline"
-				onclick={toggleTheme}
-				aria-label="Toggle theme"
-			>
-				{#if darkMode.value}
-					<Moon class="h-5 w-5" />
-				{:else}
-					<Sun class="h-5 w-5" />
-				{/if}
-			</button>
+			<div class="dropdown dropdown-top">
+				<button
+					tabindex="0"
+					class="btn btn-secondary btn-outline"
+					aria-label="Select theme"
+				>
+					<Palette class="h-5 w-5" />
+					{theme.value}
+				</button>
+				<ul
+					class="dropdown-content menu bg-base-200 rounded-box z-10 w-52 p-2 shadow-xl mb-2"
+				>
+					{#each AVAILABLE_THEMES as themeName}
+						<li>
+							<button
+								class={theme.value === themeName ? 'active' : ''}
+								onclick={() => changeTheme(themeName)}
+							>
+								{themeName}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			</div>
 			<a href="/privacy" class="btn btn-secondary btn-outline">Privacy</a>
 			<a href="/tos" class="btn btn-secondary btn-outline">Terms</a>
 		</nav>

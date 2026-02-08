@@ -16,25 +16,25 @@ import { json } from '@sveltejs/kit';
  * @returns A JSON response with error details if handled, otherwise re-throws the error.
  */
 export function handleApiError(
-  error: unknown,
-  locals: App.Locals,
-  url: URL,
-  tags: { source: string, [key: string]: string }
+	error: unknown,
+	locals: App.Locals,
+	url: URL,
+	tags: { source: string; [key: string]: string }
 ) {
-  if (error instanceof AppError) {
-    tags.page = `API: ${url.pathname}`;
+	if (error instanceof AppError) {
+		tags.page = `API: ${url.pathname}`;
 
-    const errorId = sentry.logServer(error, { tags });
+		const errorId = sentry.logServer(error, { tags });
 
-    const payload: ApiErrorResponse = {
-      error: {
-        message: error.message,
-        sentryErrorId: errorId.sentryErrorId
-      }
-    }
+		const payload: ApiErrorResponse = {
+			error: {
+				message: error.message,
+				sentryErrorId: errorId.sentryErrorId
+			}
+		};
 
-    return json(payload, { status: error.httpStatus });
-  }
+		return json(payload, { status: error.httpStatus });
+	}
 
-  throw error; // Re-throw unexpected errors
+	throw error; // Re-throw unexpected errors
 }

@@ -12,24 +12,24 @@ import { handleError } from './errorHandler';
  * @returns A new service object with all methods wrapped for error handling.
  */
 export function withErrorOrigin<T extends Record<string, (...args: any[]) => any>>(
-  service: T,
-  origin: string
+	service: T,
+	origin: string
 ): T {
-  const boundService = Object.fromEntries(
-    Object.keys(service).map((key) => {
-      const originalMethod = service[key];
+	const boundService = Object.fromEntries(
+		Object.keys(service).map((key) => {
+			const originalMethod = service[key];
 
-      const wrappedMethod = async (...args: Parameters<typeof originalMethod>) => {
-        try {
-          return await originalMethod(...args);
-        } catch (error) {
-          handleError(error, `${origin}.${key}`);
-        }
-      };
+			const wrappedMethod = async (...args: Parameters<typeof originalMethod>) => {
+				try {
+					return await originalMethod(...args);
+				} catch (error) {
+					handleError(error, `${origin}.${key}`);
+				}
+			};
 
-      return [key, wrappedMethod];
-    })
-  );
+			return [key, wrappedMethod];
+		})
+	);
 
-  return boundService as T;
+	return boundService as T;
 }

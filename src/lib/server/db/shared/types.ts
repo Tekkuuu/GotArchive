@@ -13,6 +13,9 @@ export type AnimeLinkInsert = typeof schema.animeLink.$inferInsert;
 export type AnimeSeason = typeof schema.animeSeason.$inferSelect;
 export type AnimeSeasonInsert = typeof schema.animeSeason.$inferInsert;
 
+export type AnimeSeasonMetadata = typeof schema.animeSeasonMetadata.$inferSelect;
+export type AnimeSeasonMetadataInsert = typeof schema.animeSeasonMetadata.$inferInsert;
+
 export type Genre = typeof schema.genre.$inferSelect;
 export type GenreInsert = typeof schema.genre.$inferInsert;
 

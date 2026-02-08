@@ -1,6 +1,6 @@
 export interface ApiErrorResponse {
-  error: {
-    message: string;
-    sentryErrorId?: string;
-  }
+	error: {
+		message: string;
+		sentryErrorId?: string;
+	};
 }

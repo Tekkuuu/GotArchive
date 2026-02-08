@@ -1,1 +1,1 @@
-export { dnd } from './dnd.svelte'; 
+export { dnd } from './dnd.svelte';

@@ -5,9 +5,8 @@
 	import Fuse from 'fuse.js';
 	import _ from 'lodash';
 	import * as Suspense from '$lib/components/ui/suspense';
-	import { Search, List, Grid3x3, Grid2x2, ExternalLink, ListVideo, X, ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { Search, List, ExternalLink, ListVideo, X, ChevronDown } from 'lucide-svelte';
 	import { getAnimeImagesStore } from '$lib/stores';
-	import { toast } from '$lib/components/ui/toaster';
 	import { fade } from 'svelte/transition';
 
 	const mqMobile = new MediaQuery('(max-width: 767px)');
@@ -21,19 +20,8 @@
 	let modalData = $state<AnimeCard | null>(null);
 	let hoveredAnimeId: string | null = $state(null);
 
-	let mediumLoaded: Record<number, boolean> = $state({});
-	let extraLargeLoaded: Record<number, boolean> = $state({});
-
 	// Track card position for viewport-aware positioning
 	let cardPositions: Record<string, 'bottom' | 'top'> = $state({});
-
-	function handleMediumLoad(id: number) {
-		mediumLoaded = { ...mediumLoaded, [id]: true };
-	}
-
-	function handleExtraLargeLoad(id: number) {
-		extraLargeLoaded = { ...extraLargeLoaded, [id]: true };
-	}
 
 	// Derived filtered anime list with Fuse.js
 	let filteredAnime = $derived.by(() => {
@@ -87,7 +75,7 @@
 	/>
 </svelte:head>
 
-{#snippet cardList(details: AnimeCard)}
+{#snippet animeListRow(details: AnimeCard)}
   {@const image = getAnimeImage(details.external.anilistId)}
   {@const position = cardPositions[details.animeId] ?? 'bottom'}
   <li
@@ -98,17 +86,22 @@
     }}
     onmouseleave={() => hoveredAnimeId = null}
   >
-    <a href={`/gotgames/anime/${details.animeId}`}>
+    <div>
       {#if image}
-        <img class="size-10 rounded-box object-cover" src={image.coverImage.medium} alt={details.titleEnglish} />
+        <Suspense.LazyImage
+          primary={image.coverImage.medium}
+          secondary={image.coverImage.extraLarge}
+          alt={details.titleEnglish || ""}
+          class="size-10 rounded-box object-cover"
+        />
       {/if}
-    </a>
-    <div class="max-md:flex max-md:items-center">
+    </div>
+    <a href={`/gotgames/anime/${details.animeId}`} class="hover:text-primary transition-colors duration-150 max-md:flex max-md:items-center">
       <div>{details.titleEnglish}</div>
       {#if mqMobile.current === false}
         <div class="opacity-60 text-xs">{details.titleNative}</div>
       {/if}
-    </div>
+    </a >
     {#if mqMobile.current === false}
       <div class="flex items-center">
         <span>{details.totalEpisodesWatched ?? 0}/{details.totalEpisodes ?? '?'} eps</span>
@@ -189,10 +182,12 @@
         transition:fade={{ duration: 150 }}
       >
         <figure class="h-24">
-          <img
+          <Suspense.LazyImage
+            primary={image?.coverImage.medium || ''}
+            secondary={image?.bannerImage || image?.coverImage.extraLarge || ''}
+            alt={details.titleEnglish || ""}
             class="object-cover w-full h-full"
-            src={image?.bannerImage || image?.coverImage.extraLarge || ''}
-            alt={details.titleEnglish}
+            fallbackClass="w-full h-full"
           />
         </figure>
         <div class="card-body">
@@ -329,7 +324,7 @@
   {#if displayType === 'list'}
     <ul class="list bg-base-100 rounded-box shadow-md mb-2">
       {#each _.take(filteredAnime, displayAmount) as anime}
-        {@render cardList(anime)}
+        {@render animeListRow(anime)}
       {/each}
     </ul>
   {/if}

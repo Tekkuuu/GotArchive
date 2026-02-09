@@ -4,8 +4,8 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { formSchema } from './util';
-import { FormError, ERROR_CODES, AppError } from '$lib/errors';
-import { sentry, type SentryLoggerOptions } from '$lib/sentry';
+import { AppError, ERROR_CODES } from '$lib/errors';
+import { logger } from '$lib/server/logger';
 import _ from 'lodash';
 
 export const load: PageServerLoad = async ({}) => {
@@ -52,9 +52,8 @@ export const actions: Actions = {
 				}
 
 				if (!animeId) {
-					// TODO: Change to proper logging later for Better Stack
-					throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-						form: 'new-anime'
+					throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+						context: { form: 'new-anime' }
 					});
 				}
 
@@ -74,14 +73,20 @@ export const actions: Actions = {
 				}
 			});
 		} catch (err) {
-			if (!(err instanceof FormError)) {
-				let context: SentryLoggerOptions = {
-					tags: {
-						url: url.pathname,
-						form: 'new-anime-bulk'
-					}
-				};
-				sentry.logServer(err, context);
+			if (!(err instanceof AppError)) {
+				logger.error({
+					msg: 'Unexpected error in new anime form',
+					url: url.pathname,
+					form: 'new-anime-bulk',
+					error:
+						err instanceof Error
+							? {
+									name: err.name,
+									message: err.message,
+									stack: err.stack
+								}
+							: err
+				});
 			}
 
 			if (err instanceof AppError) {

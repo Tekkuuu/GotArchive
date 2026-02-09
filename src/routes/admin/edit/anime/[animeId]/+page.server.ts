@@ -1,5 +1,5 @@
 import { db, schema, services } from '$lib/server/db';
-import { AppError, FormError, ERROR_CODES } from '$lib/errors';
+import { AppError, ERROR_CODES } from '$lib/errors';
 import { error, fail } from '@sveltejs/kit';
 import { eq, and, getTableColumns, inArray } from 'drizzle-orm';
 import _ from 'lodash';
@@ -9,7 +9,7 @@ import * as z from 'zod';
 import type { infer as zInfer } from 'zod';
 import type { PageServerLoad, Actions } from './$types';
 import { formSchema, deleteFormSchema } from './util';
-import { sentry, type SentryLoggerOptions } from '$lib/sentry';
+import { logger } from '$lib/server/logger';
 
 export const load: PageServerLoad = async ({ params }) => {
 	let animeId = params.animeId;
@@ -147,14 +147,20 @@ export const actions: Actions = {
 				}
 			});
 		} catch (err) {
-			if (!(err instanceof FormError)) {
-				let context: SentryLoggerOptions = {
-					tags: {
-						url: url.pathname,
-						form: 'update-animeseason'
-					}
-				};
-				sentry.logServer(err, context);
+			if (!(err instanceof AppError)) {
+				logger.error({
+					msg: 'Unexpected error in update anime form',
+					url: url.pathname,
+					form: 'update-anime',
+					error:
+						err instanceof Error
+							? {
+									name: err.name,
+									message: err.message,
+									stack: err.stack
+								}
+							: err
+				});
 			}
 
 			if (err instanceof AppError) {
@@ -181,14 +187,20 @@ export const actions: Actions = {
 				});
 			});
 		} catch (err) {
-			if (!(err instanceof FormError)) {
-				let context: SentryLoggerOptions = {
-					tags: {
-						url: url.pathname,
-						form: 'delete-animeseason'
-					}
-				};
-				sentry.logServer(err, context);
+			if (!(err instanceof AppError)) {
+				logger.error({
+					msg: 'Unexpected error in delete anime season action',
+					url: url.pathname,
+					form: 'delete-animeseason',
+					error:
+						err instanceof Error
+							? {
+									name: err.name,
+									message: err.message,
+									stack: err.stack
+								}
+							: err
+				});
 			}
 
 			if (err instanceof AppError) {

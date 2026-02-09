@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { fail, type Actions } from '@sveltejs/kit';
 import { db, schema, eq } from '$lib/server/db';
 import { AppError, ERROR_CODES } from '$lib/errors';
-import { sentry, type SentryLoggerOptions } from '$lib/sentry';
+import { logger } from '$lib/server/logger';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './util';
@@ -32,13 +32,22 @@ export const actions: Actions = {
 				await tx.delete(schema.anime).where(eq(schema.anime.animeId, form.data.animeId));
 			});
 		} catch (err) {
-			let context: SentryLoggerOptions = {
-				tags: {
+			if (!(err instanceof AppError)) {
+				logger.error({
+					msg: 'Unexpected error in delete anime',
 					url: url.pathname,
-					form: 'delete-anime'
-				}
-			};
-			sentry.logServer(err, context);
+					form: 'delete-anime',
+					animeId: form.data.animeId,
+					error:
+						err instanceof Error
+							? {
+									name: err.name,
+									message: err.message,
+									stack: err.stack
+								}
+							: err
+				});
+			}
 
 			if (err instanceof AppError) {
 				return fail(err.httpStatus, { form, text: err.message });

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { Plus, Pencil, Calendar, Film, LayoutGrid } from 'lucide-svelte';
+	import { Plus, Pencil, Calendar, Film, LayoutGrid, Clock } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -44,6 +44,12 @@
 					href: '/admin/edit/schedule', 
 					description: 'Browse and edit schedules',
 					icon: Calendar
+				},
+				{ 
+					name: 'Schedule Slots', 
+					href: '/admin/schedule/slots', 
+					description: 'Manage schedule slot templates',
+					icon: Clock
 				}
 			]
 		}

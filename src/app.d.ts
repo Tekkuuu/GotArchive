@@ -9,7 +9,6 @@ type MapEvents<T> = {
 declare global {
 	namespace App {
 		interface Error {
-			sentryErrorId?: string;
 			status?: number;
 		}
 		interface Locals {

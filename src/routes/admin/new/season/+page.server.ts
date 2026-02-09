@@ -1,5 +1,5 @@
-import { ERROR_CODES, FormError, AppError } from '$lib/errors';
-import { sentry, type SentryLoggerOptions } from '$lib/sentry';
+import { ERROR_CODES, AppError } from '$lib/errors';
+import { logger } from '$lib/server/logger';
 import { db, schema } from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
 import _ from 'lodash';
@@ -47,8 +47,8 @@ export const actions: Actions = {
 				).at(0)?.animeSeasonId;
 
 				if (!animeSeasonId) {
-					throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-						form: 'new-season'
+					throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+						context: { form: 'new-season' }
 					});
 				}
 
@@ -63,14 +63,20 @@ export const actions: Actions = {
 				await tx.insert(schema.animeSeasonMetadata).values(metadataData);
 			});
 		} catch (err) {
-			if (!(err instanceof FormError)) {
-				let context: SentryLoggerOptions = {
-					tags: {
-						url: url.pathname,
-						form: 'new-season'
-					}
-				};
-				sentry.logServer(err, context);
+			if (!(err instanceof AppError)) {
+				logger.error({
+					msg: 'Unexpected error in new season form',
+					url: url.pathname,
+					form: 'new-season',
+					error:
+						err instanceof Error
+							? {
+									name: err.name,
+									message: err.message,
+									stack: err.stack
+								}
+							: err
+				});
 			}
 
 			if (err instanceof AppError) {

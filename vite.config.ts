@@ -1,20 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { sentrySvelteKit } from '@sentry/sveltekit';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-	plugins: [
-		sentrySvelteKit({
-			sourceMapsUploadOptions: {
-				org: 'tekkudev',
-				project: 'gotarchive'
-			}
-		}),
-		sveltekit(),
-		tailwindcss()
-	],
+	plugins: [sveltekit(), tailwindcss()],
 	test: {
 		workspace: [
 			{

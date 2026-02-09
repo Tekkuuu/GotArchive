@@ -3,7 +3,6 @@ import { services, db, schema } from '$lib/server/db';
 import { eq, and, SQL } from 'drizzle-orm';
 import * as z from 'zod';
 import { handleApiError } from '$lib/api';
-import { sentry } from '$lib/sentry';
 
 export const GET: RequestHandler = async ({ request, setHeaders, url, locals }) => {
 	try {

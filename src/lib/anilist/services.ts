@@ -1,7 +1,7 @@
 import { createApiMethod } from './factory';
 import * as u from './util';
 import * as z from 'zod';
-import { AnilistError, ERROR_CODES } from '$lib/errors';
+import { AppError, ERROR_CODES } from '$lib/errors';
 import { addDays } from 'date-fns';
 import _ from 'lodash';
 import type { Anime, AnimeSeason, AnimeSeasonBulk, CoverImage } from './types';
@@ -10,7 +10,7 @@ const fetchAnimeMethod = createApiMethod<number, Anime, { Media: Anime }>({
 	query: `query ($id: Int) { Media(id: $id, type: ANIME) { id title { native romaji english } genres } }`,
 	validate: (id) => {
 		if (!z.number().int().positive().safeParse(id).success) {
-			throw new AnilistError(ERROR_CODES.anilist.INVALID_ID);
+			throw new AppError(ERROR_CODES.anilist.INVALID_ID);
 		}
 	},
 	mapInputToVariables: (id) => ({ id }),
@@ -31,7 +31,7 @@ const fetchAnimeSeasonBulkMethod = createApiMethod<
 			})
 		);
 		if (!schema.safeParse(id).success) {
-			throw new AnilistError(ERROR_CODES.anilist.INVALID_ID);
+			throw new AppError(ERROR_CODES.anilist.INVALID_ID);
 		}
 	},
 	mapInputToVariables: () => undefined,
@@ -73,7 +73,7 @@ const fetchAnimeSeasonMethod = createApiMethod<number, AnimeSeason, { Media: Ani
     } 
   }`,
 	validate: (id) => {
-		if (!Number.isInteger(id) || id <= 0) throw new AnilistError(ERROR_CODES.anilist.INVALID_ID);
+		if (!Number.isInteger(id) || id <= 0) throw new AppError(ERROR_CODES.anilist.INVALID_ID);
 	},
 	mapInputToVariables: (id) => ({ id }),
 	transformResponse: (res) => res.Media
@@ -87,8 +87,8 @@ const fetchAnimeImagesMethod = createApiMethod<
 	query: u.anilistImageQueryBuilder,
 	validate: (ids) => {
 		if (ids.some((id) => !Number.isInteger(id) || id <= 0)) {
-			throw new AnilistError(ERROR_CODES.anilist.INVALID_ID, {
-				details: { reason: 'One or more IDs provided were invalid.' }
+			throw new AppError(ERROR_CODES.anilist.INVALID_ID, {
+				context: { reason: 'One or more IDs provided were invalid.' }
 			});
 		}
 	},

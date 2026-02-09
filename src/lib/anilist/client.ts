@@ -1,4 +1,4 @@
-import { AnilistError, ERROR_CODES } from '$lib/errors';
+import { AppError, ERROR_CODES } from '$lib/errors';
 import _ from 'lodash';
 
 const ANILIST_API_URL = 'https://graphql.anilist.co';
@@ -28,15 +28,15 @@ export async function fetchGraphQL<T>(query: string, variables?: Record<string, 
 			body: JSON.stringify(body) // The body is now conditionally structured.
 		});
 	} catch (error) {
-		throw new AnilistError(ERROR_CODES.anilist.NETWORK_ERROR, {
+		throw new AppError(ERROR_CODES.anilist.NETWORK_ERROR, {
 			cause: error,
-			details: { reason: 'Fetch failed due to a network error.', variables }
+			context: { reason: 'Fetch failed due to a network error.', variables }
 		});
 	}
 
 	if (!response.ok) {
-		throw new AnilistError(ERROR_CODES.anilist.UPSTREAM_HTTP_ERROR, {
-			details: { httpStatus: response.status, statusText: response.statusText, variables }
+		throw new AppError(ERROR_CODES.anilist.UPSTREAM_HTTP_ERROR, {
+			context: { httpStatus: response.status, statusText: response.statusText, variables }
 		});
 	}
 
@@ -45,15 +45,15 @@ export async function fetchGraphQL<T>(query: string, variables?: Record<string, 
 	try {
 		json = await response.json();
 	} catch (error) {
-		throw new AnilistError(ERROR_CODES.anilist.MALFORMED_RESPONSE, {
+		throw new AppError(ERROR_CODES.anilist.MALFORMED_RESPONSE, {
 			cause: error,
-			details: { httpStatus: response.status }
+			context: { httpStatus: response.status }
 		});
 	}
 
 	if (json.errors) {
-		throw new AnilistError(ERROR_CODES.anilist.GRAPHQL_ERROR, {
-			details: { graphqlErrors: json.errors, variables }
+		throw new AppError(ERROR_CODES.anilist.GRAPHQL_ERROR, {
+			context: { graphqlErrors: json.errors, variables }
 		});
 	}
 

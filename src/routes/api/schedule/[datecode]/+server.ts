@@ -1,8 +1,8 @@
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { useSchedule } from '$lib/hooks/useSchedule';
 import { handleApiError } from '$lib/api';
-import { AppError } from '$lib/errors';
-import { sentry } from '$lib/sentry';
+import { AppError, ERROR_CODES } from '$lib/errors';
+import { logger } from '$lib/server/logger';
 
 export const GET: RequestHandler = async ({ params, locals, url, request, setHeaders }) => {
 	try {
@@ -16,13 +16,11 @@ export const GET: RequestHandler = async ({ params, locals, url, request, setHea
 		}
 
 		if (params.datecode) {
-			sentry.addBreadcrumb({
-				category: 'db.request',
-				message: `Fetching schedule data for datecode ${params.datecode}`,
-				level: 'info',
-				data: {
-					datecode: params.datecode
-				}
+			logger.debug({
+				msg: 'Fetching schedule data',
+				datecode: params.datecode,
+				preview,
+				endpoint: url.pathname
 			});
 
 			const data = await useSchedule(params.datecode, { preview });
@@ -45,7 +43,9 @@ export const GET: RequestHandler = async ({ params, locals, url, request, setHea
 
 			return json(data);
 		} else {
-			throw new AppError('A datecode parameter is required.', 400);
+			throw new AppError(ERROR_CODES.validation.INVALID_SELECT_FILTERS, {
+				context: { field: 'datecode', reason: 'A datecode parameter is required' }
+			});
 		}
 	} catch (err) {
 		let tags = {

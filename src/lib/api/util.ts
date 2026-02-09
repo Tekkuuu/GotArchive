@@ -1,4 +1,3 @@
-import { sentry } from '$lib/sentry';
 import { AppError } from '$lib/errors';
 import type { ApiErrorResponse } from './types';
 import { json } from '@sveltejs/kit';
@@ -24,12 +23,9 @@ export function handleApiError(
 	if (error instanceof AppError) {
 		tags.page = `API: ${url.pathname}`;
 
-		const errorId = sentry.logServer(error, { tags });
-
 		const payload: ApiErrorResponse = {
 			error: {
-				message: error.message,
-				sentryErrorId: errorId.sentryErrorId
+				message: error.message
 			}
 		};
 

@@ -1,5 +1,5 @@
 import { db, schema, services } from '$lib/server/db';
-import { FormError, AppError, ERROR_CODES } from '$lib/errors';
+import { AppError, ERROR_CODES } from '$lib/errors';
 import { error, fail } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import _ from 'lodash';
@@ -9,7 +9,7 @@ import * as z from 'zod';
 import type { PageServerLoad } from './$types';
 import { formSchema, updateEpisodesFormSchema } from './util';
 import type { Actions } from '../$types';
-import { sentry, type SentryLoggerOptions } from '$lib/sentry';
+import { logger } from '$lib/server/logger';
 
 export const load: PageServerLoad = async ({ params }) => {
 	let animeId = Number(params.animeId);
@@ -93,14 +93,20 @@ export const actions: Actions = {
 
 			return { form };
 		} catch (err) {
-			if (!(err instanceof FormError)) {
-				let context: SentryLoggerOptions = {
-					tags: {
-						url: url.pathname,
-						form: 'update-animeSeason'
-					}
-				};
-				sentry.logServer(err, context);
+			if (!(err instanceof AppError)) {
+				logger.error({
+					msg: 'Unexpected error in update anime season form',
+					url: url.pathname,
+					form: 'update-animeSeason',
+					error:
+						err instanceof Error
+							? {
+									name: err.name,
+									message: err.message,
+									stack: err.stack
+								}
+							: err
+				});
 			}
 
 			if (err instanceof AppError) {
@@ -137,14 +143,20 @@ export const actions: Actions = {
 
 			return { form };
 		} catch (err) {
-			if (!(err instanceof FormError)) {
-				let context: SentryLoggerOptions = {
-					tags: {
-						url: url.pathname,
-						form: 'update-animeSeasonEpisodes'
-					}
-				};
-				sentry.logServer(err, context);
+			if (!(err instanceof AppError)) {
+				logger.error({
+					msg: 'Unexpected error in update anime season episodes form',
+					url: url.pathname,
+					form: 'update-animeSeasonEpisodes',
+					error:
+						err instanceof Error
+							? {
+									name: err.name,
+									message: err.message,
+									stack: err.stack
+								}
+							: err
+				});
 			}
 
 			if (err instanceof AppError) {

@@ -1,22 +1,20 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { useWatchingWeek } from '$lib/hooks';
-import { AppError } from '$lib/errors';
-import { sentry } from '$lib/sentry';
+import { AppError, ERROR_CODES } from '$lib/errors';
 import { handleApiError } from '$lib/api';
+import { logger } from '$lib/server/logger';
 
 export const GET: RequestHandler = async ({ params, request, locals, url, setHeaders }) => {
 	try {
 		const referer = request.headers.get('referer') || '';
 
 		if (params.datecode) {
-			sentry.addBreadcrumb({
-				category: 'db.request',
-				message: `Fetching watching this week data for datecode ${params.datecode}`,
-				level: 'info',
-				data: {
-					datecode: params.datecode
-				}
+			logger.debug({
+				msg: 'Fetching watching this week data',
+				datecode: params.datecode,
+				endpoint: url.pathname
 			});
+
 			const data = await useWatchingWeek(params.datecode);
 
 			// Set cache control headers
@@ -33,7 +31,9 @@ export const GET: RequestHandler = async ({ params, request, locals, url, setHea
 
 			return json(data);
 		} else {
-			throw new AppError('A datecode parameter is required.', 400);
+			throw new AppError(ERROR_CODES.validation.INVALID_SELECT_FILTERS, {
+				context: { field: 'datecode', reason: 'A datecode parameter is required' }
+			});
 		}
 	} catch (err) {
 		let tags = {

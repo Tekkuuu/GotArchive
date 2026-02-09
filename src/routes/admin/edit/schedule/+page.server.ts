@@ -5,7 +5,6 @@ import { AppError } from '$lib/errors';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { deleteFormSchema, previewFormSchema } from './util';
-import { type SentryLoggerOptions, sentry } from '$lib/sentry';
 import _ from 'lodash';
 
 export const load: PageServerLoad = async () => {
@@ -37,14 +36,6 @@ export const actions: Actions = {
 					.where(eq(schema.schedule.scheduleId, form.data.scheduleId));
 			});
 		} catch (err) {
-			let context: SentryLoggerOptions = {
-				tags: {
-					url: url.pathname,
-					form: 'preview-schedule'
-				}
-			};
-			sentry.logServer(err, context);
-
 			if (err instanceof AppError) {
 				return fail(err.httpStatus, { form, text: err.message });
 			} else if (err instanceof Error) {
@@ -70,14 +61,6 @@ export const actions: Actions = {
 
 			return { form };
 		} catch (err) {
-			let context: SentryLoggerOptions = {
-				tags: {
-					url: url.pathname,
-					form: 'delete-schedule'
-				}
-			};
-			sentry.logServer(err, context);
-
 			if (err instanceof AppError) {
 				return fail(err.httpStatus, { form, text: err.message });
 			} else if (err instanceof Error) {

@@ -1,11 +1,11 @@
-import { drizzle } from 'drizzle-orm/neon-http';
-import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import { Pool } from '@neondatabase/serverless';
 import { env } from '$env/dynamic/private';
 
 if (!env.VITE_DATABASE_URL) throw new Error('VITE_DATABASE_URL is not set');
-const sql = neon(env.VITE_DATABASE_URL);
+const pool = new Pool({ connectionString: env.VITE_DATABASE_URL });
 
-export const db = drizzle(sql);
+export const db = drizzle(pool);
 
 // Schema exports
 export * as schema from './shared/schema';

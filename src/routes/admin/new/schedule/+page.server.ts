@@ -4,10 +4,10 @@ import { formSchema, uniqueKey } from './util';
 import { computeWatchedAfterDate } from '$lib/util/schedule';
 import { zod } from 'sveltekit-superforms/adapters';
 import { db, schema, services } from '$lib/server/db';
-import { ERROR_CODES, FormError, AppError } from '$lib/errors';
+import { ERROR_CODES, AppError } from '$lib/errors';
 import { fail } from '@sveltejs/kit';
 import _ from 'lodash';
-import { sentry, type SentryLoggerOptions } from '$lib/sentry';
+import { logger } from '$lib/server/logger';
 
 export const load: PageServerLoad = async ({ request }) => {
 	const form = await superValidate(zod(formSchema));
@@ -47,8 +47,8 @@ export const actions: Actions = {
 				const scheduleId = scheduleInsertedRows.at(0)?.scheduleId;
 
 				if (scheduleId === undefined) {
-					throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-						form: 'new-schedule'
+					throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+						context: { form: 'new-schedule' }
 					});
 				}
 
@@ -76,8 +76,8 @@ export const actions: Actions = {
 				for (const entry of sortedEntries) {
 					const inserted = entryKeyToInsertedRow.get(uniqueKey(entry));
 					if (!inserted) {
-						throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-							form: 'new-schedule'
+						throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+							context: { form: 'new-schedule' }
 						});
 					}
 					for (const platformId of entry.platformIds) {
@@ -97,8 +97,8 @@ export const actions: Actions = {
 				for (const entry of sortedEntries) {
 					const scheduleEntry = entryKeyToInsertedRow.get(uniqueKey(entry));
 					if (!scheduleEntry) {
-						throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-							form: 'new-schedule'
+						throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+							context: { form: 'new-schedule' }
 						});
 					}
 
@@ -110,7 +110,9 @@ export const actions: Actions = {
 								entry.data.watchedAfter
 							);
 							if (!watchedAfter)
-								throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED, { form: 'new-schedule' });
+								throw new AppError(ERROR_CODES.forms.VALIDATION_FAILED, {
+									context: { form: 'new-schedule' }
+								});
 							scheduleAnimeDetailData.push({
 								scheduleEntryId: scheduleEntry.scheduleEntryId,
 								watchedAfter
@@ -147,14 +149,14 @@ export const actions: Actions = {
 						case 'anime':
 							const scheduleEntry = entryKeyToInsertedRow.get(uniqueKey(entry));
 							if (!scheduleEntry) {
-								throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-									form: 'new-schedule'
+								throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+									context: { form: 'new-schedule' }
 								});
 							}
 							const animeDetail = entryIdToAnimeDetail.get(scheduleEntry.scheduleEntryId);
 							if (!animeDetail) {
-								throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-									form: 'new-schedule'
+								throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+									context: { form: 'new-schedule' }
 								});
 							}
 							for (const ep of entry.data.animeEpisodeIds) {
@@ -173,14 +175,20 @@ export const actions: Actions = {
 				return { form };
 			});
 		} catch (err) {
-			if (!(err instanceof FormError)) {
-				let context: SentryLoggerOptions = {
-					tags: {
-						url: url.pathname,
-						form: 'new-schedule'
-					}
-				};
-				sentry.logServer(err, context);
+			if (!(err instanceof AppError)) {
+				logger.error({
+					msg: 'Unexpected error in new schedule form',
+					url: url.pathname,
+					form: 'new-schedule',
+					error:
+						err instanceof Error
+							? {
+									name: err.name,
+									message: err.message,
+									stack: err.stack
+								}
+							: err
+				});
 			}
 
 			if (err instanceof AppError) {

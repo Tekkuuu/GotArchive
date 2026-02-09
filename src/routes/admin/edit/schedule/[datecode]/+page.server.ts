@@ -1,14 +1,14 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, error } from '@sveltejs/kit';
 import { db, schema, services } from '$lib/server/db';
-import { AppError, ERROR_CODES, FormError, ServiceError } from '$lib/errors';
+import { AppError, ERROR_CODES } from '$lib/errors';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateFormSchema, createFormSchema, deleteFormSchema } from './util';
 import { useSchedule, type Schedule } from '$lib/hooks';
 import _ from 'lodash';
 import { eq, inArray } from 'drizzle-orm';
-import { type SentryLoggerOptions, sentry } from '$lib/sentry';
+import { logger } from '$lib/server/logger';
 import { computeWatchedAfterDate } from '$lib/util/schedule';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -105,8 +105,8 @@ export const actions: Actions = {
 						);
 
 						if (originalScheduleAnimeDetail.length !== 1) {
-							throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-								form: 'update-schedule-entry'
+							throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+								context: { form: 'update-schedule-entry' }
 							});
 						}
 
@@ -117,7 +117,9 @@ export const actions: Actions = {
 							form.data.data.watchedAfter
 						);
 						if (!watchedAfter) {
-							throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED);
+							throw new AppError(ERROR_CODES.forms.VALIDATION_FAILED, {
+								context: { form: 'update-schedule-entry' }
+							});
 						}
 						if (watchedAfter && watchedAfter !== originalScheduleAnimeDetail[0].watchedAfter) {
 							await services.scheduleAnimeDetail.update(
@@ -146,12 +148,12 @@ export const actions: Actions = {
 						);
 
 						if (originalEpisodes.length === 0) {
-							throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-								form: 'update-schedule-entry'
+							throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+								context: { form: 'update-schedule-entry' }
 							});
 						} else if (!_.every(originalEpisodes, ['animeId', originalEpisodes[0].animeId])) {
-							throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-								form: 'update-schedule-entry'
+							throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+								context: { form: 'update-schedule-entry' }
 							});
 						}
 
@@ -163,14 +165,14 @@ export const actions: Actions = {
 							);
 
 							if (newAnimeEpisodes.length !== form.data.data.animeEpisodeIds.length) {
-								throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-									form: 'update-schedule-entry'
+								throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+									context: { form: 'update-schedule-entry' }
 								});
 							}
 
 							if (!_.every(newAnimeEpisodes, ['animeId', form.data.data.animeId])) {
-								throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-									form: 'update-schedule-entry'
+								throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+									context: { form: 'update-schedule-entry' }
 								});
 							}
 
@@ -221,8 +223,8 @@ export const actions: Actions = {
 							);
 
 							if (newState.length === 0) {
-								throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-									form: 'update-schedule-entry'
+								throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+									context: { form: 'update-schedule-entry' }
 								});
 							}
 						}
@@ -233,8 +235,8 @@ export const actions: Actions = {
 							eq(schema.scheduleMiscDetail.scheduleEntryId, form.data.scheduleEntryId)
 						);
 						if (smdid.length !== 1) {
-							throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-								form: 'update-schedule-entry'
+							throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+								context: { form: 'update-schedule-entry' }
 							});
 						}
 						await services.scheduleMiscDetail.update(
@@ -251,13 +253,19 @@ export const actions: Actions = {
 
 			return { form };
 		} catch (err) {
-			let context: SentryLoggerOptions = {
-				tags: {
-					url: url.pathname,
-					form: 'update-schedule-entry'
-				}
-			};
-			sentry.logServer(err, context);
+			logger.error({
+				msg: 'Unexpected error in update schedule entry form',
+				url: url.pathname,
+				form: 'update-schedule-entry',
+				error:
+					err instanceof Error
+						? {
+								name: err.name,
+								message: err.message,
+								stack: err.stack
+							}
+						: err
+			});
 
 			if (err instanceof AppError) {
 				return fail(err.httpStatus, { form, text: err.message });
@@ -289,8 +297,8 @@ export const actions: Actions = {
 				]);
 
 				if (!scheduleEntryInserted) {
-					throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-						form: 'create-schedule-entry'
+					throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+						context: { form: 'create-schedule-entry' }
 					});
 				}
 
@@ -313,8 +321,8 @@ export const actions: Actions = {
 						);
 
 						if (!watchedAfter) {
-							throw new FormError(ERROR_CODES.forms.VALIDATION_FAILED, {
-								form: 'create-schedule-entry'
+							throw new AppError(ERROR_CODES.forms.VALIDATION_FAILED, {
+								context: { form: 'create-schedule-entry' }
 							});
 						}
 
@@ -327,8 +335,8 @@ export const actions: Actions = {
 						]);
 
 						if (!animeDetailInserted) {
-							throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-								form: 'create-schedule-entry'
+							throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+								context: { form: 'create-schedule-entry' }
 							});
 						}
 
@@ -338,8 +346,8 @@ export const actions: Actions = {
 							inArray(schema.animeEpisode.animeEpisodeId, form.data.data.animeEpisodeIds)
 						);
 						if (animeEpisodes.length !== form.data.data.animeEpisodeIds.length) {
-							throw new FormError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-								form: 'create-schedule-entry'
+							throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
+								context: { form: 'create-schedule-entry' }
 							});
 						}
 
@@ -364,13 +372,19 @@ export const actions: Actions = {
 
 			return { form };
 		} catch (err) {
-			let context: SentryLoggerOptions = {
-				tags: {
-					url: url.pathname,
-					form: 'create-schedule-entry'
-				}
-			};
-			sentry.logServer(err, context);
+			logger.error({
+				msg: 'Unexpected error in create schedule entry form',
+				url: url.pathname,
+				form: 'create-schedule-entry',
+				error:
+					err instanceof Error
+						? {
+								name: err.name,
+								message: err.message,
+								stack: err.stack
+							}
+						: err
+			});
 
 			if (err instanceof AppError) {
 				return fail(err.httpStatus, { form, text: err.message });
@@ -395,13 +409,19 @@ export const actions: Actions = {
 
 			return { form };
 		} catch (err) {
-			let context: SentryLoggerOptions = {
-				tags: {
-					url: url.pathname,
-					form: 'delete-schedule-entry'
-				}
-			};
-			sentry.logServer(err, context);
+			logger.error({
+				msg: 'Unexpected error in delete schedule entry action',
+				url: url.pathname,
+				form: 'delete-schedule-entry',
+				error:
+					err instanceof Error
+						? {
+								name: err.name,
+								message: err.message,
+								stack: err.stack
+							}
+						: err
+			});
 
 			if (err instanceof AppError) {
 				return fail(err.httpStatus, { form, text: err.message });

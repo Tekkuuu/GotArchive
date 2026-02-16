@@ -16,8 +16,7 @@ export const GET: RequestHandler = async ({ params, locals, url, request, setHea
 		}
 
 		if (params.datecode) {
-			logger.debug({
-				msg: 'Fetching schedule data',
+			logger.debug('Fetching schedule data', {
 				datecode: params.datecode,
 				preview,
 				endpoint: url.pathname

@@ -1,4 +1,8 @@
 import type { HandleClientError } from '@sveltejs/kit';
-import _ from 'lodash';
+import { logger } from '$lib/client/logger';
 
-export const handleError: HandleClientError = ({ error, event }) => {};
+export const handleError: HandleClientError = ({ event }) => {
+	logger.error('Unhandled error in client', {
+		pathname: event.url.pathname
+	});
+};

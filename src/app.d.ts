@@ -23,6 +23,7 @@ declare global {
 					updatedAt: Date;
 					user_metadata?: {
 						role?: 'admin' | 'moderator';
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						[key: string]: any;
 					};
 				};
@@ -45,11 +46,12 @@ declare global {
 				updatedAt: Date;
 				user_metadata?: {
 					role?: 'admin' | 'moderator';
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					[key: string]: any;
 				};
 			} | null;
 		}
-		interface PageData {}
+		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
 		interface SvelteHTMLElements {

@@ -1,104 +1,115 @@
 import { dev, browser } from '$app/environment';
 
-// Type definitions matching server logger interface
-export interface ClientLogger {
-	trace: (msg: string | object, ...args: any[]) => void;
-	debug: (msg: string | object, ...args: any[]) => void;
-	info: (msg: string | object, ...args: any[]) => void;
-	warn: (msg: string | object, ...args: any[]) => void;
-	error: (msg: string | object, ...args: any[]) => void;
-	fatal: (msg: string | object, ...args: any[]) => void;
-}
+/**
+ * Simplified client-side error logger
+ * Only logs unhandled errors and exceptions to avoid flooding Logwell
+ * In development, also logs to console
+ */
 
-// Environment variables for BetterStack (frontend)
-const BETTERSTACK_FRONTEND_TOKEN = import.meta.env.PUBLIC_BETTERSTACK_FRONTEND_TOKEN;
-const BETTERSTACK_FRONTEND_HOST = import.meta.env.PUBLIC_BETTERSTACK_FRONTEND_HOST;
-const BETTERSTACK_ENABLED = import.meta.env.PUBLIC_BETTERSTACK_ENABLED === 'true';
-
-// Determine if we should send to BetterStack
-const shouldUseBetterStack = () => {
-	if (!browser || !BETTERSTACK_FRONTEND_TOKEN || !BETTERSTACK_FRONTEND_HOST) return false;
-	if (dev) return BETTERSTACK_ENABLED; // In dev, only if explicitly enabled
-	return true; // Always enabled in production if token exists
-};
-
-// Send log to BetterStack via HTTP
-async function sendToBetterStack(level: string, msg: string | object, context?: any) {
-	if (!shouldUseBetterStack()) return;
+// Send error to backend which forwards to Logwell
+async function sendErrorToBackend(level: 'error' | 'fatal', message: string, context?: object) {
+	if (!browser) return;
 
 	try {
-		const logData = {
-			dt: new Date().toISOString(),
-			level,
-			message: typeof msg === 'string' ? msg : JSON.stringify(msg),
-			service: 'gotarchive-frontend',
-			env: dev ? 'development' : 'production',
-			...(typeof msg === 'object' ? msg : {}),
-			...context
-		};
-
-		await fetch(BETTERSTACK_FRONTEND_HOST!, {
+		await fetch('/api/logs', {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${BETTERSTACK_FRONTEND_TOKEN}`
-			},
-			body: JSON.stringify(logData)
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				level,
+				message,
+				timestamp: new Date().toISOString(),
+				userAgent: navigator.userAgent,
+				url: window.location.href,
+				...context
+			})
 		});
 	} catch (error) {
 		// Silently fail - don't break the app if logging fails
 		if (dev) {
-			console.error('Failed to send log to BetterStack:', error);
+			console.error('Failed to send error log:', error);
 		}
 	}
 }
 
-// Create log function factory
-function createLogFn(level: string, consoleMethod: keyof Console) {
-	return (msg: string | object, ...args: any[]) => {
-		// Always log to console in development
-		if (dev && browser) {
-			const method = console[consoleMethod] as Function;
-			if (typeof msg === 'string') {
-				method(`[${level.toUpperCase()}]`, msg, ...args);
-			} else {
-				method(`[${level.toUpperCase()}]`, msg);
-			}
+// Setup global error handlers
+if (browser) {
+	// Capture unhandled errors
+	window.addEventListener('error', (event) => {
+		const errorInfo = {
+			message: event.message,
+			filename: event.filename,
+			lineno: event.lineno,
+			colno: event.colno,
+			error: event.error
+				? {
+						name: event.error.name,
+						message: event.error.message,
+						stack: event.error.stack
+					}
+				: undefined
+		};
+
+		if (dev) {
+			console.error('[UNHANDLED ERROR]', errorInfo);
 		}
 
-		// Send to BetterStack if enabled
-		if (browser) {
-			sendToBetterStack(level, msg, args[0]);
+		sendErrorToBackend('error', `Unhandled error: ${event.message}`, errorInfo);
+	});
+
+	// Capture unhandled promise rejections
+	window.addEventListener('unhandledrejection', (event) => {
+		const rejectionInfo = {
+			reason: event.reason,
+			promise: event.promise,
+			reasonString: String(event.reason)
+		};
+
+		if (dev) {
+			console.error('[UNHANDLED REJECTION]', rejectionInfo);
 		}
-	};
+
+		sendErrorToBackend(
+			'error',
+			`Unhandled promise rejection: ${rejectionInfo.reasonString}`,
+			rejectionInfo
+		);
+	});
 }
 
-// Client-side logger with same interface as server logger
-export const logger: ClientLogger = {
-	trace: createLogFn('trace', 'log'),
-	debug: createLogFn('debug', 'log'),
-	info: createLogFn('info', 'info'),
-	warn: createLogFn('warn', 'warn'),
-	error: createLogFn('error', 'error'),
-	fatal: createLogFn('fatal', 'error')
+/**
+ * Manual error logging function for critical errors
+ * Use sparingly - only for errors that need to be tracked
+ */
+export function logError(message: string, context?: Record<string, unknown>) {
+	if (dev) {
+		console.error('[ERROR]', message, context);
+	}
+	sendErrorToBackend('error', message, context);
+}
+
+/**
+ * Fatal error logging - for critical errors that crash the app
+ */
+export function logFatal(message: string, context?: Record<string, unknown>) {
+	if (dev) {
+		console.error('[FATAL]', message, context);
+	}
+	sendErrorToBackend('fatal', message, context);
+}
+
+// Export a logger object for compatibility with existing code
+export const logger = {
+	error: logError,
+	fatal: logFatal,
+	// Deprecated methods - log warnings in dev
+	trace: dev
+		? (msg: string) => console.warn('logger.trace is deprecated on client', msg)
+		: () => {},
+	debug: dev
+		? (msg: string) => console.warn('logger.debug is deprecated on client', msg)
+		: () => {},
+	info: dev ? (msg: string) => console.warn('logger.info is deprecated on client', msg) : () => {},
+	warn: dev ? (msg: string) => console.warn('logger.warn is deprecated on client', msg) : () => {}
 };
 
-// Utility function to create child loggers with context
-export function createLogger(context: Record<string, unknown>): ClientLogger {
-	return {
-		trace: (msg, ...args) =>
-			logger.trace(typeof msg === 'object' ? { ...msg, ...context } : msg, ...args),
-		debug: (msg, ...args) =>
-			logger.debug(typeof msg === 'object' ? { ...msg, ...context } : msg, ...args),
-		info: (msg, ...args) =>
-			logger.info(typeof msg === 'object' ? { ...msg, ...context } : msg, ...args),
-		warn: (msg, ...args) =>
-			logger.warn(typeof msg === 'object' ? { ...msg, ...context } : msg, ...args),
-		error: (msg, ...args) =>
-			logger.error(typeof msg === 'object' ? { ...msg, ...context } : msg, ...args),
-		fatal: (msg, ...args) =>
-			logger.fatal(typeof msg === 'object' ? { ...msg, ...context } : msg, ...args)
-	};
-}
-
-export type Logger = ClientLogger;
+export type Logger = typeof logger;

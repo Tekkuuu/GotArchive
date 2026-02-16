@@ -5,21 +5,9 @@ import { auth } from '$lib/server/auth';
 import { logger } from '$lib/server/logger';
 import { AppError } from '$lib/errors';
 
-/**
- * Enhanced error handler with structured logging for BetterStack.
- *
- * Best practices:
- * - Log all errors with structured data for easy querying in BetterStack
- * - Include request context (URL, method, user) to aid debugging
- * - Return safe error messages to the client (no sensitive data)
- * - Distinguish between AppError (expected) and unexpected errors
- */
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
-	const errorId = crypto.randomUUID();
-
-	// Build request context
+	// Build request context for structured logging
 	const requestContext = {
-		errorId,
 		url: event.url.pathname,
 		method: event.request.method,
 		status,
@@ -27,25 +15,24 @@ export const handleError: HandleServerError = ({ error, event, status, message }
 		ip: event.getClientAddress()
 	};
 
-	// Log AppError with full context
+	const errorMessage =
+		message || (error instanceof Error ? error.message : 'Unknown error message');
+
+	// Handle expected application errors (AppError)
 	if (error instanceof AppError) {
-		logger.error({
-			msg: 'AppError caught in handleError',
+		logger.error('AppError caught in handleError', {
 			...requestContext,
 			...error.toJSON()
 		});
 
-		// Return safe error to client
 		return {
-			message: error.message,
-			errorId
+			message: error.message
 		};
 	}
 
-	// Log unexpected errors
+	// Handle unexpected JavaScript errors
 	if (error instanceof Error) {
-		logger.error({
-			msg: 'Unexpected error caught in handleError',
+		logger.error('Unexpected error caught in handleError', {
 			...requestContext,
 			error: {
 				name: error.name,
@@ -55,21 +42,18 @@ export const handleError: HandleServerError = ({ error, event, status, message }
 		});
 
 		return {
-			message: dev ? error.message : 'An unexpected error occurred',
-			errorId
+			message: dev ? error.message : 'An unexpected error occurred'
 		};
 	}
 
-	// Log unknown error types
-	logger.error({
-		msg: 'Unknown error type caught in handleError',
+	// Handle unknown error types (e.g., thrown primitives)
+	logger.error('Unknown error type caught in handleError', {
 		...requestContext,
-		error
+		error: typeof error === 'object' ? JSON.stringify(error) : String(error)
 	});
 
 	return {
-		message: 'An unexpected error occurred',
-		errorId
+		message: 'An unexpected error occurred'
 	};
 };
 
@@ -83,8 +67,7 @@ export const authHandle: Handle = async ({ event, resolve }) => {
 		event.url.pathname.startsWith('/admin') &&
 		(!user || !['admin', 'moderator'].includes(user.role))
 	) {
-		logger.warn({
-			msg: 'Unauthorized access attempt',
+		logger.warn('Unauthorized access attempt', {
 			url: event.url.pathname,
 			userId: user?.id,
 			userRole: user?.role
@@ -96,37 +79,41 @@ export const authHandle: Handle = async ({ event, resolve }) => {
 	return await resolve(event);
 };
 
-/**
- * Request logging handler - logs all requests with timing
- */
 export const requestLogHandle: Handle = async ({ event, resolve }) => {
 	const startTime = Date.now();
-
-	// Log incoming request
-	logger.info({
-		msg: 'Request started',
-		method: event.request.method,
-		url: event.url.pathname,
-		search: event.url.search
-	});
+	const SLOW_REQUEST_THRESHOLD_MS = 1000; // 1 second
 
 	const response = await resolve(event);
 
-	// Log completed request with duration
 	const duration = Date.now() - startTime;
-	logger.info({
-		msg: 'Request completed',
-		method: event.request.method,
-		url: event.url.pathname,
-		status: response.status,
-		duration
-	});
+	const isSlowRequest = duration >= SLOW_REQUEST_THRESHOLD_MS;
+	const isError = response.status >= 400;
+
+	// Only log slow requests or errors
+	if (isSlowRequest || isError) {
+		const logMessage =
+			isSlowRequest && isError
+				? 'Slow request with error'
+				: isSlowRequest
+					? 'Slow request detected'
+					: 'Request error';
+
+		const logMetadata = {
+			method: event.request.method,
+			url: event.url.pathname,
+			search: event.url.search || undefined,
+			status: response.status,
+			duration
+		};
+
+		if (isError) {
+			logger.warn(logMessage, logMetadata);
+		} else {
+			logger.info(logMessage, logMetadata);
+		}
+	}
 
 	return response;
 };
 
-// Compose all handles in sequence
-export const handle: Handle = sequence(
-	requestLogHandle, // Log requests first
-	authHandle // Then check auth
-);
+export const handle: Handle = sequence(requestLogHandle, authHandle);

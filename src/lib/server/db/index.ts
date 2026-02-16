@@ -1,5 +1,5 @@
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { Pool } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import { env } from '$env/dynamic/private';
 
 if (!env.VITE_DATABASE_URL) throw new Error('VITE_DATABASE_URL is not set');

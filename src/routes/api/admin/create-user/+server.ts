@@ -2,7 +2,7 @@ import { authClient } from '$lib/auth/auth';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
-import { neon } from '@neondatabase/serverless';
+import { Pool } from 'pg';
 
 /**
  * Temporary endpoint to create admin users
@@ -56,25 +56,29 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// The user is now created, but we need to add the role to user_metadata
-		// Since NeonDB Auth uses better-auth under the hood, we need to update the user table directly
+		// Since better-auth is used, we need to update the user table directly
 
 		// Wait a bit for the user to be created
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 
 		// Update user_metadata with role using raw SQL
-		// Note: The user table is managed by NeonDB Auth, not in our schema
 		if (!env.VITE_DATABASE_URL) throw new Error('VITE_DATABASE_URL is not set');
-		const sql = neon(env.VITE_DATABASE_URL);
+		const pool = new Pool({ connectionString: env.VITE_DATABASE_URL });
 
-		await sql`
-			UPDATE "user" 
-			SET user_metadata = jsonb_set(
-				COALESCE(user_metadata, '{}'::jsonb),
-				'{role}',
-				${`"${role}"`}
-			)
-			WHERE email = ${email}
-		`;
+		try {
+			await pool.query(
+				`UPDATE "user" 
+				SET user_metadata = jsonb_set(
+					COALESCE(user_metadata, '{}'::jsonb),
+					'{role}',
+					$1
+				)
+				WHERE email = $2`,
+				[`"${role}"`, email]
+			);
+		} finally {
+			await pool.end();
+		}
 
 		return json({
 			success: true,

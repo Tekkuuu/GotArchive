@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/forms/';
 	import {
 		getCookieConsentStore,
 		COOKIE_CONSENT_VERSION,
@@ -64,8 +63,8 @@
 				>Read more</a
 			>
 		</div>
-		<Button variant="warning" filled shape="rounded" onclick={acceptCookies}>
-			<span class="font-bold">OK, got it!</span>
-		</Button>
+		<!-- <Button variant="warning" filled shape="rounded" onclick={acceptCookies}> -->
+		<!-- 	<span class="font-bold">OK, got it!</span> -->
+		<!-- </Button> -->
 	</div>
 {/if}

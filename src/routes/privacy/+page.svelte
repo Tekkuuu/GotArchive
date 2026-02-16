@@ -52,8 +52,8 @@
 					Error and Crash Reporting
 				</h2>
 				<p class="text-sm md:text-base">
-					We use betterstack to collect anonymous error and crash reports to help us fix bugs and
-					improve the site.
+					We use Logwell (self-hosted) to collect anonymous error and crash reports to help us
+					fix bugs and improve the site. All logs are stored on our own servers.
 				</p>
 			</div>
 		</div>

@@ -7,7 +7,6 @@
 	import * as Suspense from '$lib/components/ui/suspense';
 	import { fly } from 'svelte/transition';
 	import { onMount } from 'svelte';
-	import { LinkButton } from '$lib/components/forms';
 	import { HttpError } from '$lib/components/ui/';
 	import { Calendar, Heart, Logs, TvMinimalPlay } from 'lucide-svelte';
 	import { format, getISOWeek } from 'date-fns';

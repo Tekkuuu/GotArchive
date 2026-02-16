@@ -9,8 +9,7 @@ export const GET: RequestHandler = async ({ params, request, locals, url, setHea
 		const referer = request.headers.get('referer') || '';
 
 		if (params.datecode) {
-			logger.debug({
-				msg: 'Fetching watching this week data',
+			logger.debug('Fetching watching this week data', {
 				datecode: params.datecode,
 				endpoint: url.pathname
 			});

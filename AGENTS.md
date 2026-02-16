@@ -112,7 +112,7 @@ import { parseDurationString } from '../util/watchAfterParser';
 
 - Use custom error classes from `$lib/errors/`
 - Wrap database operations with error origin tracking
-- Log errors using Winston logger or Sentry
+- Log errors using Pino logger with Logwell
 - Prefer specific error types over generic Error
 - Use try-catch for async operations
 

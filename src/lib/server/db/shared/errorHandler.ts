@@ -29,8 +29,7 @@ import { AppError, ERROR_CODES } from '$lib/errors';
 export function handleError(error: unknown, origin?: string): never {
 	// If the error is already an AppError, log it and re-throw.
 	if (error instanceof AppError) {
-		logger.warn({
-			msg: 'Known AppError caught and re-thrown',
+		logger.warn('Known AppError caught and re-thrown', {
 			origin: origin || 'Unknown origin',
 			...error.toJSON()
 		});
@@ -41,8 +40,7 @@ export function handleError(error: unknown, origin?: string): never {
 	if (error instanceof postgres.PostgresError) {
 		const errorOrigin = origin || 'Database Operation';
 
-		logger.error({
-			msg: 'PostgresError caught',
+		logger.error('PostgresError caught', {
 			origin: errorOrigin,
 			code: error.code,
 			detail: error.detail,
@@ -74,8 +72,7 @@ export function handleError(error: unknown, origin?: string): never {
 	}
 
 	// Handle all other unexpected errors
-	logger.error({
-		msg: 'Unexpected error caught',
+	logger.error('Unexpected error caught', {
 		origin: origin || 'Unknown origin',
 		error:
 			error instanceof Error

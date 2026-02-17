@@ -100,7 +100,8 @@
 				description: updatedData.description,
 				cancelledText: updatedData.cancelledText,
 				isCancelled: updatedData.isCancelled,
-				anime: updatedData.anime
+				anime: updatedData.anime,
+				platforms: updatedData.platforms
 			};
 		}
 		editingEntryIndex = null;
@@ -365,6 +366,7 @@
 <AddScheduleEntry
 	id="add-schedule-entry-modal"
 	availableSeasons={data.animeSeasons}
+	availablePlatforms={data.platforms}
 	onAdd={handleAddEntry}
   year={$form.schedule.year}
   week={$form.schedule.week}
@@ -374,6 +376,7 @@
 <EditScheduleEntry
 	id="edit-schedule-entry-modal"
 	availableSeasons={data.animeSeasons}
+	availablePlatforms={data.platforms}
 	entryData={editingEntry}
 	onSave={handleEditSave}
 />

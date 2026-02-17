@@ -37,6 +37,9 @@ export const load: PageServerLoad = async () => {
 		.from(schema.animeSeason)
 		.orderBy(asc(schema.animeSeason.animeId), asc(schema.animeSeason.sequence));
 
+	// Load all platforms
+	const platforms = await db.select().from(schema.platform).orderBy(asc(schema.platform.name));
+
 	// Calculate the current week and year
 	const now = new Date();
 	const currentWeek = getWeek(now, { weekStartsOn: 1 }); // Monday = 1
@@ -184,7 +187,7 @@ export const load: PageServerLoad = async () => {
 		zod4(ScheduleSchema)
 	);
 
-	return { form, slots, animeSeasons };
+	return { form, slots, animeSeasons, platforms };
 };
 
 export const actions: Actions = {

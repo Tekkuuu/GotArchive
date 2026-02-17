@@ -3,13 +3,14 @@
 	import { sineInOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 	import { modalUtils } from '$lib/components/util';
-	import type { AnimeSeason } from '$lib/server/db';
+	import type { AnimeSeason, Platform } from '$lib/server/db';
 	import { format } from 'date-fns';
   import { getWeekdays } from "../util";
 
 	interface Props {
 		id: string;
 		availableSeasons?: AnimeSeason[];
+		availablePlatforms?: Platform[];
 		onAdd: (entry: NewScheduleEntry) => void;
     year: number;
     week: number;
@@ -32,7 +33,7 @@
 		slotId: null;
 	}
 
-	let { id, availableSeasons, onAdd, year, week }: Props = $props();
+	let { id, availableSeasons, availablePlatforms, onAdd, year, week }: Props = $props();
 
 	const ENTRY_TYPES: Array<{ value: EntryType; label: string }> = [
 		{ value: 'anime', label: 'Anime' },
@@ -58,6 +59,9 @@
 	
 	// Multiple seasons support
 	let animeSeasons = $state<Array<{ animeSeasonId: string; episodes: string }>>([]);
+	
+	// Platform selection
+	let selectedPlatforms = $state<string[]>([]);
 
 	function resetForm() {
 		entryType = 'misc';
@@ -71,6 +75,7 @@
 		animeInputValue = '';
 		selectedAnimeId = null;
 		animeSeasons = [];
+		selectedPlatforms = [];
 	}
 
 	function handleAdd() {
@@ -85,7 +90,7 @@
 			cancelledText: cancelledText || null,
       isCancelled: false,
 			anime: entryType === 'anime' && animeSeasons.length > 0 ? animeSeasons : null,
-			platforms: null,
+			platforms: selectedPlatforms.length > 0 ? selectedPlatforms : null,
 			slotId: null
 		};
 
@@ -302,6 +307,34 @@
 							/>
 						{/if}
 					</div>
+				</div>
+			</div>
+
+			<!-- Platforms Card -->
+			<div class="card bg-base-300">
+				<div class="card-body p-4">
+					<h3 class="font-bold">Platforms</h3>
+					<div class="flex flex-wrap gap-2">
+						{#each availablePlatforms ?? [] as platform}
+							{@const isSelected = selectedPlatforms.includes(platform.platformId)}
+							<button
+								type="button"
+								class="badge badge-lg transition-colors {isSelected ? 'badge-primary' : 'badge-ghost'}"
+								onclick={() => {
+									if (isSelected) {
+										selectedPlatforms = selectedPlatforms.filter(id => id !== platform.platformId);
+									} else {
+										selectedPlatforms = [...selectedPlatforms, platform.platformId];
+									}
+								}}
+							>
+								{platform.name}
+							</button>
+						{/each}
+					</div>
+					{#if (availablePlatforms ?? []).length === 0}
+						<div class="text-sm text-base-content/60">No platforms available</div>
+					{/if}
 				</div>
 			</div>
 

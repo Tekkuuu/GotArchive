@@ -24,6 +24,7 @@ This document provides comprehensive guidelines for software engineering tasks i
 - **Run unit tests only**: `npm run test:unit` or `vitest`
 - **Run e2e tests only**: `npm run test:e2e` or `playwright test`
 - **Run single unit test file**: `vitest run <path/to/test.ts>` (e.g., `vitest run src/lib/util/schedule/watchAfterParser.test.ts`)
+- **Run single e2e test file**: `playwright test <path/to/test.ts>` (e.g., `playwright test e2e/demo.test.ts`)
 - **Run tests in watch mode**: `vitest` (without --run flag)
 - **Run tests with UI**: `vitest --ui`
 
@@ -32,6 +33,8 @@ This document provides comprehensive guidelines for software engineering tasks i
 - **Push schema changes**: `npm run db:push` (Drizzle push to database)
 - **Run migrations**: `npm run db:migrate` (Drizzle migrate)
 - **Open database studio**: `npm run db:studio` (Drizzle studio GUI)
+- **Database transfer**: `npm run db:transfer` (runs transfer script)
+- **Create admin user**: `npm run create-admin` (creates admin account)
 
 ## Code Style Guidelines
 
@@ -145,9 +148,10 @@ try {
 
 #### Event Handlers
 
-- Use `onClick` instead of `onclick`
+- Use lowercase event handlers: `onclick`, `oninput`, `onchange` (Svelte convention)
 - Prefix custom events with descriptive names
-- Use Svelte 5 event modifiers when possible
+- Use inline arrow functions for simple handlers
+- Extract complex logic to separate functions
 
 #### Styling
 

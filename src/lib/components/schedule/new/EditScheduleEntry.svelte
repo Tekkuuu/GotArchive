@@ -3,11 +3,12 @@
 	import { sineInOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 	import { modalUtils } from '$lib/components/util';
-	import type { AnimeSeason } from '$lib/server/db';
+	import type { AnimeSeason, Platform } from '$lib/server/db';
 
 	interface Props {
 		id: string;
 		availableSeasons?: AnimeSeason[];
+		availablePlatforms?: Platform[];
 		entryData: EntryData | null;
 		onSave: (data: EntryData) => void;
 	}
@@ -23,9 +24,10 @@
 		cancelledText: string | null;
 		isCancelled: boolean;
 		anime: Array<{ animeSeasonId: string; episodes: string }> | null;
+		platforms: string[] | null;
 	}
 
-	let { id, availableSeasons, entryData, onSave }: Props = $props();
+	let { id, availableSeasons, availablePlatforms, entryData, onSave }: Props = $props();
 
 	// Local editable state
 	let time = $state('');
@@ -36,6 +38,9 @@
 	let cancelledText = $state('');
 	let isCancelled = $state(false);
 	let animeSeasons = $state<Array<{ animeSeasonId: string; episodes: string }>>([]);
+	
+	// Platform selection
+	let selectedPlatforms = $state<string[]>([]);
 
 	// For adding new anime seasons
 	let animeInputValue = $state('');
@@ -52,6 +57,7 @@
 			cancelledText = entryData.cancelledText || '';
 			isCancelled = entryData.isCancelled;
 			animeSeasons = entryData.anime ? [...entryData.anime] : [];
+			selectedPlatforms = entryData.platforms ? [...entryData.platforms] : [];
 			animeInputValue = '';
 			selectedAnimeId = null;
 		}
@@ -69,7 +75,8 @@
 			note: note || null,
 			cancelledText: cancelledText || null,
 			isCancelled,
-			anime: animeSeasons.length > 0 ? animeSeasons : null
+			anime: animeSeasons.length > 0 ? animeSeasons : null,
+			platforms: selectedPlatforms.length > 0 ? selectedPlatforms : null
 		});
 
 		modalUtils.closeModal(id);
@@ -281,6 +288,34 @@
 						</div>
 					</div>
 				{/if}
+
+				<!-- Platforms Card -->
+				<div class="card bg-base-300">
+					<div class="card-body p-4">
+						<h3 class="font-bold">Platforms</h3>
+						<div class="flex flex-wrap gap-2">
+							{#each availablePlatforms ?? [] as platform}
+								{@const isSelected = selectedPlatforms.includes(platform.platformId)}
+								<button
+									type="button"
+									class="badge badge-lg transition-colors {isSelected ? 'badge-primary' : 'badge-ghost'}"
+									onclick={() => {
+										if (isSelected) {
+											selectedPlatforms = selectedPlatforms.filter(id => id !== platform.platformId);
+										} else {
+											selectedPlatforms = [...selectedPlatforms, platform.platformId];
+										}
+									}}
+								>
+									{platform.name}
+								</button>
+							{/each}
+						</div>
+						{#if (availablePlatforms ?? []).length === 0}
+							<div class="text-sm text-base-content/60">No platforms available</div>
+						{/if}
+					</div>
+				</div>
 
 				<!-- Additional Options Card -->
 				<div class="card bg-base-300">

@@ -36,6 +36,3 @@ export type ScheduleSlotInsert = typeof schema.scheduleSlot.$inferInsert;
 
 export type ScheduleSlotPlatform = typeof schema.scheduleSlotPlatform.$inferSelect;
 export type ScheduleSlotPlatformInsert = typeof schema.scheduleSlotPlatform.$inferInsert;
-
-export type ScheduleEntrySlot = typeof schema.scheduleEntrySlot.$inferSelect;
-export type ScheduleEntrySlotInsert = typeof schema.scheduleEntrySlot.$inferInsert;

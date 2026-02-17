@@ -23,7 +23,7 @@
 				},
 				{ 
 					name: 'New Schedule', 
-					href: '/admin/new/schedule', 
+					href: '/admin/schedule/new', 
 					description: 'Create a new schedule entry',
 					icon: Calendar
 				}

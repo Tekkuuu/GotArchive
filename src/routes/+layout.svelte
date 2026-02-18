@@ -196,7 +196,7 @@
 	<MobileMenu items={menuItems} {changeTheme} {handleLogout} />
 
 	<!-- Main Content -->
-	<main class="mx-2 mb-20 mt-16 flex grow flex-col md:mb-2">
+	<main class="mx-2 mb-16 mt-2 md:mt-16 flex grow flex-col md:mb-2">
 		{@render children()}
 	</main>
 

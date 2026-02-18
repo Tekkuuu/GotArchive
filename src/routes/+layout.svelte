@@ -17,7 +17,7 @@
 	import {
 		NotificationCenter,
 		NotificationPopup,
-		NotificationButton,
+    notification,
 	} from '$lib/components/ui/toaster';
 	import MobileDock from '$lib/components/ui/navbar/MobileDock.svelte';
 	import MobileMenu from '$lib/components/ui/navbar/MobileMenu.svelte';
@@ -130,9 +130,18 @@
 
 		<!-- Right Section -->
 		<div class="flex flex-1 items-center justify-end gap-2">
-			<NotificationButton />
+      <button
+        class="btn btn-ghost tooltip tooltip-bottom relative"
+        data-tip={`Notifications ${notification.unreadCount > 99 ? "(99+)" : (notification.unreadCount > 0 ? `(${notification.unreadCount})` : "")}`}
+        onclick={() => notification.toggleDrawer()}
+      >
+        {#if notification.unreadCount > 0}
+          <span class="status status-success absolute top-1 right-1"></span>
+        {/if}
+        <Bell />
+      </button>
 
-			<div class="dropdown dropdown-end">
+			<div class="dropdown dropdown-end tooltip tooltip-bottom" data-tip="Select theme">
 				<button tabindex="0" class="btn btn-ghost" aria-label="Select theme">
 					<Palette class="h-5 w-5" />
 				</button>

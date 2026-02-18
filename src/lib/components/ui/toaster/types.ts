@@ -1,7 +1,21 @@
-export type Toast = {
+export type NotificationType = 'success' | 'error' | 'warning' | 'info' | 'promise';
+
+export type NotificationStatus = 'pending' | 'resolved' | 'rejected';
+
+export type Notification = {
 	id: string;
-	type: 'success' | 'error' | 'warning' | 'info' | 'promise';
+	type: NotificationType;
 	message: string;
 	duration: number;
-	promise?: Promise<any>;
+	timestamp: number;
+	read: boolean;
+	promise?: {
+		status: NotificationStatus;
+		loadingMessage?: string;
+		successMessage?: string;
+		errorMessage?: string;
+	};
 };
+
+// Legacy type for backwards compatibility
+export type Toast = Notification;

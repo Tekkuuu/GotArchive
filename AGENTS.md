@@ -42,11 +42,11 @@ This document provides comprehensive guidelines for software engineering tasks i
 
 ```json
 {
-	"useTabs": true,
-	"singleQuote": true,
-	"trailingComma": "none",
-	"printWidth": 100,
-	"plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"]
+ "useTabs": true,
+ "singleQuote": true,
+ "trailingComma": "none",
+ "printWidth": 100,
+ "plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"]
 }
 ```
 
@@ -123,10 +123,10 @@ import { parseDurationString } from '../util/watchAfterParser';
 import { AppError, ServiceError } from '$lib/errors';
 
 try {
-	const result = await someDatabaseOperation();
-	return result;
+ const result = await someDatabaseOperation();
+ return result;
 } catch (error) {
-	throw new ServiceError('Failed to fetch data', { cause: error });
+ throw new ServiceError('Failed to fetch data', { cause: error });
 }
 ```
 
@@ -159,6 +159,7 @@ try {
 - Dark mode support with `dark:` prefixes
 - Component-specific classes use `class:` directive
 - Avoid inline styles
+- use DaisyUI - <https://daisyui.com/llms.txt>
 
 **Design Philosophy:**
 
@@ -192,13 +193,13 @@ import { describe, it, expect } from 'vitest';
 import { parseDurationString } from './watchAfterParser';
 
 describe('parseDurationString', () => {
-	it('parses hours, minutes, seconds', () => {
-		expect(parseDurationString('1h30m15s')).toEqual({
-			hours: 1,
-			minutes: 30,
-			seconds: 15
-		});
-	});
+ it('parses hours, minutes, seconds', () => {
+  expect(parseDurationString('1h30m15s')).toEqual({
+   hours: 1,
+   minutes: 30,
+   seconds: 15
+  });
+ });
 });
 ```
 

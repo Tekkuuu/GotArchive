@@ -11,7 +11,7 @@
 	import { Calendar, Heart, Logs, TvMinimalPlay } from 'lucide-svelte';
 	import { format, getISOWeek } from 'date-fns';
 	import type { ApiErrorResponse } from '$lib/api';
-	import { toast } from '$lib/components/ui/toaster';
+	import { notification } from '$lib/components/ui/toaster';
 
 	let { data }: PageProps = $props();
 	let images = getAnimeImagesStore();
@@ -58,12 +58,12 @@
 			} else {
 				try {
 					const errorPayload: ApiErrorResponse = await response.json();
-					toast.error(
+					notification.error(
 						`${errorPayload.error.message}, Error ID: ${errorPayload.error.sentryErrorId || 'N/A'}`
 					);
 					console.error(`Error ID: ${errorPayload.error.sentryErrorId || 'N/A'}`);
 				} catch (err) {
-					toast.error('An unexptected error has occured');
+					notification.error('An unexptected error has occured');
 				}
 			}
 

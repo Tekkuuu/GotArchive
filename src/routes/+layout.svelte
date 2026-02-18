@@ -4,41 +4,62 @@
 	import { page } from '$app/state';
 	import {
 		Home,
-		Database,
 		TvMinimalPlay,
 		Calendar,
 		Palette,
-		Globe,
 		Info,
-		Menu,
-    User,
-    LogOut,
-    ShieldUser,
-    type Icon,
+		LogOut,
+		ShieldUser,
+		FileText,
+		Lock,
+		Bell
 	} from 'lucide-svelte';
-	import { Toaster } from '$lib/components/ui/toaster';
+	import {
+		NotificationCenter,
+		NotificationPopup,
+		NotificationButton,
+	} from '$lib/components/ui/toaster';
+	import MobileDock from '$lib/components/ui/navbar/MobileDock.svelte';
+	import MobileMenu from '$lib/components/ui/navbar/MobileMenu.svelte';
 	import { getThemeStore, AVAILABLE_THEMES, type Theme } from '$lib/stores';
-  import { session, signOut } from '$lib/auth';
+	import { session, signOut } from '$lib/auth';
 
 	let { children, data }: LayoutProps = $props();
 	let theme = getThemeStore();
-  let expand = $state(false);
 
-	// Function to change theme
 	function changeTheme(newTheme: Theme) {
 		theme.set(newTheme);
-		// Update data-theme attribute on html element
 		if (typeof document !== 'undefined') {
 			document.documentElement.setAttribute('data-theme', newTheme);
 		}
 	}
 
-  function handleLogut(e: Event) {
-    e.preventDefault();
-    signOut();
-  }
+	function handleLogout(e?: Event) {
+		e?.preventDefault();
+		signOut();
+	}
 
-	// Initialize theme on mount
+	const isAdmin = $derived(
+		($session.data?.user as { role?: string })?.role === 'admin' ||
+			($session.data?.user as { role?: string })?.role === 'moderator'
+	);
+
+	const dockItems = $derived([
+		{ route: '/', icon: Home, label: 'Home' },
+		{ route: '/gotgames/schedule', icon: Calendar, label: 'Schedule' },
+		{ route: '/gotgames/anime/list', icon: TvMinimalPlay, label: 'Anime' },
+		{ route: '/notifications', icon: Bell, label: 'Notifications', isNotification: true },
+		...(isAdmin ? [{ route: '/admin', icon: ShieldUser, label: 'Admin' }] : [])
+	]);
+
+	const menuItems = $derived([
+		{ label: 'About', route: '/about', icon: Info },
+		{ label: 'Privacy', route: '/privacy', icon: Lock },
+		{ label: 'Terms', route: '/tos', icon: FileText },
+		{ label: 'Theme', action: 'theme' as const, icon: Palette },
+		...($session.data ? [{ label: 'Logout', action: 'logout' as const, icon: LogOut }] : [])
+	]);
+
 	$effect(() => {
 		if (typeof document !== 'undefined') {
 			document.documentElement.setAttribute('data-theme', theme.value);
@@ -46,82 +67,77 @@
 	});
 </script>
 
-{#snippet navTab(route: typeof page.route.id, icon: typeof Icon, label: string, expand: boolean = false)}
-  {@const RouteIcon = icon}
-  <a
-    href={route}
-    class={[
-      !expand && 'tooltip tooltip-bottom',
-      page.route.id === route && 'btn-secondary',
-      "join-item btn flex grow"
-    ]}
-    data-tip={label}
-  >
-    <RouteIcon />
-    {#if expand}
-      {label}
-    {/if}
-  </a>
-{/snippet}
-
-
-{#snippet navBtn(action: (e: Event) => void, icon: typeof Icon, label: string, expand: boolean = false)}
-  {@const RouteIcon = icon}
-  <button
-    type="button"
-    class={[
-      !expand && 'tooltip tooltip-bottom',
-      "join-item btn flex grow"
-    ]}
-    data-tip={label}
-    onclick={action}
-  >
-    <RouteIcon />
-    {#if expand}
-      {label}
-    {/if}
-  </button>
-{/snippet}
-
 <div class="flex min-h-screen flex-col">
-  <nav class="flex gap-4 h-16 bg-base-300 fixed w-full z-50">
-    <div class="flex justify-center items-center p-4">
-      <a href="/" class="font-bold text-2xl hover:text-primary transition-all duration-150">GotArchive</a>
-    </div>
-    <div class="flex grow justify-center items-center p-4">
-      <div class="join *:min-w-20">
-        {@render navTab('/', Home, 'Dashboard', expand)}
-        {@render navTab('/gotgames/schedule', Calendar, 'Schedule', expand)}
-        {@render navTab('/gotgames/anime/list', TvMinimalPlay, 'Anime reactions', expand)}
-        {@render navTab('/about', Info, 'About', expand)}
-      </div>
-    </div>
-    <div class="flex justify-center items-center p-4">
-      {#if $session.data}
-        <div class="join">
-          {@render navTab('/admin', ShieldUser, 'Admin', expand)}
-          {@render navBtn(handleLogut, LogOut, "Logout", expand)}
-        </div>
-      {/if}
-    </div>
-  </nav>
-	<Toaster />
-	<main class="mx-2 mb-2 mt-16 flex grow flex-col">
-		{@render children()}
-	</main>
-	<footer class="bg-base-300 flex w-full gap-2 p-2 shadow-sm border-t border-base-content/10">
-		<nav class="flex gap-2 items-center">
-			<div class="dropdown dropdown-top">
-				<button
-					tabindex="0"
-					class="btn btn-secondary btn-outline"
-					aria-label="Select theme"
+	<!-- Desktop Navbar -->
+	<nav
+		class="fixed top-0 z-50 hidden h-16 w-full items-center border-b border-base-content/10 bg-base-300 px-2 md:flex"
+	>
+		<!-- Left Section -->
+		<div class="flex flex-1 items-center justify-start">
+			<a
+				href="/"
+				class="px-2 text-2xl font-bold transition-all duration-150 hover:text-primary"
+			>
+				GotArchive
+			</a>
+		</div>
+
+		<!-- Middle Section - Centered Navigation -->
+		<div class="flex items-center justify-center">
+			<div class="join">
+				<a
+					href="/"
+					class={[
+						'btn join-item tooltip tooltip-bottom',
+						page.route.id === '/' && 'btn-secondary'
+					].join(' ')}
+					data-tip="Dashboard"
 				>
+					<Home class="h-5 w-5" />
+				</a>
+				<a
+					href="/gotgames/schedule"
+					class={[
+						'btn join-item tooltip tooltip-bottom',
+						page.route.id === '/gotgames/schedule' && 'btn-secondary'
+					].join(' ')}
+					data-tip="Schedule"
+				>
+					<Calendar class="h-5 w-5" />
+				</a>
+				<a
+					href="/gotgames/anime/list"
+					class={[
+						'btn join-item tooltip tooltip-bottom',
+						page.route.id === '/gotgames/anime/list' && 'btn-secondary'
+					].join(' ')}
+					data-tip="Anime reactions"
+				>
+					<TvMinimalPlay class="h-5 w-5" />
+				</a>
+				<a
+					href="/about"
+					class={[
+						'btn join-item tooltip tooltip-bottom',
+						page.route.id === '/about' && 'btn-secondary'
+					].join(' ')}
+					data-tip="About"
+				>
+					<Info class="h-5 w-5" />
+				</a>
+			</div>
+		</div>
+
+		<!-- Right Section -->
+		<div class="flex flex-1 items-center justify-end gap-2">
+			<NotificationButton />
+
+			<div class="dropdown dropdown-end">
+				<button tabindex="0" class="btn btn-ghost" aria-label="Select theme">
 					<Palette class="h-5 w-5" />
-					{theme.value}
 				</button>
 				<ul
-					class="dropdown-content menu bg-base-200 rounded-box z-10 w-52 p-2 shadow-xl mb-2"
+					class="menu dropdown-content z-10 mt-2 w-52 rounded-box bg-base-200 p-2 shadow-xl"
 				>
 					{#each AVAILABLE_THEMES as themeName}
 						<li>
@@ -135,8 +151,54 @@
 					{/each}
 				</ul>
 			</div>
-			<a href="/privacy" class="btn btn-secondary btn-outline">Privacy</a>
-			<a href="/tos" class="btn btn-secondary btn-outline">Terms</a>
+
+			{#if isAdmin}
+				<a
+					href="/admin"
+					class={[
+						'btn btn-ghost tooltip tooltip-bottom',
+						page.route.id === '/admin' && 'btn-secondary'
+					].join(' ')}
+					data-tip="Admin"
+				>
+					<ShieldUser class="h-5 w-5" />
+				</a>
+			{/if}
+
+			{#if $session.data}
+				<button
+					class="btn btn-ghost tooltip tooltip-bottom"
+					data-tip="Logout"
+					onclick={handleLogout}
+				>
+					<LogOut class="h-5 w-5" />
+				</button>
+			{/if}
+		</div>
+	</nav>
+
+	<NotificationCenter />
+	<NotificationPopup />
+
+	<!-- Mobile Dock (bottom navigation) -->
+	<MobileDock items={dockItems} />
+
+	<!-- Mobile FAB Menu -->
+	<MobileMenu items={menuItems} {changeTheme} {handleLogout} />
+
+	<!-- Main Content -->
+	<main class="mx-2 mb-20 mt-16 flex grow flex-col md:mb-2">
+		{@render children()}
+	</main>
+
+	<!-- Footer -->
+	<footer
+		class="hidden w-full gap-2 border-t border-base-content/10 bg-base-300 p-2 shadow-sm md:flex"
+	>
+		<nav class="flex flex-wrap items-center gap-2">
+			<a href="/privacy" class="link-hover link text-sm">Privacy</a>
+			<a href="/tos" class="link-hover link text-sm">Terms</a>
 		</nav>
 	</footer>
 </div>
+

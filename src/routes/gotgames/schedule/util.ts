@@ -69,11 +69,3 @@ export function formatAnimeSeasonDisplay(animeSeason: ScheduleAnimeSeasonInfo): 
 
 	return `${title}`;
 }
-
-/**
- * Get weekday name from index (0=Monday, 6=Sunday)
- */
-export function getWeekdayName(dayIndex: number): string {
-	const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-	return weekdays[dayIndex] || 'Unknown';
-}

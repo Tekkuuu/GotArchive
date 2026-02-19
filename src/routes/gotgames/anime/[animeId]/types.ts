@@ -1,4 +1,4 @@
-import type { AnimeSeason, AnimeSeasonMetadata } from '$lib/server/db';
+import type { AnimeSeason } from '$lib/server/db';
 
 export type SeasonData = AnimeSeason & {
 	animeSeasonMetadataId: string | null;

@@ -1,10 +1,9 @@
 import type { LayoutServerLoad } from './$types';
-import type { AnimeCard } from './types';
 import { schema } from '$lib/server/db';
 import { db } from '$lib/server/db';
 import { eq, sql, sum } from 'drizzle-orm';
 
-export const load: LayoutServerLoad = async ({}) => {
+export const load: LayoutServerLoad = async () => {
 	const mainSeason = db.$with('mainSeason').as(
 		db
 			.select({
@@ -48,7 +47,7 @@ export const load: LayoutServerLoad = async ({}) => {
     )
   `;
 
-	let data = await db
+	const data = await db
 		.with(mainSeason, animeEpisodes)
 		.select({
 			animeId: schema.anime.animeId,

@@ -1,287 +1,183 @@
-# AGENTS.md - Coding Guidelines for GotArchive
+# GotArchive — Agent Guidelines
 
-This document provides comprehensive guidelines for software engineering tasks in the GotArchive repository. Follow these conventions to maintain code quality and consistency.
+## Project Overview
 
-## Build, Lint, and Test Commands
-
-### Development
-
-- **Start dev server**: `npm run dev` or `vite dev`
-- **Build for production**: `npm run build` or `vite build`
-- **Preview production build**: `npm run preview` or `vite preview`
-- **Start production server**: `npm run start` or `node build`
-
-### Code Quality
-
-- **Lint code**: `npm run lint` (runs Prettier check + ESLint)
-- **Format code**: `npm run format` (Prettier write to fix formatting)
-- **Type check**: `npm run check` (SvelteKit sync + svelte-check --tsconfig)
-- **Watch type checking**: `npm run check:watch`
-
-### Testing
-
-- **Run all tests**: `npm run test` (unit tests + e2e tests)
-- **Run unit tests only**: `npm run test:unit` or `vitest`
-- **Run e2e tests only**: `npm run test:e2e` or `playwright test`
-- **Run single unit test file**: `vitest run <path/to/test.ts>` (e.g., `vitest run src/lib/util/schedule/watchAfterParser.test.ts`)
-- **Run single e2e test file**: `playwright test <path/to/test.ts>` (e.g., `playwright test e2e/demo.test.ts`)
-- **Run tests in watch mode**: `vitest` (without --run flag)
-- **Run tests with UI**: `vitest --ui`
-
-### Database
-
-- **Push schema changes**: `npm run db:push` (Drizzle push to database)
-- **Run migrations**: `npm run db:migrate` (Drizzle migrate)
-- **Open database studio**: `npm run db:studio` (Drizzle studio GUI)
-- **Database transfer**: `npm run db:transfer` (runs transfer script)
-- **Create admin user**: `npm run create-admin` (creates admin account)
-
-## Code Style Guidelines
-
-### Formatting (Prettier)
-
-```json
-{
- "useTabs": true,
- "singleQuote": true,
- "trailingComma": "none",
- "printWidth": 100,
- "plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"]
-}
-```
-
-- Use tabs for indentation
-- Single quotes for strings
-- No trailing commas
-- 100 character line width
-- Svelte and Tailwind CSS plugin support
-
-### Linting (ESLint)
-
-- TypeScript recommended rules
-- Svelte recommended rules + prettier integration
-- Browser and Node.js globals available
-- No Prettier conflicts (handled by eslint-config-prettier)
-
-### TypeScript Configuration
-
-- **Strict mode**: Enabled for all type checking
-- **Target**: ESNext with DOM and DOM.Iterable libs
-- **Module resolution**: Bundler (supports package.json "type": "module")
-- **Module syntax**: Verbatim (no automatic type-only imports)
-- **Isolated modules**: Required for proper bundling
-- **No emit**: Type checking only
-
-### Import Conventions
-
-- Use ES6 import syntax
-- Group imports: external libraries first, then internal imports
-- Use relative imports for files in the same directory
-- Use `$lib/` path alias for src/lib imports (SvelteKit convention)
-- No wildcard imports (`import * as`)
-- Prefer named imports over default imports
-
-```typescript
-import { add, parseISO } from 'date-fns';
-import { z } from 'zod';
-import { schema } from '$lib/server/db';
-import { parseDurationString } from '../util/watchAfterParser';
-```
-
-### Naming Conventions
-
-#### Variables and Functions
-
-- **camelCase** for variables, functions, and methods
-- **PascalCase** for classes, interfaces, types, and components
-- **SCREAMING_SNAKE_CASE** for constants
-- Prefix boolean variables with `is`, `has`, `can`, `should`
-- Use descriptive names; avoid abbreviations unless widely understood
-
-#### Files and Directories
-
-- **kebab-case** for file names (e.g., `watch-after-parser.ts`)
-- **PascalCase** for Svelte components (e.g., `AnimeCard.svelte`)
-- **camelCase** for utility directories (e.g., `src/lib/util/schedule/`)
-- Server files use `+page.server.ts`, `+layout.server.ts` pattern
-
-#### Database
-
-- **snake_case** for table and column names
-- **camelCase** for JavaScript/TypeScript property names
-- Schema definitions in `src/lib/server/db/shared/schema.ts`
-
-### Error Handling
-
-- Use custom error classes from `$lib/errors/`
-- Wrap database operations with error origin tracking
-- Log errors using Pino logger with Logwell
-- Prefer specific error types over generic Error
-- Use try-catch for async operations
-
-```typescript
-import { AppError, ServiceError } from '$lib/errors';
-
-try {
- const result = await someDatabaseOperation();
- return result;
-} catch (error) {
- throw new ServiceError('Failed to fetch data', { cause: error });
-}
-```
-
-### Component Patterns (Svelte)
-
-#### Props Interface
-
-```svelte
-<script lang="ts">
-  interface Props {
-    title: string;
-    disabled?: boolean;
-    onClick?: () => void;
-  }
-
-  let { title, disabled = false, onClick }: Props = $props();
-</script>
-```
-
-#### Event Handlers
-
-- Use lowercase event handlers: `onclick`, `oninput`, `onchange` (Svelte convention)
-- Prefix custom events with descriptive names
-- Use inline arrow functions for simple handlers
-- Extract complex logic to separate functions
-
-#### Styling
-
-- Use Tailwind CSS classes
-- Dark mode support with `dark:` prefixes
-- Component-specific classes use `class:` directive
-- Avoid inline styles
-- use DaisyUI - <https://daisyui.com/llms.txt>
-
-**Design Philosophy:**
-
-- **Modern and Minimalistic**: Keep designs clean with ample whitespace and simple layouts
-- **Spacing**: Use gap/padding/margin values of **2 or less** (Tailwind units: `gap-1`, `gap-2`, `p-2`, etc.)
-  - Use larger spacing values (3-4) sparingly, only when it significantly improves visual hierarchy
-- **Mobile-First**: Always design for mobile screens as narrow as **384px** (iPhone SE width)
-  - Use responsive breakpoints: `sm:`, `md:`, `lg:` for larger screens
-  - Test layouts at 384px, 768px (tablet), and 1024px+ (desktop) widths
-- **Consistency**: Maintain uniform spacing throughout the application for cohesive design
-
-#### Stores and State
-
-- Use Svelte 5 runes for reactive state
-- `$state()`, `$derived()`, `$effect()` for local component state
-- Svelte stores for global state (`src/lib/stores/`)
-- Local storage integration via custom stores
-
-### Testing Patterns
-
-#### Unit Tests (Vitest)
-
-- Test files: `*.test.ts`, `*.spec.ts`
-- Client tests: Svelte components with jsdom environment
-- Server tests: Node.js environment for utilities/services
-- Use descriptive test names and `describe` blocks
-- Mock external dependencies appropriately
-
-```typescript
-import { describe, it, expect } from 'vitest';
-import { parseDurationString } from './watchAfterParser';
-
-describe('parseDurationString', () => {
- it('parses hours, minutes, seconds', () => {
-  expect(parseDurationString('1h30m15s')).toEqual({
-   hours: 1,
-   minutes: 30,
-   seconds: 15
-  });
- });
-});
-```
-
-#### E2E Tests (Playwright)
-
-- Located in `e2e/` directory
-- Test against production build (auto-started by config)
-- Use page object pattern for complex interactions
-- Focus on user journeys and critical paths
-
-### Database Patterns
-
-#### Schema Definition
-
-- Use Drizzle ORM with PostgreSQL
-- Define schemas in `src/lib/server/db/shared/schema.ts`
-- Use relations for foreign key constraints
-- Custom methods in `src/lib/server/db/customMethods/`
-
-#### Service Layer
-
-- Services created via factory pattern (`serviceFactory.ts`)
-- Error origin tracking for debugging
-- Type-safe ID configurations with Zod validation
-- Consistent CRUD operations across entities
-
-### Architecture Patterns
-
-#### File Structure
-
-```
-src/
-├── lib/
-│   ├── components/     # Reusable UI components
-│   ├── stores/         # Svelte stores for state management
-│   ├── hooks/          # Custom Svelte hooks
-│   ├── server/         # Server-only code (APIs, DB)
-│   ├── util/           # Utility functions
-│   └── errors/         # Error classes and handling
-├── routes/             # SvelteKit routes
-│   ├── api/            # API endpoints
-│   └── [dynamic]/      # Dynamic routes
-test/                   # Unit tests
-e2e/                    # E2E tests
-```
-
-#### Server/Client Separation
-
-- Server code in `*.server.ts` files (never imported in client)
-- Client-only code in regular `*.ts` files
-- Shared utilities must be framework-agnostic
-- Environment-specific logic properly isolated
-
-### Security Best Practices
-
-- Never log sensitive data (passwords, tokens, keys)
-- Use environment variables for secrets
-- Validate all user inputs with Zod schemas
-- Sanitize database queries to prevent injection
-- Use HTTPS in production (handled by adapter)
-
-### Performance Considerations
-
-- Lazy load components when possible
-- Use Svelte's reactive statements efficiently
-- Optimize database queries with proper indexing
-- Cache expensive computations in stores
-- Minimize bundle size with tree shaking
-
-### Commit Message Convention
-
-Follow conventional commits:
-
-- `feat:` New features
-- `fix:` Bug fixes
-- `docs:` Documentation changes
-- `style:` Code style changes (formatting, etc.)
-- `refactor:` Code refactoring
-- `test:` Adding or updating tests
-- `chore:` Maintenance tasks
+**GotArchive** is a SvelteKit 2 + Svelte 5 (runes) web application backed by a PostgreSQL database
+via Drizzle ORM. It uses TypeScript strict mode throughout, TailwindCSS v4 +
+DaisyUI v5 for styling, and `better-auth` for authentication.
 
 ---
 
-_This document should be updated as the codebase evolves. Last updated: January 2026_</content>
-<parameter name="filePath">C:\Users\Tekku\Desktop\GotArchive\AGENTS.md
+## Commands
+
+### Development
+
+```bash
+npm run dev          # Start Vite dev server
+npm run build        # Production build
+npm run start        # Run production build (node build)
+npm run preview      # Preview production build locally
+```
+
+### Type Checking & Linting
+
+```bash
+npm run check        # svelte-check + TypeScript type check
+npm run check:watch  # Same, in watch mode
+npm run lint         # Prettier check + ESLint (run before committing)
+npm run format       # Auto-format all files with Prettier
+```
+
+### Testing
+
+```bash
+npm run test                   # All tests: unit + e2e (CI mode)
+npm run test:unit              # Vitest in watch mode
+npm run test:unit -- --run     # Vitest one-shot (no watch)
+npm run test:e2e               # Playwright e2e tests
+```
+
+#### Running a single test
+
+```bash
+# Single file (unit/server)
+npx vitest run src/lib/util/dates.spec.ts
+
+# Single file (component — client workspace)
+npx vitest run --project client src/lib/components/MyComponent.svelte.spec.ts
+
+# Single test by name pattern
+npx vitest run -t "should parse schedule entry"
+
+# Single Playwright e2e test
+npx playwright test e2e/demo.test.ts
+```
+
+### Database
+
+```bash
+npm run db:push      # Push schema changes directly (dev only)
+npm run db:migrate   # Run pending migrations
+npm run db:studio    # Open Drizzle Studio GUI
+npm run db:transfer  # Run data transfer script (scripts/transfer.ts)
+```
+
+---
+
+## Architecture
+
+- **`src/routes/`** — SvelteKit file-based routing (`+page.svelte`, `+page.server.ts`, `+server.ts`)
+- **`src/lib/`** — All shared code, aliased as `$lib`
+  - `components/` — Svelte components (`ui/` for navbar, toaster, suspense; `schedule/` for domain-specific slot/entry forms)
+  - `server/` — Server-only code (DB, auth, logger, Redis) — never import in client components
+  - `schemas/` — Zod v4 validation schemas
+  - `errors/` — `AppError` class and `ERROR_CODES` catalog
+  - `stores/` — Svelte 5 rune-based reactive state (`.svelte.ts` files)
+  - `util/` — Pure utility functions
+  - `hooks/` — Server-side data hooks
+  - `api/` — Client-side API helpers and shared types
+- **`drizzle/`** — Migration snapshots managed by drizzle-kit
+- **`e2e/`** — Playwright end-to-end tests
+- **`test/`** — Vitest unit/integration tests (mirrors `src/` structure)
+- **`scripts/`** — One-off utility scripts (run with `tsx`)
+
+---
+
+## Code Style
+
+### Formatting (Prettier)
+
+- **Indentation:** Tabs (not spaces)
+- **Quotes:** Single quotes
+- **Trailing commas:** None
+- **Print width:** 100 characters
+- Always run `npm run format` or ensure your editor uses the `.prettierrc` settings.
+
+### TypeScript
+
+- `strict: true` is enabled — no `any`, no implicit `any`, no non-null assertions without reason.
+- Use `import type { ... }` for type-only imports (`verbatimModuleSyntax` is enabled).
+- Prefer `interface` for object shapes; use `type` for unions, intersections, and aliases.
+- Export table row types using Drizzle's `$inferSelect` / `$inferInsert` pattern from `db/types.ts`.
+- No `as` casts without a justifying comment unless truly unavoidable.
+
+### Imports
+
+- Use the `$lib` alias for all internal imports — never use relative `../../` paths from `src/`.
+- SvelteKit built-ins: `$app/environment`, `$app/navigation`, `$app/state`, `$env/dynamic/private`.
+- Group imports: external packages → `$lib/server/...` → `$lib/...` → local/relative.
+- Import Lucide icons individually: `import { Search } from 'lucide-svelte'`.
+- Use barrel `index.ts` files within `$lib` subdirectories where they already exist.
+
+### Naming Conventions
+
+| Thing                 | Convention             | Example                                |
+| --------------------- | ---------------------- | -------------------------------------- |
+| Files (TS/JS)         | `camelCase`            | `dateUtils.ts`                         |
+| Files (Svelte)        | `PascalCase`           | `ScheduleCard.svelte`                  |
+| Directories           | `kebab-case`           | `schedule/`, `ui/`                     |
+| SvelteKit files       | SvelteKit convention   | `+page.server.ts`                      |
+| Svelte 5 store files  | `camelCase.svelte.ts`  | `themeStore.svelte.ts`                 |
+| Variables/functions   | `camelCase`            | `scheduleEntry`                        |
+| Types/interfaces      | `PascalCase`           | `ScheduleEntry`                        |
+| Constants             | `SCREAMING_SNAKE_CASE` | `ERROR_CODES`, `WEEKDAYS`              |
+| DB table names (JS)   | `camelCase`            | `scheduleEntry`                        |
+| DB column names (SQL) | `snake_case`           | `schedule_entry`                       |
+| Error code prefixes   | domain-scoped          | `DB_`, `VAL_`, `ANI_`, `FORM_`, `GEN_` |
+
+### Svelte 5 (Runes)
+
+- Use runes exclusively: `$state`, `$derived`, `$effect`, `$props()`, `{@render children()}`.
+- Do **not** use legacy Svelte 4 APIs: `writable`, `readable`, `derived`, `$:`, etc.
+- Declare component props with an `interface Props`, then destructure: `let { id, value }: Props = $props()`.
+- Prefer `$derived()` for computed values over `$effect` + manual assignment.
+- Singleton reactive state for shared UI state: class with `$state` fields, exported as a module-level instance.
+- Getter functions (e.g., `getThemeStore()`) prevent SSR duplication of store instances.
+
+### Error Handling
+
+- Throw `AppError` (from `$lib/errors`) for all application errors — never plain `Error` in app code.
+- Reference `ERROR_CODES` catalog for the appropriate code; add new codes there if needed.
+- In server `load` functions: catch errors, log with `logger.error()`, and push to an `errors[]` array for non-fatal failures rather than aborting the entire load.
+- In API routes and form actions: use `handleApiError()` to convert `AppError` to a JSON response; re-throw unknown errors.
+- Use SvelteKit's `fail()` for form validation failures in actions.
+- Always include `cause` and `context` when constructing `AppError` for structured logging.
+
+### Database (Drizzle ORM)
+
+- All DB access must be server-side only (inside `+page.server.ts`, `+server.ts`, or `$lib/server/`).
+- Use the fluent query builder; reference columns with the schema object (e.g., `schema.schedule.scheduleId`).
+- Wrap multi-table mutations in `db.transaction(async (tx) => { ... })`.
+- The auth tables live in the `bauth` PostgreSQL schema — do not directly mutate them; use `better-auth` APIs.
+- Never write raw SQL strings unless drizzle cannot express the query.
+
+### Forms
+
+- Use `sveltekit-superforms` + the `zod4Client` adapter for any non-trivial form.
+- Define form schemas in `$lib/schemas/` using Zod v4.
+- Use `use:enhance` for progressive form enhancement on all `<form>` elements.
+
+### Styling
+
+- TailwindCSS v4 utility classes directly in templates.
+- DaisyUI v5 component classes for interactive elements (buttons, modals, inputs, etc.).
+- Use `tailwind-merge` (`twMerge`) when merging conditional class strings.
+- Theming is managed via `themeStore.svelte.ts`; respect `data-theme` attribute on `<html>`.
+
+---
+
+## Testing Guidelines
+
+- **Unit/server tests:** `src/**/*.{spec,test}.ts` or `test/**/*.{spec,test}.ts` — run in Node environment.
+- **Component tests:** `src/**/*.svelte.{spec,test}.ts` — run in jsdom environment with `@testing-library/svelte`.
+- Use `describe` / `it` / `expect` from Vitest; `@testing-library/jest-dom` matchers are available.
+- The `test/db/` path is reserved for future database integration tests (excluded from the standard run).
+- Playwright e2e tests live in `e2e/` and require the production build to be running.
+
+---
+
+## Environment
+
+Copy `.env.example` to `.env` and fill in the required values before running locally.
+Key variables: `DATABASE_URL` (PostgreSQL), `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`,
+`BETTER_AUTH_SECRET`, `QSTASH_TOKEN`, and AniList API credentials.

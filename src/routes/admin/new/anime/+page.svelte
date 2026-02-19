@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { anilistServices as s } from '$lib/anilist';
 	import { AppError } from '$lib/errors';
-	import { toast } from '$lib/components/ui/toaster';
+	import { notification } from '$lib/components/ui/toaster';
 	import _ from 'lodash';
 	import { Book, Info, Link2, Minus, Plus, Search, Trash2, X } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';
@@ -19,9 +19,9 @@
 		multipleSubmits: 'prevent',
 		onResult: ({ result }) => {
 			if (result.type === 'success') {
-				toast.success('Anime create successfully');
+				notification.success('Anime create successfully');
 			} else if (result.type === 'error' || result.type === 'failure') {
-				toast.error('Failed to create anime');
+				notification.error('Failed to create anime');
 			}
 		}
 	});
@@ -53,15 +53,15 @@
 
 			$form.genres = data.genres.filter((x) => response.genres.find((g) => g === x.name));
 
-			toast.success('Anime data fetched successfully', 1000);
+			notification.success('Anime data fetched successfully', 1000);
 		} catch (e: any) {
 			if (e instanceof AppError) {
-				toast.error(e.message, 5000);
+				notification.error(e.message, 5000);
 			} else if (e instanceof Error) {
 				// Fallback for unexpected errors
-				toast.error(e.message, 5000);
+				notification.error(e.message, 5000);
 			} else {
-				toast.error('An unexpected error occurred while fetching anime details.', 5000);
+				notification.error('An unexpected error occurred while fetching anime details.', 5000);
 			}
 			return;
 		} finally {

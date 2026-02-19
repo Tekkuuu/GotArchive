@@ -3,16 +3,9 @@ import { schema, db, eq, sql, asc, and } from '$lib/server/db';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { z } from 'zod';
 import { parseISO, setISOWeek, setISOWeekYear, format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { AppError, ERROR_CODES } from '$lib/errors';
-
-// Schema for editing schedule metadata
-const EditScheduleMetadataSchema = z.object({
-	year: z.number().int().min(1900).max(2100),
-	week: z.number().int().min(1).max(53),
-	note: z.string().max(1000).optional()
-});
+import { EditScheduleMetadataSchema } from '$lib/schemas';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const { datecode } = params;

@@ -5,7 +5,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { AddScheduleSlotSchema, EditScheduleSlotSchema } from '$lib/components/schedule/slot/util';
 import { actions as slotActions } from '$lib/components/schedule/slot';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { logger } from '$lib/server/logger';
 
 export const load: PageServerLoad = async () => {

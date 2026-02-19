@@ -1,6 +1,6 @@
 import { schema, db, eq } from '$lib/server/db';
 import { AddScheduleSlotSchema, EditScheduleSlotSchema } from './util';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { logger } from '$lib/server/logger';
 import _ from 'lodash';
 

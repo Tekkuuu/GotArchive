@@ -4,7 +4,6 @@ import _ from 'lodash';
 import { parseEpisodeList } from '$lib/util/schedule/episodeProgressParser';
 
 export async function useWatchingWeek(datecode: string) {
-	// Check if id has a valid structure
 	if (datecode.length < 6) {
 		throw new Error('Invalid datecode');
 	}
@@ -12,12 +11,10 @@ export async function useWatchingWeek(datecode: string) {
 	const year = Number(datecode.substring(0, 4));
 	const week = Number(datecode.substring(4));
 
-	// Check if converted year and week values are valid numbers
 	if (!Number.isFinite(year) || !Number.isFinite(week)) {
 		throw new Error('Invalid datecode');
 	}
 
-	// Check if year and week are positive values
 	if (year < 1900 || year > new Date().getFullYear() + 10 || week < 0 || week > 53) {
 		throw new Error('Invalid datecode');
 	}
@@ -31,7 +28,9 @@ export async function useWatchingWeek(datecode: string) {
 				romaji: schema.animeSeason.titleRomaji,
 				english: schema.animeSeason.titleEnglish
 			},
-			description: schema.scheduleEntry.description
+			anilistId: schema.animeSeasonMetadata.anilistId,
+			malId: schema.animeSeasonMetadata.malId,
+			episodes: schema.scheduleEntryAnimeSeason.episodes
 		})
 		.from(schema.schedule)
 		.innerJoin(
@@ -39,10 +38,24 @@ export async function useWatchingWeek(datecode: string) {
 			eq(schema.schedule.scheduleId, schema.scheduleEntry.scheduleId)
 		)
 		.innerJoin(
-			schema.animeSeason,
-			eq(schema.scheduleEntry.animeSeasonId, schema.animeSeason.animeSeasonId)
+			schema.scheduleEntryAnimeSeason,
+			eq(schema.scheduleEntry.scheduleEntryId, schema.scheduleEntryAnimeSeason.scheduleEntryId)
 		)
-		.where(and(eq(schema.schedule.year, year), eq(schema.schedule.week, week)))
+		.innerJoin(
+			schema.animeSeason,
+			eq(schema.scheduleEntryAnimeSeason.animeSeasonId, schema.animeSeason.animeSeasonId)
+		)
+		.leftJoin(
+			schema.animeSeasonMetadata,
+			eq(schema.animeSeason.animeSeasonId, schema.animeSeasonMetadata.animeSeasonId)
+		)
+		.where(
+			and(
+				eq(schema.schedule.year, year),
+				eq(schema.schedule.week, week),
+				eq(schema.schedule.preview, false)
+			)
+		)
 		.orderBy(
 			schema.scheduleEntry.date,
 			schema.scheduleEntry.time,
@@ -54,10 +67,9 @@ export async function useWatchingWeek(datecode: string) {
 	const watching = Object.values(grouped).map((entries) => {
 		const first = entries[0];
 
-		// Collect all episodes from all schedule entries for this animeSeason
 		const allEpisodes: number[] = [];
 		for (const entry of entries) {
-			const episodes = parseEpisodeList(entry.description);
+			const episodes = parseEpisodeList(entry.episodes);
 			allEpisodes.push(...episodes);
 		}
 		const uniqueEpisodes = _.uniq(allEpisodes).sort((a, b) => a - b);
@@ -66,6 +78,8 @@ export async function useWatchingWeek(datecode: string) {
 			animeSeasonId: first.animeSeasonId,
 			animeId: first.animeId,
 			titles: first.titles,
+			anilistId: first.anilistId,
+			malId: first.malId,
 			episodes: uniqueEpisodes
 		};
 	});

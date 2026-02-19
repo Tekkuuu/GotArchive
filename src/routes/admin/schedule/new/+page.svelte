@@ -18,7 +18,7 @@
   import { AddScheduleEntry, EditScheduleEntry, type EditScheduleEntryData, type NewScheduleEntryData } from '$lib/components/schedule/new';
 	import { modalUtils } from '$lib/components/util';
   import { type APIValidateDateResponse } from '$lib/api/schedule/exists';
-  import { toaster } from '$lib/components/ui/toaster/toast-state';
+  import { notification } from '$lib/components/ui/toaster';
 	import { onMount } from 'svelte';
 
 	let { data }: PageProps = $props();
@@ -178,7 +178,7 @@
     if (response.ok) {
       const data: APIValidateDateResponse = await response.json();
       if (data.exists) {
-        toaster.info("A schedule for this year and week already exists. Creating it won't be possible");
+        notification.info("A schedule for this year and week already exists. Creating it won't be possible");
       } else {
         for (let i = 0; i < $form.entries.length; i++) {
           let d = parseISO($form.entries[i].date);

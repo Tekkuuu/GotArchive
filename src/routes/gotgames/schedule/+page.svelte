@@ -8,9 +8,9 @@
 		formatTime,
 		getLogoUrl,
 		formatAnimeSeasonDisplay,
-		getWeekdayName,
     getPlatformDisplayName,
 	} from './util';
+  import { WEEKDAYS } from '$lib/schemas';
 
 	let { data }: PageProps = $props();
 
@@ -219,7 +219,7 @@
                 "transition-colors duration-150"
               ]}
 						>
-							<span class="font-bold text-lg">{getWeekdayName(dayIndex)}</span>
+							<span class="font-bold text-lg">{WEEKDAYS[dayIndex].label}</span>
 						</div>
 
 						<!-- Entries List -->

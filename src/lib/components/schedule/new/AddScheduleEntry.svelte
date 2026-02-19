@@ -6,6 +6,8 @@
 	import type { AnimeSeason, Platform } from '$lib/server/db';
 	import { format } from 'date-fns';
   import { getWeekdays } from "../util";
+  import { entryTypeEnum } from '$lib/schemas';
+  import { z } from "zod";
 
 	interface Props {
 		id: string;
@@ -16,7 +18,7 @@
     week: number;
 	}
 
-	type EntryType = 'anime' | 'hololive' | 'game' | 'event' | 'sponsored' | 'misc';
+  type EntryType = z.infer<typeof entryTypeEnum>;
 
 	export interface NewScheduleEntry {
 		type: EntryType;

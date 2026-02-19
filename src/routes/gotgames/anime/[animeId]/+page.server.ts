@@ -1,13 +1,13 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { schema } from '$lib/server/db';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { error } from '@sveltejs/kit';
 import { eq, getTableColumns, sql } from 'drizzle-orm';
 import type { SeasonData } from './types';
 
 export const load: PageServerLoad = async ({ params, parent }) => {
-	const animeIdParam = z.string().safeParse(params.animeId);
+	const animeIdParam = z.uuid().safeParse(params.animeId);
 
 	if (!animeIdParam.success) {
 		error(404, 'Anime not found');

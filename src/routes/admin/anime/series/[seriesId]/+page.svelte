@@ -1,0 +1,146 @@
+<script lang="ts">
+	import { Pencil, Trash2, Plus, ArrowLeft } from 'lucide-svelte';
+	import { notification } from '$lib/components/ui/toaster';
+	import { modalUtils } from '$lib/components/util';
+	import { invalidateAll } from '$app/navigation';
+	import { AddAnimeSeason, EditAnimeSeason } from '$lib/components/anime';
+	import type { PageProps } from './$types';
+	import _ from 'lodash';
+
+	let { data }: PageProps = $props();
+
+	type Season = (typeof data.seasons)[number];
+
+	let editingSeason:  Season['data'] & Omit<Season['metadata'], 'animeSeasonId' | 'animeSeasonMetadataId'> | undefined = $state(undefined);
+
+	function openEditModal(season: Season) {
+		editingSeason = {
+      ...season.data,
+      ..._.omit(season.metadata, ['animeSeasonId', 'animeSeasonMetadataId'])
+    };
+		modalUtils.openModal('edit-season-modal');
+	}
+
+	async function handleDelete(seasonId: string) {
+		const confirmed = confirm(
+			'Are you sure you want to delete this season? This action cannot be undone.'
+		);
+		if (!confirmed) return;
+
+		const formData = new FormData();
+		formData.append('seasonId', seasonId);
+
+		try {
+			const response = await fetch('?/deleteSeason', {
+				method: 'POST',
+				body: formData
+			});
+
+			const result = await response.json();
+
+			if (result.type === 'success') {
+				notification.success('Season deleted successfully');
+				invalidateAll();
+			} else {
+				notification.error(result.data?.text || 'Failed to delete season');
+			}
+		} catch {
+			notification.error('Failed to delete season');
+		}
+	}
+</script>
+
+<svelte:head>
+	<title>Admin | {data.anime.titleEnglish ?? data.anime.titleRomaji ?? data.anime.titleNative} | G.O.T Archive</title>
+</svelte:head>
+
+<div class="container mx-auto max-w-6xl p-4">
+	<!-- Page Header -->
+	<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+		<div>
+			<a href="/admin/anime" class="btn btn-ghost btn-sm mb-2">
+				<ArrowLeft class="h-4 w-4" />
+				Back to Anime
+			</a>
+			<h1 class="text-3xl font-bold">
+				{data.anime.titleEnglish ?? data.anime.titleRomaji ?? data.anime.titleNative}
+			</h1>
+			{#if data.anime.titleEnglish && (data.anime.titleRomaji || data.anime.titleNative)}
+				<p class="text-base-content/70">
+					{data.anime.titleRomaji ?? data.anime.titleNative}
+				</p>
+			{/if}
+		</div>
+		<button class="btn btn-primary" onclick={() => modalUtils.openModal('add-season-modal')}>
+			<Plus class="h-5 w-5" />
+			Add Season
+		</button>
+	</div>
+
+	<!-- Seasons List -->
+	<div class="list bg-base-200 rounded-box shadow">
+		{#each data.seasons as season (season.data.animeSeasonId)}
+			<div class="list-row items-center py-3">
+				<div class="flex-1 min-w-0 px-4">
+					<div class="font-medium">
+            {season.data.titleEnglish || season.data.titleRomaji || season.data.titleNative || `Season ${season.data.sequence}`}
+					</div>
+					<div class="text-sm text-base-content/60">
+						{season.data.format}
+						{#if season.data.season}
+							• {season.data.season}
+						{/if}
+						{#if season.data.year}
+							• {season.data.year}
+						{/if}
+						{#if season.data.episodes}
+							• {season.data.episodes} episodes
+						{/if}
+					</div>
+					{#if season.data.episodeProgress > 0}
+						<div class="text-xs text-primary mt-1">
+							Progress: {season.data.episodeProgress}/{season.data.episodes ?? '?'} episodes
+						</div>
+					{/if}
+				</div>
+
+				<div class="flex justify-end gap-2">
+					<button
+						class="btn btn-ghost btn-sm"
+						title="Edit"
+						onclick={() => openEditModal(season)}
+					>
+						<Pencil class="h-4 w-4" />
+					</button>
+
+          <button
+            class="btn btn-ghost btn-sm text-error"
+            title="Delete"
+            onclick={() => handleDelete(season.data.animeSeasonId)}
+          >
+            <Trash2 class="h-4 w-4" />
+          </button>
+				</div>
+			</div>
+		{:else}
+			<div class="p-8 text-center text-base-content/60">No seasons found</div>
+		{/each}
+	</div>
+</div>
+
+<!-- Add Season Modal (locked to this anime) -->
+<AddAnimeSeason
+	id="add-season-modal"
+	sForm={data.addSeasonForm}
+	anime={[data.anime]}
+	action="?/createSeason"
+	lockedAnimeId={data.anime.animeId}
+/>
+
+<!-- Edit Season Modal -->
+<EditAnimeSeason
+	id="edit-season-modal"
+	sForm={data.editSeasonForm}
+  prefill={editingSeason}
+	action="?/updateSeason"
+/>

@@ -1,8 +1,6 @@
-import { useSchedule } from './useSchedule';
 import { useWatchingWeek } from './useWatchingWeek';
 import type * as DB from '$lib/server/db';
 
-export type RawSchedule = Awaited<ReturnType<typeof useSchedule>>;
 export type Schedule = {
 	scheduleInfo: DB.Schedule;
 	scheduleEntries: ScheduleEntry[];

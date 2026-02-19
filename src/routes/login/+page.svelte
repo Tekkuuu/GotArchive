@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { signIn, signUp } from '$lib/auth';
 	import { goto } from '$app/navigation';
-	import { toast } from '$lib/components/ui/toaster';
+	import { notification } from '$lib/components/ui/toaster';
 	import { LogIn, UserPlus } from 'lucide-svelte';
 
 	let email = $state('');
@@ -19,13 +19,13 @@
 			});
 
 			if (result.error) {
-				toast.error(result.error.message || 'Failed to sign in');
+				notification.error(result.error.message || 'Failed to sign in');
 			} else {
-				toast.success('Successfully signed in!');
+				notification.success('Successfully signed in!');
 				goto('/');
 			}
 		} catch (error) {
-			toast.error('An unexpected error occurred');
+			notification.error('An unexpected error occurred');
 			console.error(error);
 		} finally {
 			loading = false;
@@ -42,13 +42,13 @@
 			});
 
 			if (result.error) {
-				toast.error(result.error.message || 'Failed to sign up');
+				notification.error(result.error.message || 'Failed to sign up');
 			} else {
-				toast.success('Successfully signed up! Please sign in.');
+				notification.success('Successfully signed up! Please sign in.');
 				isSignUp = false;
 			}
 		} catch (error) {
-			toast.error('An unexpected error occurred');
+			notification.error('An unexpected error occurred');
 			console.error(error);
 		} finally {
 			loading = false;

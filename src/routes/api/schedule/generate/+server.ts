@@ -1,8 +1,14 @@
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { generateEntries } from '$lib/server/generateScheduleEntries';
 import type { APIGenerateEntriesResponse } from '$lib/api/schedule/generate';
+import { auth } from '$lib/server/auth';
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ request, url }) => {
+	const user = (await auth.api.getSession(request))?.user;
+	if (!user || !['admin', 'moderator'].includes(user.role)) {
+		throw error(403, 'Forbidden');
+	}
+
 	const yearParam = url.searchParams.get('year');
 	const weekParam = url.searchParams.get('week');
 

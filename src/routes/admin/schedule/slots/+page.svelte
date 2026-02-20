@@ -10,8 +10,10 @@
 	import EditScheduleSlot from '$lib/components/schedule/slot/EditScheduleSlot.svelte';
   import { modalUtils } from '$lib/components/util';
   import { enhance as defaultEnhance } from '$app/forms';
-  import { toast } from '$lib/components/ui/toaster';
+  import { notification } from '$lib/components/ui/toaster';
   import { invalidateAll } from '$app/navigation';
+  import { AddScheduleSlotSchema, EditScheduleSlotSchema } from '$lib/schemas';
+  import { z } from 'zod';
 
 	let { data }: PageProps = $props();
 
@@ -19,15 +21,11 @@
   const editSlotId = 'edit-slot';
 
 	// State for add modal (used for duplication)
-	let addModalState = $state<{
-		data: any | null;
-	}>({
-		data: null
-	});
+	let addModalState = $state<z.infer<typeof AddScheduleSlotSchema>>()
 
 	// State for edit modal
 	let editModalState = $state<{
-		data: any | null;
+		data: z.infer<typeof EditScheduleSlotSchema> | null;
 		slotId: string | null;
 		slotType: string | null;
 		animeTitle: string | null;
@@ -173,24 +171,22 @@
 
 		// Set state for modal - copy all properties except IDs and active state
 		addModalState = {
-			data: {
-				dayOfWeek: slot.dayOfWeek,
-				time: slot.time,
-				type: slot.type,
-				animeId: slot.animeId,
-				startingSequence: slot.startingSequence,
-				startingEpisode: slot.startingEpisode,
-				title: slot.title,
-				description: slot.description,
-				logoUrl: slot.logoUrl,
-				episodeCount: slot.episodeCount,
-				cancelledText: slot.cancelledText,
-				note: slot.note,
-				isActive: true, // Default to active for new slot
-				platforms: platforms,
-				duplicateToDays: [], // Empty by default
-				animeSeasonId: animeSeasonId
-			}
+      dayOfWeek: slot.dayOfWeek,
+      time: slot.time,
+      type: slot.type,
+      animeId: slot.animeId,
+      startingSequence: slot.startingSequence,
+      startingEpisode: slot.startingEpisode,
+      title: slot.title,
+      description: slot.description,
+      logoUrl: slot.logoUrl,
+      episodeCount: slot.episodeCount,
+      cancelledText: slot.cancelledText,
+      note: slot.note,
+      isActive: true, // Default to active for new slot
+      platforms: platforms,
+      duplicateToDays: [], // Empty by default
+      animeSeasonId: animeSeasonId
 		};
 
 		modalUtils.openModal(addSlotId);
@@ -380,10 +376,10 @@
                         <form method="POST" action="?/toggleSlot" use:defaultEnhance={() => {
                           return async ({ result, update }) => {
                             if (result.type === 'success') {
-                              toast.success('Slot status updated successfully');
+                              notification.success('Slot status updated successfully');
                               await invalidateAll();
                             } else {
-                              toast.error('Failed to update slot status');
+                              notification.error('Failed to update slot status');
                             }
                             await update();
                           };
@@ -490,10 +486,10 @@
                       <form method="POST" action="?/toggleSlot" use:defaultEnhance={() => {
                         return async ({ result, update }) => {
                           if (result.type === 'success') {
-                            toast.success('Slot status updated successfully');
+                            notification.success('Slot status updated successfully');
                             await invalidateAll();
                           } else {
-                            toast.error('Failed to update slot status');
+                            notification.error('Failed to update slot status');
                           }
                           await update();
                         };
@@ -528,10 +524,10 @@
                         use:defaultEnhance={() => {
                           return async ({ result, update }) => {
                             if (result.type === 'success') {
-                              toast.success('Slot deleted successfully');
+                              notification.success('Slot deleted successfully');
                               await invalidateAll();
                             } else {
-                              toast.error('Failed to delete slot');
+                              notification.error('Failed to delete slot');
                             }
                             await update();
                           };
@@ -584,7 +580,7 @@
 <AddScheduleSlot
   id={addSlotId}
   sForm={data.addForm}
-  data={addModalState.data}
+  data={addModalState}
   availableAnime={data.anime}
   availableSeasons={data.animeSeasons}
   platforms={data.platforms}

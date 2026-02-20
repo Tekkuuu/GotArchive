@@ -8,7 +8,7 @@
 	import { sineInOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
   import { modalUtils } from '$lib/components/util';
-  import { toast } from '$lib/components/ui/toaster';
+  import { notification } from '$lib/components/ui/toaster';
   import { invalidateAll } from '$app/navigation';
 
   interface Props {
@@ -35,11 +35,11 @@
     resetForm: false, // Don't reset form on success
     onResult: async ({ result }) => {
       if (result.type === 'success') {
-        toast.success('Schedule slot updated successfully');
+        notification.success('Schedule slot updated successfully');
         modalUtils.closeModal(id);
         await invalidateAll();
       } else if (result.type === 'failure') {
-        toast.error(result.data?.error || 'Failed to update schedule slot');
+        notification.error(result.data?.error || 'Failed to update schedule slot');
       }
     }
   });

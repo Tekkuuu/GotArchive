@@ -1,58 +1,31 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { Plus, Pencil, Calendar, Film, LayoutGrid, Clock } from 'lucide-svelte';
-
-	let { data }: { data: PageData } = $props();
+	import { Cog, Calendar, Film, Clock } from 'lucide-svelte';
 
 	const adminRoutes = [
 		{
-			category: 'Create New',
-			icon: Plus,
+			category: 'Manage',
+			icon: Cog,
 			routes: [
 				{ 
-					name: 'New Anime', 
-					href: '/admin/new/anime', 
-					description: 'Add a new anime to the archive',
+					name: 'Anime', 
+					href: '/admin/anime', 
+					description: 'Manager anime series and seasons',
 					icon: Film
 				},
 				{ 
-					name: 'New Season', 
-					href: '/admin/new/season', 
-					description: 'Create a new season',
-					icon: LayoutGrid
-				},
-				{ 
-					name: 'New Schedule', 
+					name: 'Schedule', 
 					href: '/admin/schedule/new', 
-					description: 'Create a new schedule entry',
-					icon: Calendar
-				}
-			]
-		},
-		{
-			category: 'Edit & Manage',
-			icon: Pencil,
-			routes: [
-				{ 
-					name: 'Edit Anime', 
-					href: '/admin/edit/anime', 
-					description: 'Browse and edit existing anime',
-					icon: Film
-				},
-				{ 
-					name: 'Edit Schedule', 
-					href: '/admin/edit/schedule', 
-					description: 'Browse and edit schedules',
+					description: 'Manage schedules',
 					icon: Calendar
 				},
 				{ 
 					name: 'Schedule Slots', 
 					href: '/admin/schedule/slots', 
-					description: 'Manage schedule slot templates',
+					description: 'Manage schedule slots',
 					icon: Clock
 				}
 			]
-		}
+		},
 	];
 </script>
 
@@ -70,21 +43,21 @@
 	</div>
 
 	<!-- Admin Sections -->
-	<div class="grid gap-6 md:grid-cols-2">
+	<div class="flex flex-col">
 		{#each adminRoutes as section}
 			<div class="card bg-base-200 shadow-xl">
 				<div class="card-body">
-					<h2 class="card-title mb-4">
-            <section.icon class="h-5 w-5" />
+					<h2 class="card-title">
+            <section.icon class="size-5" />
 						{section.category}
 					</h2>
 					<div class="flex flex-col gap-3">
 						{#each section.routes as route}
-							<a href={route.href} class="card bg-base-300 hover:bg-base-100 transition-colors">
-								<div class="card-body p-4">
+							<a href={route.href} class="card bg-base-300 hover:bg-primary transition-colors">
+								<div class="card-body">
 									<div class="flex items-start gap-3">
 										<div class="mt-1">
-											<route.icon class="h-5 w-5" />
+											<route.icon class="size-5" />
 										</div>
 										<div class="flex-1">
 											<h3 class="font-semibold">{route.name}</h3>

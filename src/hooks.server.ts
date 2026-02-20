@@ -5,7 +5,7 @@ import { auth } from '$lib/server/auth';
 import { logger } from '$lib/server/logger';
 import { AppError } from '$lib/errors';
 
-export const handleError: HandleServerError = ({ error, event, status, message }) => {
+export const handleError: HandleServerError = ({ error, event, status }) => {
 	// Build request context for structured logging
 	const requestContext = {
 		url: event.url.pathname,
@@ -14,9 +14,6 @@ export const handleError: HandleServerError = ({ error, event, status, message }
 		userAgent: event.request.headers.get('user-agent'),
 		ip: event.getClientAddress()
 	};
-
-	const errorMessage =
-		message || (error instanceof Error ? error.message : 'Unknown error message');
 
 	// Handle expected application errors (AppError)
 	if (error instanceof AppError) {

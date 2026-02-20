@@ -1,8 +1,9 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { schema, db, eq, and, sql, asc } from '$lib/server/db';
 import { formatWeekRange } from '$lib/util/dateUtils';
 import { parseISO } from 'date-fns';
+import { logger } from '$lib/server/logger';
 import type {
 	ScheduleApiResponse,
 	ScheduleData,
@@ -248,7 +249,10 @@ export const GET: RequestHandler = async ({ params }) => {
 			}
 		);
 	} catch (err) {
-		console.error('Error fetching schedule:', err);
+		logger.error('Failed to fetch schedule for datecode', {
+			datecode,
+			error: err instanceof Error ? { message: err.message, stack: err.stack } : String(err)
+		});
 		return json(
 			{
 				success: false,

@@ -2,6 +2,7 @@
 	import { signIn, signUp } from '$lib/auth';
 	import { goto } from '$app/navigation';
 	import { notification } from '$lib/components/ui/toaster';
+	import { logError } from '$lib/client/logger';
 	import { LogIn, UserPlus } from 'lucide-svelte';
 
 	let email = $state('');
@@ -26,7 +27,7 @@
 			}
 		} catch (error) {
 			notification.error('An unexpected error occurred');
-			console.error(error);
+			logError('Sign-in failed unexpectedly', { error: String(error) });
 		} finally {
 			loading = false;
 		}
@@ -49,7 +50,7 @@
 			}
 		} catch (error) {
 			notification.error('An unexpected error occurred');
-			console.error(error);
+			logError('Sign-up failed unexpectedly', { error: String(error) });
 		} finally {
 			loading = false;
 		}

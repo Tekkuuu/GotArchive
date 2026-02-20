@@ -2,10 +2,15 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { generateEntries } from '$lib/server/generateScheduleEntries';
 import type { APIGenerateEntriesResponse } from '$lib/api/schedule/generate';
 import { auth } from '$lib/server/auth';
+import { logger } from '$lib/server/logger';
 
 export const GET: RequestHandler = async ({ request, url }) => {
 	const user = (await auth.api.getSession(request))?.user;
 	if (!user || !['admin', 'moderator'].includes(user.role)) {
+		logger.warn('Unauthorized access attempt to /api/schedule/generate', {
+			userId: user?.id ?? null,
+			role: user?.role ?? null
+		});
 		throw error(403, 'Forbidden');
 	}
 

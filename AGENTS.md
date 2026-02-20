@@ -179,5 +179,5 @@ npm run db:transfer  # Run data transfer script (scripts/transfer.ts)
 ## Environment
 
 Copy `.env.example` to `.env` and fill in the required values before running locally.
-Key variables: `DATABASE_URL` (PostgreSQL), `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`,
-`BETTER_AUTH_SECRET`, `QSTASH_TOKEN`, and AniList API credentials.
+Key variables: `DATABASE_URL` (PostgreSQL), `REDIS_URL` (ioredis connection string — `redis://` or
+`rediss://` for TLS), `BETTER_AUTH_SECRET`, and AniList API credentials.

@@ -8,6 +8,7 @@
 	import { getAnimeImagesStore, updateAnimeImagesStore } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
+	import { logError } from '$lib/client/logger';
 
 	const mqMaxSm = new MediaQuery('max-width: 39.999rem');
 
@@ -35,7 +36,7 @@
 	onMount(() => {
 		const ids = seasons.map((s) => s.anilistId).filter((s) => s !== null);
 		updateAnimeImagesStore(ids).catch((error) => {
-			console.error('Failed to update anime images store:', error);
+			logError('Failed to update anime images store', { error: String(error) });
 		});
 	});
 </script>

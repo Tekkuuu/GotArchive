@@ -5,6 +5,7 @@
 	import { DeleteScheduleSchema, TogglePreviewSchema } from '$lib/schemas';
 	import { superForm } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { notification } from '$lib/components/ui/toaster';
 
 	let { data }: PageProps = $props();
 
@@ -16,7 +17,10 @@
 		multipleSubmits: 'prevent',
 		onResult: async ({ result }) => {
 			if (result.type === 'success' || result.type === 'redirect') {
+				notification.success('Schedule deleted successfully');
 				await invalidateAll();
+			} else if (result.type === 'failure') {
+				notification.error(result.data?.error || 'Failed to delete schedule');
 			}
 		}
 	});
@@ -29,7 +33,10 @@
 		multipleSubmits: 'prevent',
 		onResult: async ({ result }) => {
 			if (result.type === 'success') {
+				notification.success('Schedule visibility updated');
 				await invalidateAll();
+			} else if (result.type === 'failure') {
+				notification.error('Failed to update schedule visibility');
 			}
 		}
 	});

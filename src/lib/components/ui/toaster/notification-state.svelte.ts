@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import type { Notification, NotificationType } from './types';
+import { logError } from '$lib/client/logger';
 
 const STORAGE_KEY = 'gotarchive_notifications';
 const MAX_NOTIFICATIONS = 100;
@@ -22,7 +23,7 @@ class NotificationState {
 				this.notifications = JSON.parse(stored);
 			}
 		} catch (error) {
-			console.error('Failed to load notifications from storage:', error);
+			logError('Failed to load notifications from storage', { error: String(error) });
 		}
 	}
 
@@ -34,7 +35,7 @@ class NotificationState {
 			const toSave = this.notifications.slice(-MAX_NOTIFICATIONS);
 			localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
 		} catch (error) {
-			console.error('Failed to save notifications to storage:', error);
+			logError('Failed to save notifications to storage', { error: String(error) });
 		}
 	}
 

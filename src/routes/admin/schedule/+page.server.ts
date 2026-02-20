@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { schema, db, eq, desc, sql, inArray } from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
 import { AppError, ERROR_CODES } from '$lib/errors';
+import { logger } from '$lib/server/logger';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { DeleteScheduleSchema, TogglePreviewSchema } from '$lib/schemas';
@@ -49,8 +50,10 @@ export const actions: Actions = {
 
 			return { form, success: true };
 		} catch (error) {
-			console.error('Failed to toggle preview:', error);
-			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, { cause: error });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: error,
+				context: { action: 'togglePreview' }
+			});
 		}
 	},
 
@@ -62,6 +65,8 @@ export const actions: Actions = {
 		}
 
 		try {
+			let deletedEntryCount = 0;
+
 			await db.transaction(async (tx) => {
 				const entries = await tx
 					.select({ scheduleEntryId: schema.scheduleEntry.scheduleEntryId })
@@ -69,6 +74,7 @@ export const actions: Actions = {
 					.where(eq(schema.scheduleEntry.scheduleId, form.data.scheduleId));
 
 				const entryIds = entries.map((e) => e.scheduleEntryId);
+				deletedEntryCount = entryIds.length;
 
 				if (entryIds.length > 0) {
 					await tx
@@ -89,10 +95,16 @@ export const actions: Actions = {
 					.where(eq(schema.schedule.scheduleId, form.data.scheduleId));
 			});
 
+			logger.warn('deleteSchedule: schedule and all entries permanently deleted', {
+				scheduleId: form.data.scheduleId,
+				deletedEntryCount
+			});
 			return { form, success: true };
 		} catch (error) {
-			console.error('Failed to delete schedule:', error);
-			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, { cause: error });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: error,
+				context: { action: 'deleteSchedule' }
+			});
 		}
 	}
 };

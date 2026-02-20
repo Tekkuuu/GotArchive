@@ -6,20 +6,28 @@ import {
 	ValidateDateSchema
 } from '$lib/api/schedule/exists';
 import { auth } from '$lib/server/auth';
+import { logger } from '$lib/server/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const user = (await auth.api.getSession(request))?.user;
 	if (!user || !['admin', 'moderator'].includes(user.role)) {
+		logger.warn('Unauthorized access attempt to /api/schedule/exists', {
+			userId: user?.id ?? null,
+			role: user?.role ?? null
+		});
 		throw error(403, 'Forbidden');
 	}
 
 	const { year, week }: APIValidateDateRequest = await request.json();
 
 	if (!ValidateDateSchema.safeParse({ year, week }).success) {
-		return json({
-			exists: null,
-			message: 'Invalid year or week data'
-		} satisfies APIValidateDateResponse);
+		return json(
+			{
+				exists: null,
+				message: 'Invalid year or week data'
+			} satisfies APIValidateDateResponse,
+			{ status: 400 }
+		);
 	}
 
 	const entry = await db

@@ -29,7 +29,12 @@
 		dataType: 'json',
 		validators: zod4Client(ScheduleSchema),
 		validationMethod: 'onsubmit',
-		multipleSubmits: 'prevent'
+		multipleSubmits: 'prevent',
+		onResult: ({ result }) => {
+			if (result.type === 'failure') {
+				notification.error(result.data?.error || 'Failed to create schedule');
+			}
+		}
 	});
 
 	// Track expanded weekdays and entry being edited

@@ -32,8 +32,6 @@ const transports: winston.transport[] = [
 
 // Add Logwell transport if enabled
 if (LOGWELL_ENABLED) {
-	console.log('Logwell transport enabled');
-
 	const logwell = new Logwell({
 		apiKey: LOGWELL_TOKEN!,
 		endpoint: LOGWELL_ENDPOINT!,
@@ -43,10 +41,11 @@ if (LOGWELL_ENABLED) {
 		maxQueueSize: 1000,
 		maxRetries: 3,
 		onError: (error) => {
-			console.error('Logwell error:', error);
+			// Use process.stderr directly — logger itself may be unavailable here
+			process.stderr.write(`[logger] Logwell error: ${String(error)}\n`);
 		},
-		onFlush: (count) => {
-			console.log(`Flushed ${count} logs to Logwell`);
+		onFlush: () => {
+			// Intentionally silent — flush is a normal operational event
 		}
 	});
 
@@ -69,7 +68,7 @@ export const logger = winston.createLogger({
 // Handle graceful shutdown
 if (LOGWELL_ENABLED) {
 	const shutdownHandler = async () => {
-		console.log('Shutting down logger...');
+		logger.info('Shutting down logger...');
 		try {
 			// Flush any remaining logs
 			await Promise.all(
@@ -80,9 +79,9 @@ if (LOGWELL_ENABLED) {
 					return Promise.resolve();
 				})
 			);
-			console.log('Logger shutdown complete');
+			logger.info('Logger shutdown complete');
 		} catch (error) {
-			console.error('Error during logger shutdown:', error);
+			process.stderr.write(`[logger] Error during logger shutdown: ${String(error)}\n`);
 		}
 	};
 

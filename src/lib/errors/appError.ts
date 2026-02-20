@@ -6,54 +6,72 @@ export interface AppErrorOptions {
 }
 
 /**
- * Unified application error class that replaces ServiceError, FormError, and AnilistError.
+ * Error domain, inferred from the code prefix:
  *
- * This class provides a flat structure optimized for logging to BetterStack,
- * with top-level fields that are easy to query and filter.
+ *   DB____  → 'db'       Raw database / Drizzle failures
+ *   SCH___  → 'schedule' Schedule domain (schedules, entries, slots, datecodes)
+ *   ANI___  → 'anilist'  AniList API communication
+ *   FORM__  → 'form'     Form processing & submission
+ *   AUTH__  → 'auth'     Authentication & authorisation
+ *   GEN___  → 'generic'  Unclassified fallback
+ */
+export type AppErrorDomain = 'db' | 'schedule' | 'anilist' | 'form' | 'auth' | 'generic';
+
+/**
+ * Unified application error.
+ *
+ * Wrap every server-side failure in an AppError so that `handleError` in
+ * hooks.server.ts can log a consistently structured payload to BetterStack.
  *
  * @example
  * ```typescript
- * import { AppError, ERROR_CODES } from '$lib/errors';
- *
- * // Service error
- * throw new AppError(ERROR_CODES.postgres.UNIQUE_VIOLATION, {
- *   cause: originalError,
- *   context: { tableName: 'users' }
+ * // Database failure
+ * throw new AppError(ERROR_CODES.db.TRANSACTION_FAILED, {
+ *   cause: drizzleError,
+ *   context: { operation: 'insertScheduleEntries', week: datecode }
  * });
  *
- * // Form error
- * throw new AppError(ERROR_CODES.forms.VALIDATION_FAILED, {
- *   context: { form: 'login', field: 'email' }
+ * // Domain / business logic error
+ * throw new AppError(ERROR_CODES.schedule.ALREADY_EXISTS, {
+ *   context: { datecode }
  * });
  *
- * // Anilist error
+ * // External API failure
  * throw new AppError(ERROR_CODES.anilist.NETWORK_ERROR, {
  *   cause: fetchError,
- *   context: { animeId: 12345 }
+ *   context: { variables }
+ * });
+ *
+ * // Form action catch-all
+ * throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+ *   cause: unknownError,
+ *   context: { action: 'createAnime' }
  * });
  * ```
  */
 export class AppError extends Error {
-	// Error identification
+	/** Machine-readable error code (e.g. `'SCH003'`). */
 	public readonly code: string;
-	public readonly type: 'service' | 'form' | 'anilist' | 'generic';
 
-	// HTTP context
+	/** High-level domain the error belongs to — useful for log filtering. */
+	public readonly domain: AppErrorDomain;
+
+	/** HTTP status code to return to the client. */
 	public readonly httpStatus: number;
 
-	// Temporal context
+	/** ISO-8601 timestamp at the moment the error was constructed. */
 	public readonly timestamp: string;
 
-	// Additional context (domain-specific data)
+	/**
+	 * Arbitrary key/value bag for structured logging.
+	 * Always include identifiers relevant to the failing operation
+	 * (e.g. `datecode`, `animeId`, `action`, `table`).
+	 */
 	public readonly context: Record<string, unknown>;
 
-	// Original error (for error chaining)
+	/** The original error that caused this one (supports native error chaining). */
 	public readonly cause: unknown;
 
-	/**
-	 * @param errorCode - The predefined error code object from ERROR_CODES
-	 * @param options - Optional parameters including cause and context
-	 */
 	constructor(errorCode: ErrorCode, options: AppErrorOptions = {}) {
 		super(errorCode.message, { cause: options.cause });
 
@@ -61,19 +79,9 @@ export class AppError extends Error {
 		this.code = errorCode.code;
 		this.httpStatus = errorCode.httpStatus;
 		this.timestamp = new Date().toISOString();
-		this.context = options.context || {};
+		this.context = options.context ?? {};
 		this.cause = options.cause;
-
-		// Infer error type from error code prefix
-		if (this.code.startsWith('DB') || this.code.startsWith('VAL')) {
-			this.type = 'service';
-		} else if (this.code.startsWith('FORM')) {
-			this.type = 'form';
-		} else if (this.code.startsWith('ANI')) {
-			this.type = 'anilist';
-		} else {
-			this.type = 'generic';
-		}
+		this.domain = AppError.inferDomain(errorCode.code);
 
 		if (Error.captureStackTrace) {
 			Error.captureStackTrace(this, this.constructor);
@@ -81,32 +89,43 @@ export class AppError extends Error {
 	}
 
 	/**
-	 * Convert error to a plain object for logging.
-	 * This structure is optimized for BetterStack queries.
+	 * Infer the error domain from the code prefix.
+	 * Keeps domain assignment in one place — no need to pass it manually.
 	 */
-	toJSON() {
-		const result: Record<string, any> = {
+	private static inferDomain(code: string): AppErrorDomain {
+		if (code.startsWith('DB')) return 'db';
+		if (code.startsWith('SCH')) return 'schedule';
+		if (code.startsWith('ANI')) return 'anilist';
+		if (code.startsWith('FORM')) return 'form';
+		if (code.startsWith('AUTH')) return 'auth';
+		return 'generic';
+	}
+
+	/**
+	 * Serialise to a flat object for structured logging (BetterStack / Winston).
+	 * All fields are top-level so they can be indexed and queried directly.
+	 */
+	toJSON(): Record<string, unknown> {
+		const result: Record<string, unknown> = {
 			name: this.name,
-			message: this.message,
 			code: this.code,
-			type: this.type,
+			domain: this.domain,
+			message: this.message,
 			httpStatus: this.httpStatus,
 			timestamp: this.timestamp,
 			context: this.context,
 			stack: this.stack
 		};
 
-		if (this.cause) {
-			result.cause = this.formatCause(this.cause);
+		if (this.cause !== undefined) {
+			result.cause = AppError.formatCause(this.cause);
 		}
 
 		return result;
 	}
 
-	/**
-	 * Format the cause for logging (handles Error objects and unknown types)
-	 */
-	private formatCause(cause: unknown): any {
+	/** Normalise the cause value so it serialises cleanly in logs. */
+	private static formatCause(cause: unknown): unknown {
 		if (cause instanceof Error) {
 			return {
 				name: cause.name,

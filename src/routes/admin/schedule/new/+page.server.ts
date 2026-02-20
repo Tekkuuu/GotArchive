@@ -140,8 +140,10 @@ export const actions: Actions = {
 			// Redirect to schedule list or detail page
 			return redirect(303, `/admin/schedule`);
 		} catch (error) {
-			console.error('Failed to create schedule:', error);
-			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, { cause: error });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: error,
+				context: { action: 'createSchedule' }
+			});
 		}
 	}
 };

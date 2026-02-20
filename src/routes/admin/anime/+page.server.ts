@@ -105,8 +105,8 @@ export const actions: Actions = {
 				).at(0)?.animeId;
 
 				if (!animeId) {
-					throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-						context: { form: 'new-anime' }
+					throw new AppError(ERROR_CODES.db.INSERT_FAILED, {
+						context: { table: 'anime', operation: 'createAnime' }
 					});
 				}
 
@@ -132,17 +132,17 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			if (!(err instanceof AppError)) {
-				logger.error({
-					msg: 'Unexpected error in createAnime',
-					url: url.pathname,
-					error:
-						err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err
+			if (err instanceof AppError) {
+				logger.error('createAnime: DB insert returned no ID', {
+					code: err.code,
+					context: { action: 'createAnime' }
 				});
+				return fail(err.httpStatus, { form, text: err.message });
 			}
-			if (err instanceof AppError) return fail(err.httpStatus, { form, text: err.message });
-			if (err instanceof Error) return fail(500, { form, text: err.message });
-			return fail(500, { form, text: 'Unexpected error occurred' });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'createAnime', url: url.pathname }
+			});
 		}
 	},
 	updateAnime: async ({ request }) => {
@@ -186,8 +186,10 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			logger.error({ msg: 'Error in updateAnime', error: err });
-			return fail(500, { form, text: 'Failed to update anime' });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'updateAnime' }
+			});
 		}
 	},
 	deleteAnime: async ({ request }) => {
@@ -249,10 +251,16 @@ export const actions: Actions = {
 				await tx.delete(schema.anime).where(eq(schema.anime.animeId, form.data.animeId));
 			});
 
+			logger.warn('deleteAnime: anime and all associated data permanently deleted', {
+				animeId: form.data.animeId,
+				seasonCount: seasons.length
+			});
 			return { success: true };
 		} catch (err) {
-			logger.error({ msg: 'Error in deleteAnime', error: err });
-			return fail(500, { form, text: 'Failed to delete anime' });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'deleteAnime' }
+			});
 		}
 	},
 	createSeason: async ({ request, url }) => {
@@ -282,8 +290,8 @@ export const actions: Actions = {
 				).at(0)?.animeSeasonId;
 
 				if (!animeSeasonId) {
-					throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-						context: { form: 'new-season' }
+					throw new AppError(ERROR_CODES.db.INSERT_FAILED, {
+						context: { table: 'animeSeason', operation: 'createSeason' }
 					});
 				}
 
@@ -297,17 +305,17 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			if (!(err instanceof AppError)) {
-				logger.error({
-					msg: 'Unexpected error in createSeason',
-					url: url.pathname,
-					error:
-						err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err
+			if (err instanceof AppError) {
+				logger.error('createSeason: DB insert returned no ID', {
+					code: err.code,
+					context: { action: 'createSeason' }
 				});
+				return fail(err.httpStatus, { form, text: err.message });
 			}
-			if (err instanceof AppError) return fail(err.httpStatus, { form, text: err.message });
-			if (err instanceof Error) return fail(500, { form, text: err.message });
-			return fail(500, { form, text: 'Unexpected error occurred' });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'createSeason', url: url.pathname }
+			});
 		}
 	}
 };

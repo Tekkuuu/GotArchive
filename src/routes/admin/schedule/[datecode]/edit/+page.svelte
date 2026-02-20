@@ -18,6 +18,7 @@
 	import { modalUtils } from '$lib/components/util';
 	import { enhance as defaultEnhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { notification } from '$lib/components/ui/toaster';
 
 	let { data }: PageProps = $props();
 
@@ -45,8 +46,6 @@
 			number,
 			Array<{ entry: (typeof data.entries)[number]; index: number }>
 		>();
-
-    console.log("Data", data.entries)
 
 		data.entries.forEach((entryData, index) => {
 			const entry = entryData.entry;
@@ -121,15 +120,23 @@
 		formData.append('anime', JSON.stringify(updatedData.anime));
 		formData.append('platforms', JSON.stringify(updatedData.platforms));
 
-		const response = await fetch('?/updateEntry', {
-			method: 'POST',
-			body: formData
-		});
+		try {
+			const response = await fetch('?/updateEntry', {
+				method: 'POST',
+				body: formData
+			});
 
-		if (response.ok) {
-			await invalidateAll();
-			editingEntryIndex = null;
-			editingEntry = null;
+			if (response.ok) {
+				await invalidateAll();
+				editingEntryIndex = null;
+				editingEntry = null;
+				notification.success('Entry updated');
+			} else {
+				const result = await response.json();
+				notification.error(result?.data?.error || 'Failed to update entry');
+			}
+		} catch {
+			notification.error('Network error while updating entry');
 		}
 	}
 
@@ -195,16 +202,21 @@
 		formData.append('anime', JSON.stringify(newEntry.anime));
 		formData.append('platforms', JSON.stringify(newEntry.platforms));
 
-		const response = await fetch('?/addEntry', {
-			method: 'POST',
-			body: formData
-		});
+		try {
+			const response = await fetch('?/addEntry', {
+				method: 'POST',
+				body: formData
+			});
 
-		if (response.ok) {
-			await invalidateAll();
-		} else {
-			const result = await response.json();
-			alert(result.error || 'Failed to add entry');
+			if (response.ok) {
+				await invalidateAll();
+				notification.success('Entry added');
+			} else {
+				const result = await response.json();
+				notification.error(result?.data?.error || 'Failed to add entry');
+			}
+		} catch {
+			notification.error('Network error while adding entry');
 		}
 	}
 
@@ -357,7 +369,6 @@
 											</div>
 											<div class="badge {getTypeColor(entry.type)}">{entry.type}</div>
 											{#if entryData.animeSeasons && entryData.animeSeasons.length > 0}
-                        {console.log(entryData)}
 												<div class="flex flex-col gap-0 list-col-grow">
 													{#each formatAnimeInfo(entryData.animeSeasons) as animeInfo}
 														<span class="text-sm font-medium">
@@ -376,9 +387,14 @@
 													method="POST"
 													action="?/updateEntry"
 													use:defaultEnhance={() => {
-														return async ({ update }) => {
+														return async ({ result, update }) => {
 															await update();
 															await invalidateAll();
+															if (result.type === 'success') {
+																notification.success(entry.isCancelled ? 'Entry uncancelled' : 'Entry cancelled');
+															} else if (result.type === 'error' || result.type === 'failure') {
+																notification.error('Failed to update entry');
+															}
 														};
 													}}
 												>
@@ -416,9 +432,14 @@
 													method="POST"
 													action="?/deleteEntry"
 													use:defaultEnhance={() => {
-														return async ({ update }) => {
+														return async ({ result, update }) => {
 															await update();
 															await invalidateAll();
+															if (result.type === 'success') {
+																notification.success('Entry deleted');
+															} else if (result.type === 'error' || result.type === 'failure') {
+																notification.error('Failed to delete entry');
+															}
 														};
 													}}
 												>

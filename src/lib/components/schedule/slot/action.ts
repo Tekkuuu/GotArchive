@@ -35,7 +35,6 @@ export async function createScheduleSlot(data: z.infer<typeof AddScheduleSlotSch
 		});
 	} catch (e) {
 		logger.error({ msg: 'Error creating schedule slot', error: e, data });
-		console.error('Error creating schedule slot:', e, 'Data:', data);
 		return { success: false, error: e };
 	}
 }

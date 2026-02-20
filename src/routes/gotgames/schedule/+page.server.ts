@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { schema, db, eq, and, sql, asc } from '$lib/server/db';
+import { logger } from '$lib/server/logger';
 import { formatWeekRange } from '$lib/util/dateUtils';
 import { getISOWeek, getISOWeekYear, parseISO } from 'date-fns';
 import type { SchedulePageData } from './types';
@@ -219,7 +220,9 @@ export const load: PageServerLoad = async () => {
 
 		return pageData;
 	} catch (err) {
-		console.error('Error loading schedule page:', err);
+		logger.error('Failed to load schedule page', {
+			error: err instanceof Error ? { message: err.message, stack: err.stack } : String(err)
+		});
 		throw error(500, {
 			message: 'Failed to load schedule'
 		});

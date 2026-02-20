@@ -5,8 +5,7 @@ import { error, fail } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { EditSeasonFormSchema } from '$lib/schemas';
-import { ERROR_CODES } from '$lib/errors';
-import { logger } from '$lib/server/logger';
+import { ERROR_CODES, AppError } from '$lib/errors';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const seasonId = params.seasonId;
@@ -102,8 +101,10 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			logger.error({ msg: 'Error in updateSeason', error: err });
-			return fail(500, { form, text: 'Failed to update season' });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'updateSeason' }
+			});
 		}
 	}
 };

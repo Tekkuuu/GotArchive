@@ -74,8 +74,8 @@ export const actions: Actions = {
 				).at(0)?.animeSeasonId;
 
 				if (!animeSeasonId) {
-					throw new AppError(ERROR_CODES.forms.REFERENCED_RESOURCE_NOT_FOUND, {
-						context: { form: 'new-season' }
+					throw new AppError(ERROR_CODES.db.INSERT_FAILED, {
+						context: { table: 'animeSeason', operation: 'createSeason' }
 					});
 				}
 
@@ -89,17 +89,17 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			if (!(err instanceof AppError)) {
-				logger.error({
-					msg: 'Unexpected error in createSeason',
-					url: url.pathname,
-					error:
-						err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err
+			if (err instanceof AppError) {
+				logger.error('createSeason: DB insert returned no ID', {
+					code: err.code,
+					context: { action: 'createSeason', seriesId: url.pathname }
 				});
+				return fail(err.httpStatus, { form, text: err.message });
 			}
-			if (err instanceof AppError) return fail(err.httpStatus, { form, text: err.message });
-			if (err instanceof Error) return fail(500, { form, text: err.message });
-			return fail(500, { form, text: 'Unexpected error occurred' });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'createSeason', url: url.pathname }
+			});
 		}
 	},
 	updateSeason: async ({ request }) => {
@@ -138,8 +138,10 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			logger.error({ msg: 'Error in updateSeason', error: err });
-			return fail(500, { form, text: 'Failed to update season' });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'updateSeason' }
+			});
 		}
 	},
 	deleteSeason: async ({ request }) => {
@@ -180,8 +182,10 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			logger.error({ msg: 'Error in deleteSeason', error: err });
-			return fail(500, { text: 'Failed to delete season' });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'deleteSeason' }
+			});
 		}
 	}
 };

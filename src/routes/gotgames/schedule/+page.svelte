@@ -11,6 +11,8 @@
     getPlatformDisplayName,
 	} from './util';
   import { WEEKDAYS } from '$lib/schemas';
+  import { notification } from '$lib/components/ui/toaster';
+  import { logError } from '$lib/client/logger';
 
 	let { data }: PageProps = $props();
 
@@ -84,8 +86,9 @@
 			// Update browser history
 			history.pushState({ year, week }, '', `/gotgames/schedule?year=${year}&week=${week}`);
 		} catch (err) {
-			console.error('Error fetching schedule:', err);
+			logError('Error fetching schedule', { error: String(err) });
 			errorMessage = 'Network error while loading schedule';
+			notification.error('Network error while loading schedule');
 		} finally {
 			loading = false;
 		}

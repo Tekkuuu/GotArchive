@@ -5,6 +5,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { parseISO, setISOWeek, setISOWeekYear, format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { AppError, ERROR_CODES } from '$lib/errors';
+import { logger } from '$lib/server/logger';
 import { EditScheduleMetadataSchema } from '$lib/schemas';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -190,6 +191,14 @@ export const actions: Actions = {
 
 				// Redirect to new datecode
 				const newDatecode = `${form.data.year}${form.data.week.toString().padStart(2, '0')}`;
+				logger.warn(
+					'updateMetadata: schedule rekeyed to new year/week, all entry dates recalculated',
+					{
+						oldDatecode: datecode,
+						newDatecode,
+						entryCount: entries.length
+					}
+				);
 				return redirect(303, `/admin/schedule/${newDatecode}/edit`);
 			} else {
 				// Only update note
@@ -201,8 +210,10 @@ export const actions: Actions = {
 
 			return { form };
 		} catch (err) {
-			console.error('Failed to update schedule metadata:', err);
-			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, { cause: err });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'updateMetadata', datecode }
+			});
 		}
 	},
 
@@ -291,8 +302,10 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			console.error('Failed to update entry:', err);
-			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, { cause: err });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'updateEntry', scheduleEntryId }
+			});
 		}
 	},
 
@@ -322,10 +335,13 @@ export const actions: Actions = {
 					.where(eq(schema.scheduleEntry.scheduleEntryId, scheduleEntryId));
 			});
 
+			logger.warn('deleteEntry: schedule entry permanently deleted', { scheduleEntryId });
 			return { success: true };
 		} catch (err) {
-			console.error('Failed to delete entry:', err);
-			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, { cause: err });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'deleteEntry', scheduleEntryId }
+			});
 		}
 	},
 	addEntry: async ({ request, params }) => {
@@ -420,8 +436,10 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			console.error('Failed to add entry:', err);
-			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, { cause: err });
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'addEntry', datecode }
+			});
 		}
 	}
 };

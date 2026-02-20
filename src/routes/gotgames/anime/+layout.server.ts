@@ -2,6 +2,8 @@ import type { LayoutServerLoad } from './$types';
 import { schema } from '$lib/server/db';
 import { db } from '$lib/server/db';
 import { eq, sql, sum } from 'drizzle-orm';
+import { error } from '@sveltejs/kit';
+import { logger } from '$lib/server/logger';
 
 export const load: LayoutServerLoad = async () => {
 	const mainSeason = db.$with('mainSeason').as(
@@ -47,38 +49,45 @@ export const load: LayoutServerLoad = async () => {
     )
   `;
 
-	const data = await db
-		.with(mainSeason, animeEpisodes)
-		.select({
-			animeId: schema.anime.animeId,
-			titleNative: schema.anime.titleNative,
-			titleRomaji: schema.anime.titleRomaji,
-			titleEnglish: schema.anime.titleEnglish,
-			genres: sql<Array<string>>`ARRAY_AGG(DISTINCT ${schema.genre.name})`,
-			links: links,
-			totalEpisodes: animeEpisodes.totalEpisodes,
-			totalEpisodesWatched: animeEpisodes.totalEpisodesWatched,
-			external: sql<{
-				anilistId: number | null;
-				malId: number | null;
-			}>`json_build_object('anilistId', ${mainSeason.anilistId}, 'malId', ${mainSeason.malId})`
-		})
-		.from(schema.anime)
-		.innerJoin(animeEpisodes, eq(animeEpisodes.animeId, schema.anime.animeId))
-		.innerJoin(mainSeason, eq(mainSeason.animeId, schema.anime.animeId))
-		.innerJoin(schema.animeGenre, eq(schema.anime.animeId, schema.animeGenre.animeId))
-		.innerJoin(schema.genre, eq(schema.genre.genreId, schema.animeGenre.genreId))
-		.leftJoin(schema.animeLink, eq(schema.animeLink.animeId, schema.anime.animeId))
-		.groupBy(
-			schema.anime.animeId,
-			schema.anime.titleNative,
-			schema.anime.titleRomaji,
-			schema.anime.titleEnglish,
-			mainSeason.anilistId,
-			mainSeason.malId,
-			animeEpisodes.totalEpisodes,
-			animeEpisodes.totalEpisodesWatched
-		);
+	try {
+		const data = await db
+			.with(mainSeason, animeEpisodes)
+			.select({
+				animeId: schema.anime.animeId,
+				titleNative: schema.anime.titleNative,
+				titleRomaji: schema.anime.titleRomaji,
+				titleEnglish: schema.anime.titleEnglish,
+				genres: sql<Array<string>>`ARRAY_AGG(DISTINCT ${schema.genre.name})`,
+				links: links,
+				totalEpisodes: animeEpisodes.totalEpisodes,
+				totalEpisodesWatched: animeEpisodes.totalEpisodesWatched,
+				external: sql<{
+					anilistId: number | null;
+					malId: number | null;
+				}>`json_build_object('anilistId', ${mainSeason.anilistId}, 'malId', ${mainSeason.malId})`
+			})
+			.from(schema.anime)
+			.innerJoin(animeEpisodes, eq(animeEpisodes.animeId, schema.anime.animeId))
+			.innerJoin(mainSeason, eq(mainSeason.animeId, schema.anime.animeId))
+			.innerJoin(schema.animeGenre, eq(schema.anime.animeId, schema.animeGenre.animeId))
+			.innerJoin(schema.genre, eq(schema.genre.genreId, schema.animeGenre.genreId))
+			.leftJoin(schema.animeLink, eq(schema.animeLink.animeId, schema.anime.animeId))
+			.groupBy(
+				schema.anime.animeId,
+				schema.anime.titleNative,
+				schema.anime.titleRomaji,
+				schema.anime.titleEnglish,
+				mainSeason.anilistId,
+				mainSeason.malId,
+				animeEpisodes.totalEpisodes,
+				animeEpisodes.totalEpisodesWatched
+			);
 
-	return { anime: data };
+		return { anime: data };
+	} catch (err) {
+		logger.error('Failed to load anime layout data', {
+			error: err instanceof Error ? { message: err.message, stack: err.stack } : String(err)
+		});
+		throw error(500, 'Failed to load anime data');
+	}
 };

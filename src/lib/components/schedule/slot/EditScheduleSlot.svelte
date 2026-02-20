@@ -3,7 +3,7 @@
   import type { SuperValidated, Infer } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
   import { zod4Client } from 'sveltekit-superforms/adapters';
-  import type { Platform } from '$lib/server/db';
+  import type { AnimeSeason, Platform } from '$lib/server/db';
 	import { Info, Save, X, Lock } from 'lucide-svelte';
 	import { sineInOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
@@ -16,15 +16,14 @@
     sForm: SuperValidated<Infer<typeof EditScheduleSlotSchema>>;
     action: string;
     data: Infer<typeof EditScheduleSlotSchema> | null;
+    animeSeasons: AnimeSeason[];
     slotId: string | null;
     slotType: string | null;
-    animeTitle: string | null;
-    startingSeasonTitle: string | null;
-    startingEpisode: number | null;
+    anime: {animeId: string, animeTitle: string | null};
     platforms?: Platform[];
   }
 
-  let { id, sForm, action, data, slotId, slotType, animeTitle, startingSeasonTitle, startingEpisode, platforms }: Props = $props();
+  let { id, sForm, action, data, animeSeasons, slotId, slotType, anime, platforms }: Props = $props();
 
   // svelte-ignore state_referenced_locally
   const { form, enhance } = superForm(sForm, {
@@ -54,7 +53,7 @@
 </script>
 
 <dialog class="modal" {id}>
-  <div class="modal-box max-w-4xl bg-base-200">
+  <div class="modal-box container bg-base-200">
     <form use:enhance method="post" {action} class="space-y-4">
       <!-- Hidden slot ID -->
       <input type="hidden" name="slotId" value={slotId || ''} />
@@ -82,20 +81,8 @@
             {#if slotType === 'anime'}
               <div class="flex flex-col gap-1 p-2 bg-base-200/50 rounded">
                 <span class="text-xs text-base-content/60">Anime</span>
-                <span class="font-medium">{animeTitle || 'Not set'}</span>
+                <span class="font-medium">{anime.animeTitle || 'Not set'}</span>
               </div>
-              {#if startingSeasonTitle !== null}
-                <div class="flex flex-col gap-1 p-2 bg-base-200/50 rounded">
-                  <span class="text-xs text-base-content/60">Starting Season</span>
-                  <span class="font-medium">{startingSeasonTitle}</span>
-                </div>
-              {/if}
-              {#if startingEpisode !== null}
-                <div class="flex flex-col gap-1 p-2 bg-base-200/50 rounded">
-                  <span class="text-xs text-base-content/60">Starting Episode</span>
-                  <span class="font-medium">Episode {startingEpisode}</span>
-                </div>
-              {/if}
             {/if}
           </div>
           <div class="text-xs text-base-content/50 flex items-center gap-1 mt-1">
@@ -104,6 +91,41 @@
           </div>
         </div>
       </div>
+
+      {#if slotType === 'anime'}
+        <!-- Force Restart Card -->
+        <div class="card bg-base-300">
+          <div class="card-body p-4">
+            <h3 class="font-bold mb-1">Force Restart</h3>
+            <p class="text-xs text-base-content/60 mb-2">
+              Set these to override history and force the next generated schedule to start from a
+              specific season and episode. They will be cleared automatically after the schedule is saved.
+              Leave both empty to continue from history.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <label class="select w-full">
+                <span class="label">Season</span>
+                <select bind:value={$form.startingSequence}>
+                  <option value={null}>Use latest</option>
+                  {#each animeSeasons.filter(s => s.animeId === anime.animeId) as s}
+                    <option value={s.sequence}>{s.titleEnglish || s.titleRomaji || s.titleNative || s.sequence}</option>
+                  {/each}
+                </select>
+              </label>
+              <label class="input w-full">
+                <span class="label">Episode</span>
+                <input
+                  type="text"
+                  bind:value={
+                    () => $form.startingEpisode ?? '',
+                    (v) => ($form.startingEpisode = v === '' ? null : Number(v))
+                  }
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      {/if}
 
       <!-- Basic Info Card -->
       <div class="card bg-base-300">

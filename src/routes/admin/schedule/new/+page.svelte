@@ -14,10 +14,11 @@
 		Plus,
 		Edit
 	} from 'lucide-svelte';
-	import { format, parseISO, setISOWeek, setISOWeekYear } from 'date-fns';
+	import { format, parseISO } from 'date-fns';
   import { AddScheduleEntry, EditScheduleEntry, type EditScheduleEntryData, type NewScheduleEntryData } from '$lib/components/schedule/new';
 	import { modalUtils } from '$lib/components/util';
   import { type APIValidateDateResponse } from '$lib/api/schedule/exists';
+  import { type APIGenerateEntriesResponse } from '$lib/api/schedule/generate';
   import { notification } from '$lib/components/ui/toaster';
 	import { onMount } from 'svelte';
 
@@ -164,29 +165,29 @@
 	}
 
   async function validateScheduleDate() {
-    let response = await fetch('/api/schedule/exists', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        year: $form.schedule.year,
-        week: $form.schedule.week
-      })
-    });
+    const year = $form.schedule.year;
+    const week = $form.schedule.week;
 
-    if (response.ok) {
-      const data: APIValidateDateResponse = await response.json();
-      if (data.exists) {
+    const [existsResponse, generateResponse] = await Promise.all([
+      fetch('/api/schedule/exists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year, week })
+      }),
+      fetch(`/api/schedule/generate?year=${year}&week=${week}`)
+    ]);
+
+    if (existsResponse.ok) {
+      const existsData: APIValidateDateResponse = await existsResponse.json();
+      if (existsData.exists) {
         notification.info("A schedule for this year and week already exists. Creating it won't be possible");
-      } else {
-        for (let i = 0; i < $form.entries.length; i++) {
-          let d = parseISO($form.entries[i].date);
-          d = setISOWeekYear(d, $form.schedule.year);
-          d = setISOWeek(d, $form.schedule.week);
-          $form.entries[i].date = format(d, 'yyyy-MM-dd');
-        }
       }
+    }
+
+    if (generateResponse.ok) {
+      const generateData: APIGenerateEntriesResponse = await generateResponse.json();
+      $form.entries = generateData.entries;
+      $form.slotsToReset = generateData.slotsToReset;
     }
   }
 

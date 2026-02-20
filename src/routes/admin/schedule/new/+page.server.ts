@@ -1,193 +1,44 @@
 import type { PageServerLoad, Actions } from './$types';
-import { schema, db, eq, asc, sql } from '$lib/server/db';
+import { schema, db, asc, sql, inArray } from '$lib/server/db';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { ScheduleSchema } from './util';
-import { getWeek, getYear, startOfWeek, addDays, format } from 'date-fns';
+import { getWeek, getYear } from 'date-fns';
 import { fail, redirect } from '@sveltejs/kit';
 import { AppError, ERROR_CODES } from '$lib/errors';
+import { generateEntries } from '$lib/server/generateScheduleEntries';
 
 export const load: PageServerLoad = async () => {
-	// Load all active schedule slots with their platforms and anime info
-	const slots = await db
-		.select({
-			slot: schema.scheduleSlot,
-			anime: schema.anime,
-			platforms: sql<
-				Array<string>
-			>`array_agg(${schema.platform.platformId} ORDER BY ${schema.platform.name} ASC)`
-		})
-		.from(schema.scheduleSlot)
-		.leftJoin(schema.anime, eq(schema.scheduleSlot.animeId, schema.anime.animeId))
-		.leftJoin(
-			schema.scheduleSlotPlatform,
-			eq(schema.scheduleSlot.scheduleSlotId, schema.scheduleSlotPlatform.scheduleSlotId)
-		)
-		.leftJoin(
-			schema.platform,
-			eq(schema.scheduleSlotPlatform.platformId, schema.platform.platformId)
-		)
-		.where(eq(schema.scheduleSlot.isActive, true))
-		.groupBy(schema.scheduleSlot.scheduleSlotId, schema.anime.animeId)
-		.orderBy(asc(schema.scheduleSlot.dayOfWeek), asc(schema.scheduleSlot.time));
-
-	// Load all anime seasons
-	const animeSeasons = await db
-		.select()
-		.from(schema.animeSeason)
-		.orderBy(asc(schema.animeSeason.animeId), asc(schema.animeSeason.sequence));
-
-	// Load all platforms
-	const platforms = await db.select().from(schema.platform).orderBy(asc(schema.platform.name));
-
-	// Calculate the current week and year
 	const now = new Date();
-	const currentWeek = getWeek(now, { weekStartsOn: 1 }); // Monday = 1
+	const currentWeek = getWeek(now, { weekStartsOn: 1 });
 	const currentYear = getYear(now);
+	const targetWeek = currentWeek + 1;
+	const targetYear = currentWeek === 52 || currentWeek === 53 ? currentYear + 1 : currentYear;
 
-	// Calculate entries for each slot based on episode progression
-	const animeProgress = new Map<string, { sequence: number; episode: number }>();
-	const entries = [];
+	const [{ entries, slotsToReset }, animeSeasons, platforms] = await Promise.all([
+		generateEntries(targetYear, targetWeek),
+		db
+			.select()
+			.from(schema.animeSeason)
+			.orderBy(asc(schema.animeSeason.animeId), asc(schema.animeSeason.sequence)),
+		db.select().from(schema.platform).orderBy(asc(schema.platform.name))
+	]);
 
-	// Sort slots by day and time
-	const sortedSlots = [...slots].sort((a, b) => {
-		if (a.slot.dayOfWeek !== b.slot.dayOfWeek) {
-			return a.slot.dayOfWeek - b.slot.dayOfWeek;
-		}
-		if (a.slot.time && b.slot.time) {
-			return a.slot.time.localeCompare(b.slot.time);
-		}
-		return 0;
-	});
-
-	// Get the start of the week (Monday)
-	const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-
-	for (const slotData of sortedSlots) {
-		const { slot } = slotData;
-
-		// Calculate the date for this slot (dayOfWeek: 0=Monday, 1=Tuesday, ..., 6=Sunday)
-		const dayOffset = slot.dayOfWeek;
-		const entryDate = addDays(weekStart, dayOffset);
-		const dateStr = format(entryDate, 'yyyy-MM-dd');
-
-		// Get platform IDs (filter out nulls)
-		const platformIds = slotData.platforms?.filter((id): id is string => id !== null) || [];
-
-		if (slot.type === 'anime' && slot.animeId && slot.startingSequence && slot.startingEpisode) {
-			// Initialize progress if not set
-			if (!animeProgress.has(slot.animeId)) {
-				animeProgress.set(slot.animeId, {
-					sequence: slot.startingSequence,
-					episode: slot.startingEpisode
-				});
-			}
-
-			const currentProgress = animeProgress.get(slot.animeId)!;
-			const epCount = slot.episodeCount || 1;
-
-			// Get anime seasons for this anime
-			const animeSeasonsForAnime = animeSeasons.filter((s) => s.animeId === slot.animeId);
-
-			// Build anime season entries (may span multiple seasons)
-			const animeSeasonEntries: Array<{ animeSeasonId: string; episodes: string }> = [];
-			let remainingEpisodes = epCount;
-			let currentEpisode = currentProgress.episode;
-			let currentSeq = currentProgress.sequence;
-
-			while (remainingEpisodes > 0) {
-				const currentSeason = animeSeasonsForAnime.find((s) => s.sequence === currentSeq);
-
-				if (!currentSeason) {
-					// No more seasons available
-					break;
-				}
-
-				const seasonMaxEpisodes = currentSeason.episodes || 1;
-				const episodesInCurrentSeason = Math.min(
-					remainingEpisodes,
-					seasonMaxEpisodes - currentEpisode + 1
-				);
-
-				if (episodesInCurrentSeason > 0) {
-					const episodeStart = currentEpisode;
-					const episodeEnd = currentEpisode + episodesInCurrentSeason - 1;
-
-					animeSeasonEntries.push({
-						animeSeasonId: currentSeason.animeSeasonId,
-						episodes:
-							episodeStart === episodeEnd ? `${episodeStart}` : `${episodeStart}-${episodeEnd}`
-					});
-
-					remainingEpisodes -= episodesInCurrentSeason;
-
-					// Move to next season if we've exhausted this one
-					if (episodeEnd >= seasonMaxEpisodes) {
-						currentSeq++;
-						currentEpisode = 1;
-					} else {
-						currentEpisode = episodeEnd + 1;
-					}
-				} else {
-					// Edge case: no episodes fit in current season
-					currentSeq++;
-					currentEpisode = 1;
-				}
-			}
-
-			// Create entry
-			entries.push({
-				type: 'anime' as const,
-				date: dateStr,
-				time: slot.time,
-				note: slot.note,
-				logoUrl: slot.logoUrl,
-				title: slot.title,
-				description: slot.description,
-				cancelledText: slot.cancelledText,
-				isCancelled: false,
-				anime: animeSeasonEntries.length > 0 ? animeSeasonEntries : null,
-				platforms: platformIds.length > 0 ? platformIds : null,
-				slotId: slot.scheduleSlotId
-			});
-
-			// Update progress to the next episode
-			currentProgress.sequence = currentSeq;
-			currentProgress.episode = currentEpisode;
-		} else {
-			// Non-anime entry
-			entries.push({
-				type: slot.type || 'misc',
-				date: dateStr,
-				time: slot.time,
-				note: slot.note,
-				logoUrl: slot.logoUrl,
-				title: slot.title,
-				description: slot.description,
-				cancelledText: slot.cancelledText,
-				isCancelled: false,
-				anime: null,
-				platforms: platformIds.length > 0 ? platformIds : null,
-				slotId: slot.scheduleSlotId
-			});
-		}
-	}
-
-	// Prefill the form
 	const form = await superValidate(
 		{
 			schedule: {
-				year: currentYear,
-				week: currentWeek + 1,
+				year: targetYear,
+				week: targetWeek,
 				note: '',
 				preview: true
 			},
-			entries
+			entries,
+			slotsToReset
 		},
 		zod4(ScheduleSchema)
 	);
 
-	return { form, slots, animeSeasons, platforms };
+	return { form, animeSeasons, platforms };
 };
 
 export const actions: Actions = {
@@ -276,6 +127,15 @@ export const actions: Actions = {
 					}
 				}
 			});
+
+			// Clear startingSequence/startingEpisode on all slots that were used as
+			// force-restart / bootstrap overrides during generation
+			if (form.data.slotsToReset.length > 0) {
+				await db
+					.update(schema.scheduleSlot)
+					.set({ startingSequence: null, startingEpisode: null })
+					.where(inArray(schema.scheduleSlot.scheduleSlotId, form.data.slotsToReset));
+			}
 
 			// Redirect to schedule list or detail page
 			return redirect(303, `/admin/schedule`);

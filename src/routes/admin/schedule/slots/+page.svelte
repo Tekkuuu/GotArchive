@@ -29,20 +29,17 @@
 		slotId: string | null;
 		slotType: string | null;
 		animeTitle: string | null;
-		startingSeasonTitle: string | null;
-		startingEpisode: number | null;
+    animeId: string;
 	}>({ 
 		data: null,
 		slotId: null, 
 		slotType: null, 
 		animeTitle: null,
-		startingSeasonTitle: null,
-		startingEpisode: null
+    animeId: '',
 	});
 
 	// Reactive access to data properties
 	let slots = $derived(data.slots);
-	let animeSeasons = $derived(data.animeSeasons);
 
 	// Helper to get color for type badge
 	function getTypeColor(type: string): string {
@@ -84,14 +81,6 @@
 			})
 			.filter((p): p is { platformId: string } => p !== null);
 
-		// Find the animeSeasonId based on animeId and startingSequence
-		const animeSeasonId = slot.animeId && slot.startingSequence
-			? animeSeasons.find(
-					(season) =>
-						season.animeId === slot.animeId && season.sequence === slot.startingSequence
-			  )?.animeSeasonId || null
-			: null;
-
 		// Set state for modal - copy all properties except IDs and active state
 		addModalState = {
       dayOfWeek: slot.dayOfWeek,
@@ -109,7 +98,6 @@
       isActive: true, // Default to active for new slot
       platforms: platforms,
       duplicateToDays: [], // Empty by default
-      animeSeasonId: animeSeasonId
 		};
 
 		modalUtils.openModal(addSlotId);
@@ -127,14 +115,6 @@
 			})
 			.filter((p): p is { platformId: string } => p !== null);
 
-		// Get season title if this is an anime slot
-		const startingSeasonTitle = slot.startingSequence && slot.animeId
-			? animeSeasons.find(
-					(season) =>
-						season.animeId === slot.animeId && season.sequence === slot.startingSequence
-			  )?.titleEnglish || null
-			: null;
-
 		// Set state for modal display
 		editModalState = {
 			data: {
@@ -146,13 +126,14 @@
 				episodeCount: slot.episodeCount,
 				cancelledText: slot.cancelledText,
 				note: slot.note,
-				platforms: platforms
+				startingSequence: slot.startingSequence,
+				startingEpisode: slot.startingEpisode,
+				platforms
 			},
 			slotId: slot.scheduleSlotId,
 			slotType: slot.type,
 			animeTitle: anime?.titleEnglish || anime?.titleRomaji || anime?.titleNative || null,
-			startingSeasonTitle,
-			startingEpisode: slot.startingEpisode
+      animeId: slot.animeId || ''
 		};
 
 		modalUtils.openModal(editSlotId);
@@ -502,10 +483,12 @@
   sForm={data.editForm}
   action="?/editSlot"
   data={editModalState.data}
+  animeSeasons={data.animeSeasons}
   slotId={editModalState.slotId}
   slotType={editModalState.slotType}
-  animeTitle={editModalState.animeTitle}
-  startingSeasonTitle={editModalState.startingSeasonTitle}
-  startingEpisode={editModalState.startingEpisode}
+  anime={({
+    animeTitle: editModalState.animeTitle,
+    animeId: editModalState.animeId
+  })}
   platforms={data.platforms}
 />

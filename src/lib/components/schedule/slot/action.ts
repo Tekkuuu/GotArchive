@@ -8,9 +8,14 @@ export async function createScheduleSlot(data: z.infer<typeof AddScheduleSlotSch
 	try {
 		await db.transaction(async (tx) => {
 			logger.info({ msg: 'Creating schedule slot', data });
-			const dups = [data.dayOfWeek, ...data.duplicateToDays];
-			const pureSlot = _.omit(data, ['duplicateToDays', 'animeSeasonId', 'platforms']);
-			const slots = dups.map((day) => ({ ...pureSlot, dayOfWeek: day }));
+			const dups = [...new Set([data.dayOfWeek, ...data.duplicateToDays])].sort((a, b) => a - b);
+			const pureSlot = _.omit(data, ['duplicateToDays', 'platforms']);
+			const lowestDay = dups[0];
+			const slots = dups.map((day) =>
+				day === lowestDay
+					? { ...pureSlot, dayOfWeek: day }
+					: { ...pureSlot, dayOfWeek: day, startingSequence: null, startingEpisode: null }
+			);
 
 			// Insert slots and get their IDs
 			const insertedSlots = await tx.insert(schema.scheduleSlot).values(slots).returning();

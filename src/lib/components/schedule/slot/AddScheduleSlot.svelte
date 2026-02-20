@@ -60,7 +60,7 @@
 </script>
 
 <dialog class="modal" {id}>
-  <div class="modal-box max-w-4xl bg-base-200">
+  <div class="modal-box container bg-base-200">
     <form use:enhance method="post" {action} class="space-y-4">
       <!-- Header -->
       <div class="flex items-center justify-between">
@@ -130,27 +130,23 @@
                     $form.animeId = availableAnime?.find(
                       (anime) => anime.titleEnglish === (e.currentTarget.value)
                     )?.animeId || null;
+                    $form.startingSequence = null;
                   }}
                 />
               </label>
               <label class="select w-full">
                 <span class="label">Season</span>
                 <select
-                  bind:value={
-                    () => $form.animeSeasonId || '',
-                    (v) => {
-                      $form.animeSeasonId = v === '' ? null : v;
-                      $form.startingSequence = availableSeasons?.find((season) => season.animeSeasonId === $form.animeSeasonId)?.sequence || null;
-                    }
-                  }
+                  bind:value={$form.startingSequence}
                   disabled={$form.animeId === null}
                 >
+                  <option value={null}>Use latest</option>
                   {#each
                     availableSeasons?.filter((season) => season.animeId === $form.animeId) ?? []
                     as
                     season
                   }
-                    <option value={season.animeSeasonId}>{season.titleEnglish}</option>
+                    <option value={season.sequence}>{season.titleEnglish || season.titleRomaji || season.titleNative || season.sequence}</option>
                   {/each}
                 </select>
               </label>
@@ -174,16 +170,6 @@
                 />
               </label>
             </div>
-
-            {#if $form.animeId !== null}
-              <div class="flex gap-2 bg-info/10 border border-dashed border-info p-2 rounded-box text-info items-center" transition:slide={{ axis: 'y', duration: 150, easing: sineInOut }}>
-                <Info class="h-4 w-4 shrink-0" />
-                <span>Selected:</span>
-                <span class='font-bold'>{availableAnime?.find((anime) => anime.animeId === $form.animeId)?.titleEnglish}</span>
-                <span>/</span>
-                <span>{availableSeasons?.find((season) => season.animeSeasonId === $form.animeSeasonId)?.titleEnglish}</span>
-              </div>
-            {/if}
 
             <label class="input w-full">
               <span class="label">Title</span>
@@ -286,7 +272,7 @@
               {@const isSelected = $form.platforms.some(p => p.platformId === platform.platformId)}
               <button
                 type="button"
-                class="badge badge-lg transition-colors {isSelected ? 'badge-primary' : 'badge-ghost'}"
+                class="badge badge-lg badge-primary transition-colors {isSelected ? '' : 'badge-outline'}"
                 onclick={() => {
                   if (isSelected) {
                     $form.platforms = $form.platforms.filter(p => p.platformId !== platform.platformId);

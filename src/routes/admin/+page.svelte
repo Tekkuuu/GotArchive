@@ -14,7 +14,7 @@
 				},
 				{ 
 					name: 'Schedule', 
-					href: '/admin/schedule/new', 
+					href: '/admin/schedule', 
 					description: 'Manage schedules',
 					icon: Calendar
 				},

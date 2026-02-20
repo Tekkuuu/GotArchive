@@ -45,7 +45,8 @@ export const ScheduleEntrySchema = z.object({
 
 export const ScheduleSchema = z.object({
 	schedule: ScheduleDataSchema,
-	entries: z.array(ScheduleEntrySchema)
+	entries: z.array(ScheduleEntrySchema),
+	slotsToReset: z.array(z.uuid()).default([])
 });
 
 const platform = z.object({
@@ -57,8 +58,8 @@ export const AddScheduleSlotSchema = z.object({
 	time: z.string().min(1).nullable(),
 	type: entryTypeEnum.nullable(),
 	animeId: z.uuid().nullable(),
-	startingSequence: z.number().int().positive().nullable(),
-	startingEpisode: z.number().int().positive().nullable(),
+	startingSequence: z.number().int().positive().nullable().default(null),
+	startingEpisode: z.number().int().positive().nullable().default(null),
 	title: z.string().min(1).nullable(),
 	description: z.string().nullable(),
 	logoUrl: z.url().nullable(),
@@ -67,16 +68,21 @@ export const AddScheduleSlotSchema = z.object({
 	note: z.string().nullable(),
 	isActive: z.boolean().default(true),
 	platforms: z.array(platform).default([]),
-	duplicateToDays: z.array(z.number().int().min(0).max(6)).default([]),
-	animeSeasonId: z.uuid().nullable()
+	duplicateToDays: z.array(z.number().int().min(0).max(6)).default([])
 });
 
 export const EditScheduleSlotSchema = AddScheduleSlotSchema.omit({
 	type: true,
 	duplicateToDays: true,
-	animeSeasonId: true,
-	startingSequence: true,
-	startingEpisode: true,
 	isActive: true,
 	animeId: true
+});
+
+export const DeleteScheduleSchema = z.object({
+	scheduleId: z.uuid()
+});
+
+export const TogglePreviewSchema = z.object({
+	scheduleId: z.uuid(),
+	preview: z.boolean()
 });

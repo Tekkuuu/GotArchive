@@ -1,4 +1,4 @@
-import { db, schema, eq, asc, sql, desc, inArray } from '$lib/server/db';
+import { db, schema, eq, asc, sql } from '$lib/server/db';
 import type { Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { superValidate } from 'sveltekit-superforms';
@@ -31,36 +31,6 @@ export const load: PageServerLoad = async () => {
 		.groupBy(schema.scheduleSlot.scheduleSlotId, schema.anime.animeId)
 		.orderBy(asc(schema.scheduleSlot.dayOfWeek), asc(schema.scheduleSlot.time));
 
-	// Get all anime seasons for slots with animeId
-	const animeIds = [
-		...new Set(slots.map((s) => s.slot.animeId).filter((id): id is string => id !== null))
-	];
-
-	// Get latest schedule entries with anime seasons to determine progress
-	const latestEntries =
-		animeIds.length > 0
-			? await db
-					.select({
-						scheduleEntry: schema.scheduleEntry,
-						animeSeasonEntry: schema.scheduleEntryAnimeSeason,
-						animeSeason: schema.animeSeason
-					})
-					.from(schema.scheduleEntry)
-					.innerJoin(
-						schema.scheduleEntryAnimeSeason,
-						eq(
-							schema.scheduleEntry.scheduleEntryId,
-							schema.scheduleEntryAnimeSeason.scheduleEntryId
-						)
-					)
-					.innerJoin(
-						schema.animeSeason,
-						eq(schema.scheduleEntryAnimeSeason.animeSeasonId, schema.animeSeason.animeSeasonId)
-					)
-					.where(inArray(schema.animeSeason.animeId, animeIds))
-					.orderBy(desc(schema.scheduleEntry.date), desc(schema.scheduleEntry.time))
-			: [];
-
 	// Load all anime and all seasons for modals
 	const anime = await db.select().from(schema.anime).orderBy(asc(schema.anime.titleNative));
 	const animeSeasons = await db
@@ -78,8 +48,7 @@ export const load: PageServerLoad = async () => {
 		slots,
 		animeSeasons,
 		anime,
-		platforms,
-		latestEntries
+		platforms
 	};
 };
 

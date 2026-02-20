@@ -70,83 +70,6 @@
 
 	let inactiveSlots = $derived(slots.filter((s) => !s.slot.isActive));
 
-	// Calculate next episode for each slot based on its position in the week
-	let nextEpisodeMap = $derived.by(() => {
-		const map = new Map<string, { seasonTitle: string; episodeStart: number; episodeEnd: number }>();
-
-		const sortedSlots = [...slots]
-			.filter((s) => s.slot.isActive)
-			.sort((a, b) => {
-				if (a.slot.dayOfWeek !== b.slot.dayOfWeek) {
-					return a.slot.dayOfWeek - b.slot.dayOfWeek;
-				}
-				if (a.slot.time && b.slot.time) {
-					return a.slot.time.localeCompare(b.slot.time);
-				}
-				return 0;
-			});
-
-		const animeProgress = new Map<string, { sequence: number; episode: number }>();
-
-		for (const slotData of sortedSlots) {
-			const { slot } = slotData;
-
-			if (!slot.animeId || !slot.startingSequence || !slot.startingEpisode) {
-				continue;
-			}
-
-			if (!animeProgress.has(slot.animeId)) {
-				animeProgress.set(slot.animeId, {
-					sequence: slot.startingSequence,
-					episode: slot.startingEpisode
-				});
-			}
-
-			const currentProgress = animeProgress.get(slot.animeId)!;
-			const epCount = slot.episodeCount || 1;
-
-			const episodeStart = currentProgress.episode;
-			let episodeEnd = currentProgress.episode + epCount - 1;
-			let currentSeq = currentProgress.sequence;
-
-			const animeSeasonsForAnime = animeSeasons.filter((s) => s.animeId === slot.animeId) || [];
-			const currentSeason = animeSeasonsForAnime.find((s) => s.sequence === currentSeq);
-
-			if (currentSeason && currentSeason.episodes && episodeEnd > currentSeason.episodes) {
-				episodeEnd = currentSeason.episodes;
-			}
-
-			// Get season title (prefer shortTitle, fallback to titleEnglish)
-			const seasonTitle = currentSeason 
-				? (currentSeason.shortTitle || currentSeason.titleEnglish || currentSeason.titleRomaji || currentSeason.titleNative || 'Unknown')
-				: 'Unknown';
-
-			map.set(slot.scheduleSlotId, {
-				seasonTitle,
-				episodeStart,
-				episodeEnd
-			});
-
-			currentProgress.episode += epCount;
-
-			if (currentSeason && currentSeason.episodes && currentProgress.episode > currentSeason.episodes) {
-				const overflow = currentProgress.episode - currentSeason.episodes;
-				currentProgress.sequence++;
-				currentProgress.episode = overflow;
-
-				const nextSeason = animeSeasonsForAnime.find((s) => s.sequence === currentProgress.sequence);
-				if (!nextSeason) {
-					currentProgress.sequence = currentSeason.sequence;
-					currentProgress.episode = currentSeason.episodes;
-				} else if (nextSeason.episodes && currentProgress.episode > nextSeason.episodes) {
-					currentProgress.episode = nextSeason.episodes;
-				}
-			}
-		}
-
-		return map;
-	});
-
 	let showInactive = $state(false);
 
 	function openDuplicateModal(slotData: typeof slots[0]) {
@@ -297,7 +220,6 @@
 							{#each daySlots as slotData (slotData.slot.scheduleSlotId)}
 								{@const slot = slotData.slot}
 								{@const animeData = slotData.anime}
-								{@const nextEp = nextEpisodeMap.get(slot.scheduleSlotId)}
 
 							  <div
                   class="card bg-base-300 hover:bg-base-100 transition-colors"
@@ -338,18 +260,6 @@
 													{/if}
 												</p>
 
-												<!-- Next Episode -->
-												{#if nextEp}
-													<p class="text-sm text-base-content/70 mt-1">
-														<span class="font-medium">Next:</span>
-														{#if nextEp.episodeStart === nextEp.episodeEnd}
-															{nextEp.seasonTitle} E{nextEp.episodeStart}
-														{:else}
-															{nextEp.seasonTitle} E{nextEp.episodeStart}-{nextEp.episodeEnd}
-														{/if}
-													</p>
-												{/if}
-
 												{#if slot.description}
 													<p class="text-sm text-base-content/70 mt-1">{slot.description}</p>
 												{/if}
@@ -358,13 +268,13 @@
 												<div class="flex gap-2 mt-2 flex-wrap">
 													{#if slot.episodeCount}
 														<div class="badge badge-outline badge-sm">
-															{slot.episodeCount} ep/slot
+															{slot.episodeCount} ep{slot.episodeCount > 1 ? 's' : ''}
 														</div>
 													{/if}
 													{#if slotData.platforms && slotData.platforms.length > 0}
 														{#each slotData.platforms as platform}
 															{#if platform}
-																<div class="badge badge-ghost badge-sm">{platform}</div>
+																<div class="badge badge-primary badge-sm">{platform}</div>
 															{/if}
 														{/each}
 													{/if}

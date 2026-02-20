@@ -27,10 +27,8 @@ export const load: PageServerLoad = async () => {
 		)
 		.orderBy(desc(schema.schedule.year), desc(schema.schedule.week));
 
-	const [deleteForm, togglePreviewForm] = await Promise.all([
-		superValidate(zod4(DeleteScheduleSchema)),
-		superValidate(zod4(TogglePreviewSchema))
-	]);
+	const deleteForm = await superValidate(zod4(DeleteScheduleSchema));
+	const togglePreviewForm = await superValidate(zod4(TogglePreviewSchema));
 
 	return { schedules, deleteForm, togglePreviewForm };
 };

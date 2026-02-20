@@ -9,7 +9,7 @@
 	let { data }: PageProps = $props();
 
 	// svelte-ignore state_referenced_locally
-	const { form: deleteForm, enhance: deleteEnhance } = superForm(data.deleteForm, {
+	const { form: deleteForm, enhance: deleteEnhance, submit: deleteSubmit } = superForm(data.deleteForm, {
 		dataType: 'json',
 		validators: zod4Client(DeleteScheduleSchema),
 		validationMethod: 'onsubmit',
@@ -22,7 +22,7 @@
 	});
 
 	// svelte-ignore state_referenced_locally
-	const { form: toggleForm, enhance: toggleEnhance } = superForm(data.togglePreviewForm, {
+	const { form: toggleForm, enhance: toggleEnhance, submit: toggleSubmit } = superForm(data.togglePreviewForm, {
 		dataType: 'json',
 		validators: zod4Client(TogglePreviewSchema),
 		validationMethod: 'onsubmit',
@@ -44,7 +44,7 @@
 		}
 		$toggleForm.scheduleId = scheduleId;
 		$toggleForm.preview = !currentPreview;
-		document.getElementById('toggle-preview-form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    toggleSubmit();
 	}
 
 	function handleDelete(scheduleId: string, year: number, week: number) {
@@ -55,7 +55,7 @@
 			return;
 		}
 		$deleteForm.scheduleId = scheduleId;
-		document.getElementById('delete-form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    deleteSubmit();
 	}
 </script>
 
@@ -63,7 +63,6 @@
 	<title>Schedules | G.O.T Archive</title>
 </svelte:head>
 
-<!-- Single delete form, driven programmatically -->
 <form
 	id="delete-form"
 	method="POST"
@@ -71,9 +70,9 @@
 	use:deleteEnhance
 	class="hidden"
 >
+  <input type="hidden" bind:value={$deleteForm.scheduleId} />
 </form>
 
-<!-- Single toggle-preview form, driven programmatically -->
 <form
 	id="toggle-preview-form"
 	method="POST"
@@ -81,6 +80,8 @@
 	use:toggleEnhance
 	class="hidden"
 >
+  <input type="hidden" bind:value={$toggleForm.scheduleId} />
+  <input type="hidden" bind:value={$toggleForm.preview} />
 </form>
 
 <div class="container mx-auto max-w-7xl p-2 md:p-4">

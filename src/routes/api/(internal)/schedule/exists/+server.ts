@@ -1,12 +1,12 @@
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { schema, db, eq, and } from '$lib/server/db';
-import {
-	type APIValidateDateRequest,
-	type APIValidateDateResponse,
-	ValidateDateSchema
-} from '$lib/api/schedule/exists';
 import { auth } from '$lib/server/auth';
 import { logger } from '$lib/server/logger';
+import { ValidateDateSchema } from '$lib/schemas';
+import type { z } from 'zod/v4';
+
+type APIValidateDateRequest = z.infer<typeof ValidateDateSchema>;
+type APIValidateDateResponse = { exists: boolean | null; message?: string };
 
 export const POST: RequestHandler = async ({ request }) => {
 	const user = (await auth.api.getSession(request))?.user;

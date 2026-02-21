@@ -1,8 +1,10 @@
 import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { generateEntries } from '$lib/server/generateScheduleEntries';
-import type { APIGenerateEntriesResponse } from '$lib/api/schedule/generate';
+import { generateEntries } from '$lib/server/schedule/generateEntries';
+import type { GeneratedEntry } from '$lib/server/schedule/generateEntries';
 import { auth } from '$lib/server/auth';
 import { logger } from '$lib/server/logger';
+
+type APIGenerateEntriesResponse = { entries: GeneratedEntry[]; slotsToReset: string[] };
 
 export const GET: RequestHandler = async ({ request, url }) => {
 	const user = (await auth.api.getSession(request))?.user;

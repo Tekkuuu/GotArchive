@@ -17,8 +17,10 @@
 	import { format, parseISO } from 'date-fns';
   import { AddScheduleEntry, EditScheduleEntry, type EditScheduleEntryData, type NewScheduleEntryData } from '$lib/components/schedule/new';
 	import { modalUtils } from '$lib/components/util';
-  import { type APIValidateDateResponse } from '$lib/api/schedule/exists';
-  import { type APIGenerateEntriesResponse } from '$lib/api/schedule/generate';
+	import type { GeneratedEntry } from '$lib/server/schedule/generateEntries';
+
+	type APIValidateDateResponse = { exists: boolean | null; message?: string };
+	type APIGenerateEntriesResponse = { entries: GeneratedEntry[]; slotsToReset: string[] };
   import { notification } from '$lib/components/ui/toaster';
 	import { onMount } from 'svelte';
 

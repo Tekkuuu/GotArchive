@@ -1,12 +1,11 @@
 import { AppError } from '$lib/errors';
-import type { ApiErrorResponse } from './types';
+import type { ApiErrorResponse } from '$lib/api/types';
 import { json } from '@sveltejs/kit';
 
 /**
- * Handles API errors by logging them to Sentry and returning a standardized JSON error response.
- * If the error is an instance of AppError, it logs the error, attaches user and page info,
- * and returns a JSON response with the error message and Sentry error ID.
- * Unexpected errors are re-thrown.
+ * Handles API errors by returning a standardized JSON error response.
+ * If the error is an instance of AppError, returns a JSON response with the
+ * error message and appropriate HTTP status. Unexpected errors are re-thrown.
  *
  * @param error - The error object, can be any type.
  * @param locals - Application locals, used to extract session/user info.

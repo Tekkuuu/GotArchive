@@ -6,7 +6,7 @@ import { ScheduleSchema } from './util';
 import { getWeek, getYear } from 'date-fns';
 import { fail, redirect } from '@sveltejs/kit';
 import { AppError, ERROR_CODES } from '$lib/errors';
-import { generateEntries } from '$lib/server/generateScheduleEntries';
+import { generateEntries } from '$lib/server/schedule/generateEntries';
 
 export const load: PageServerLoad = async () => {
 	const now = new Date();

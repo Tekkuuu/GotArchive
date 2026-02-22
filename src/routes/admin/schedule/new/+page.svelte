@@ -251,7 +251,7 @@
 					<label class="textarea w-full sm:col-span-2">
             <span class="label">Note</span>
 						<textarea
-							bind:value={() => $form.schedule.note || '', (v) => ($form.schedule.note = v || undefined)}
+							bind:value={() => $form.schedule.note || '', (v) => ($form.schedule.note = v === '' ? null : v)}
 							class="w-full"
 						></textarea>
 					</label>

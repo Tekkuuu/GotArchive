@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import type { PageProps } from './$types';
 	import {
 		Calendar,
@@ -11,7 +12,8 @@
 		Plus,
 		Edit,
 		X,
-		AlertCircle
+		Eye,
+		EyeOff
 	} from 'lucide-svelte';
 	import { format, parseISO } from 'date-fns';
 	import { AddScheduleEntry, EditScheduleEntry, type EditScheduleEntryData, type NewScheduleEntryData } from '$lib/components/schedule/new';
@@ -19,25 +21,61 @@
 	import { enhance as defaultEnhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { notification } from '$lib/components/ui/toaster';
+	import { AddScheduleEntrySchema, EditScheduleSchema } from '$lib/schemas';
+	import ToggleCancelledButton from '$lib/components/schedule/ToggleCancelledButton.svelte';
 
 	let { data }: PageProps = $props();
 
 	// svelte-ignore state_referenced_locally
-  let { form: metadataForm, enhance: metadataEnhance } = superForm(data.metadataForm, {
+	let { form: scheduleForm, enhance: scheduleEnhance, submit: scheduleSubmit } = superForm(data.scheduleForm, {
 		dataType: 'json',
+    validators: zod4Client(EditScheduleSchema),
 		validationMethod: 'onsubmit',
 		multipleSubmits: 'prevent',
 		onResult: async ({ result }) => {
-			if (result.type === 'redirect') {
-				// Will be handled by SvelteKit
-			} else if (result.type === 'success') {
-				await invalidateAll();
+      if (result.type === 'success') {
+				notification.success('Schedule updated');
+			} else if (result.type === 'failure') {
+				notification.error(result.data?.error || 'Failed to update');
+			} else if (result.type === 'error') {
+        console.error('Error updating schedule:', result.error);
+        notification.error('An unexpected error occurred');
 			}
 		}
 	});
 
+	// svelte-ignore state_referenced_locally
+	const { form: addEntryForm, enhance: addEntryEnhance, submit: submitAddEntry } = superForm(data.addEntryForm, {
+		dataType: 'json',
+		validators: zod4Client(AddScheduleEntrySchema),
+		validationMethod: 'onsubmit',
+		multipleSubmits: 'prevent',
+		onResult: async ({ result }) => {
+			if (result.type === 'success') {
+        notification.success('Entry added');
+			} else if (result.type === 'failure') {
+				notification.error(result.data?.error || 'Failed to add entry');
+			}
+		}
+	});
+
+  // svelte-ignore state_referenced_locally
+  const { form: editEntryForm, enhance: editEntryEnhance, submit: submitEditEntry } = superForm(data.editEntryForm,
+  {
+    dataType: 'json',
+    validators: zod4Client(EditScheduleSchema),
+    validationMethod: 'onsubmit',
+    multipleSubmits: 'prevent',
+    onResult: async ({ result }) => {
+      if (result.type === 'success') {
+        notification.success('Entry updated');
+      } else if (result.type === 'failure') {
+        notification.error(result.data?.error || 'Failed to update entry');
+      }
+    }
+  });
+
 	// Track which entry is being edited
-	let editingEntryIndex = $state<number | null>(null);
 	let editingEntry = $state<any | null>(null);
 
 	// Group entries by weekday
@@ -85,9 +123,8 @@
 		'Sunday'
 	];
 
-	function openEditModal(entryData: typeof data.entries[number], index: number) {
+	function openEditModal(entryData: typeof data.entries[number]) {
 		const entry = entryData.entry;
-		editingEntryIndex = index;
 		editingEntry = {
 			scheduleEntryId: entry.scheduleEntryId,
 			date: entry.date,
@@ -105,39 +142,39 @@
 		modalUtils.openModal('edit-schedule-entry-modal');
 	}
 
-	async function handleEditSave(updatedData: EditScheduleEntryData) {
-		if (editingEntry === null) return;
+	function handleAddEntry(newEntry: NewScheduleEntryData) {
+		$addEntryForm = {
+			type: newEntry.type,
+			date: newEntry.date,
+			time: newEntry.time,
+			note: newEntry.note,
+			logoUrl: newEntry.logoUrl,
+			title: newEntry.title,
+			description: newEntry.description,
+			cancelledText: newEntry.cancelledText,
+			isCancelled: newEntry.isCancelled,
+			anime: newEntry.anime,
+			platforms: newEntry.platforms,
+			slotId: null
+		};
+		submitAddEntry();
+	}
 
-		const formData = new FormData();
-		formData.append('scheduleEntryId', editingEntry.scheduleEntryId);
-		formData.append('time', updatedData.time || '');
-		formData.append('title', updatedData.title || '');
-		formData.append('description', updatedData.description || '');
-		formData.append('logoUrl', updatedData.logoUrl || '');
-		formData.append('note', updatedData.note || '');
-		formData.append('cancelledText', updatedData.cancelledText || '');
-		formData.append('isCancelled', String(updatedData.isCancelled));
-		formData.append('anime', JSON.stringify(updatedData.anime));
-		formData.append('platforms', JSON.stringify(updatedData.platforms));
-
-		try {
-			const response = await fetch('?/updateEntry', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (response.ok) {
-				await invalidateAll();
-				editingEntryIndex = null;
-				editingEntry = null;
-				notification.success('Entry updated');
-			} else {
-				const result = await response.json();
-				notification.error(result?.data?.error || 'Failed to update entry');
-			}
-		} catch {
-			notification.error('Network error while updating entry');
-		}
+	function handleEditSave(updatedData: EditScheduleEntryData) {
+		if (!editingEntry) return;
+		$editEntryForm = {
+			scheduleEntryId: editingEntry.scheduleEntryId,
+			time: updatedData.time,
+			note: updatedData.note,
+			logoUrl: updatedData.logoUrl,
+			title: updatedData.title,
+			description: updatedData.description,
+			cancelledText: updatedData.cancelledText,
+			isCancelled: updatedData.isCancelled,
+			anime: updatedData.anime,
+			platforms: updatedData.platforms
+		};
+		submitEditEntry();
 	}
 
 	function getSeasonInfo(seasonId: string | null) {
@@ -187,61 +224,15 @@
 			};
 		});
 	}
-
-	async function handleAddEntry(newEntry: NewScheduleEntryData) {
-		const formData = new FormData();
-		formData.append('date', newEntry.date);
-		formData.append('type', newEntry.type);
-		formData.append('time', newEntry.time || '');
-		formData.append('title', newEntry.title || '');
-		formData.append('description', newEntry.description || '');
-		formData.append('logoUrl', newEntry.logoUrl || '');
-		formData.append('note', newEntry.note || '');
-		formData.append('cancelledText', newEntry.cancelledText || '');
-		formData.append('isCancelled', String(newEntry.isCancelled));
-		formData.append('anime', JSON.stringify(newEntry.anime));
-		formData.append('platforms', JSON.stringify(newEntry.platforms));
-
-		try {
-			const response = await fetch('?/addEntry', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (response.ok) {
-				await invalidateAll();
-				notification.success('Entry added');
-			} else {
-				const result = await response.json();
-				notification.error(result?.data?.error || 'Failed to add entry');
-			}
-		} catch {
-			notification.error('Network error while adding entry');
-		}
-	}
-
-	function handleDeleteEntry(scheduleEntryId: string) {
-		if (!window.confirm('Are you sure you want to delete this entry?')) {
-			return;
-		}
-
-		const form = document.getElementById(`delete-entry-${scheduleEntryId}`) as HTMLFormElement;
-		form?.requestSubmit();
-	}
-
-	function handleToggleCancelled(scheduleEntryId: string, currentCancelled: boolean) {
-		if (!window.confirm(`Are you sure you want to ${currentCancelled ? 'uncancel' : 'cancel'} this entry?`)) {
-			return;
-		}
-
-		const form = document.getElementById(`toggle-cancelled-${scheduleEntryId}`) as HTMLFormElement;
-		form?.requestSubmit();
-	}
 </script>
 
 <svelte:head>
 	<title>Edit Schedule | G.O.T Archive</title>
 </svelte:head>
+
+<!-- Hidden superForms for programmatic add/edit entry submissions -->
+<form method="POST" action="?/addEntry" use:addEntryEnhance class="hidden"></form>
+<form method="POST" action="?/updateEntry" use:editEntryEnhance class="hidden"></form>
 
 <div class="container mx-auto max-w-7xl p-2 md:p-4">
 	<!-- Page Header -->
@@ -252,8 +243,8 @@
 		</p>
 	</div>
 
-	<!-- Schedule Metadata Card -->
-	<form method="POST" action="?/updateMetadata" use:metadataEnhance class="mb-4">
+	<!-- Schedule Card -->
+	<form method="POST" action="?/updateSchedule" use:scheduleEnhance class="mb-4">
 		<div class="card bg-base-200 shadow-md">
 			<div class="card-body p-4">
 				<h2 class="card-title text-lg mb-2">
@@ -265,36 +256,53 @@
 					<label class="input w-full">
 						<span class="label">Year</span>
 						<input
-							type="number"
-							bind:value={$metadataForm.year}
-							min={1900}
-							max={2100}
+							bind:value={data.schedule.year}
 							class="w-full"
+              disabled
 						/>
 					</label>
 					<label class="input w-full">
 						<span class="label">Week</span>
 						<input
-							type="number"
-							bind:value={$metadataForm.week}
-							min={1}
-							max={53}
+							bind:value={data.schedule.week}
 							class="w-full"
+              disabled
 						/>
 					</label>
 					<label class="textarea w-full sm:col-span-2">
             <span class="label">Note</span>
 						<textarea
-							bind:value={() => $metadataForm.note || '', (v) => ($metadataForm.note = v || undefined)}
+							bind:value={() => $scheduleForm.note || '', (v) => ($scheduleForm.note = v === '' ? null : v)}
 							class="w-full"
 						></textarea>
 					</label>
 				</div>
 
-				<button type="submit" class="btn btn-success mt-2">
-					<Save class="h-4 w-4" />
-					Save Metadata
-				</button>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="btn btn-success grow"
+            onclick={() => {
+              $scheduleForm.scheduleId = data.schedule.scheduleId;
+              scheduleSubmit();
+            }}
+          >
+            <Save class="h-4 w-4" />
+            Save Metadata
+          </button>
+          <button
+            type="button"
+            class={["btn", $scheduleForm.preview ? 'btn-success' : 'btn-error']}
+            onclick={() => $scheduleForm.preview = !$scheduleForm.preview}
+          >
+            {#if $scheduleForm.preview}
+              <Eye />
+            {:else}
+              <EyeOff />
+            {/if}
+            Preview
+          </button>
+        </div>
 			</div>
 		</div>
 	</form>
@@ -343,25 +351,13 @@
 									<div class="badge badge-ghost">{dayEntries.length} entrie(s)</div>
 								</div>
 								<ul class="list rounded-box rounded-t-none">
-									{#each dayEntries as { entry: entryData, index }}
+									{#each dayEntries as { entry: entryData }}
 										{@const entry = entryData.entry}
 										<li
 											class="list-row items-center justify-center hover:bg-base-300 rounded-none last:rounded-box last:rounded-t-none relative"
 										>
-											<!-- Cancelled indicator -->
-											{#if entry.isCancelled}
-												<div class="absolute left-1 top-1/2 -translate-y-1/2">
-													<span class="relative flex h-3 w-3">
-														<span
-															class="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75"
-														></span>
-														<span class="relative inline-flex rounded-full h-3 w-3 bg-error"></span>
-													</span>
-												</div>
-											{/if}
-
 											<!-- Entry Summary -->
-											<div class="flex items-center gap-2 {entry.isCancelled ? 'ml-4' : ''}">
+											<div class="flex items-center gap-2">
 												<Clock />
 												<span>{formatTime(entry.time)}</span>
 											</div>
@@ -380,53 +376,23 @@
 											{/if}
 											<div class="flex gap-2">
 												<!-- Toggle Cancelled -->
-												<form
-													id="toggle-cancelled-{entry.scheduleEntryId}"
-													method="POST"
-													action="?/updateEntry"
-													use:defaultEnhance={() => {
-														return async ({ result, update }) => {
-															await update();
-															await invalidateAll();
-															if (result.type === 'success') {
-																notification.success(entry.isCancelled ? 'Entry uncancelled' : 'Entry cancelled');
-															} else if (result.type === 'error' || result.type === 'failure') {
-																notification.error('Failed to update entry');
-															}
-														};
-													}}
-												>
-													<input type="hidden" name="scheduleEntryId" value={entry.scheduleEntryId} />
-													<input type="hidden" name="time" value={entry.time || ''} />
-													<input type="hidden" name="title" value={entry.title || ''} />
-													<input type="hidden" name="description" value={entry.description || ''} />
-													<input type="hidden" name="logoUrl" value={entry.logoUrl || ''} />
-													<input type="hidden" name="note" value={entry.note || ''} />
-													<input type="hidden" name="cancelledText" value={entry.cancelledText || ''} />
-													<input type="hidden" name="isCancelled" value={!entry.isCancelled} />
-													<input type="hidden" name="anime" value={JSON.stringify(entryData.animeSeasons)} />
-													<button
-														type="button"
-														class="btn btn-sm btn-square {entry.isCancelled ? 'btn-warning' : 'btn-ghost'}"
-														title={entry.isCancelled ? 'Uncancel' : 'Cancel'}
-														onclick={() => handleToggleCancelled(entry.scheduleEntryId, entry.isCancelled)}
-													>
-														<AlertCircle class="size-4" />
-													</button>
-												</form>
+												<ToggleCancelledButton
+													sForm={data.toggleCancelledForm}
+													scheduleEntryId={entry.scheduleEntryId}
+													isCancelled={entry.isCancelled}
+												/>
 
 												<!-- Edit -->
 												<button
 													type="button"
 													class="btn btn-sm btn-square btn-neutral"
-													onclick={() => openEditModal(entryData, index)}
+													onclick={() => openEditModal(entryData)}
 												>
 													<Edit class="size-4" />
 												</button>
 
 												<!-- Delete -->
 												<form
-													id="delete-entry-{entry.scheduleEntryId}"
 													method="POST"
 													action="?/deleteEntry"
 													use:defaultEnhance={() => {
@@ -445,7 +411,10 @@
 													<button
 														type="button"
 														class="btn btn-sm btn-square btn-error"
-														onclick={() => handleDeleteEntry(entry.scheduleEntryId)}
+														onclick={(e) => {
+															if (!window.confirm('Are you sure you want to delete this entry?')) return;
+															e.currentTarget.closest('form')?.requestSubmit();
+														}}
 													>
 														<Trash2 class="size-4" />
 													</button>

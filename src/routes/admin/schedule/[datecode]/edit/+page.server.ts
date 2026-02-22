@@ -1,12 +1,18 @@
 import type { PageServerLoad, Actions } from './$types';
 import { schema, db, eq, sql, asc, and } from '$lib/server/db';
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { parseISO, setISOWeek, setISOWeekYear, format, getISOWeek, getISOWeekYear } from 'date-fns';
+import { parseISO, getISOWeek, getISOWeekYear } from 'date-fns';
 import { AppError, ERROR_CODES } from '$lib/errors';
 import { logger } from '$lib/server/logger';
-import { EditScheduleMetadataSchema } from '$lib/schemas';
+import {
+	EditScheduleSchema,
+	AddScheduleEntrySchema,
+	EditScheduleEntrySchema,
+	ToggleCancelledSchema
+} from '$lib/schemas';
+import { insertScheduleEntry, updateScheduleEntry } from '$lib/server/schedule/entryActions';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const { datecode } = params;
@@ -97,218 +103,117 @@ export const load: PageServerLoad = async ({ params }) => {
 	// Fetch all platforms
 	const platforms = await db.select().from(schema.platform).orderBy(asc(schema.platform.name));
 
-	// Create form for metadata editing
-	const metadataForm = await superValidate(
-		{
-			year: scheduleData.year,
-			week: scheduleData.week,
-			note: scheduleData.note || ''
-		},
-		zod4(EditScheduleMetadataSchema)
-	);
+	const [scheduleForm, addEntryForm, editEntryForm, toggleCancelledForm] = await Promise.all([
+		superValidate(scheduleData, zod4(EditScheduleSchema)),
+		superValidate(zod4(AddScheduleEntrySchema)),
+		superValidate(zod4(EditScheduleEntrySchema)),
+		superValidate(zod4(ToggleCancelledSchema))
+	]);
 
 	return {
 		schedule: scheduleData,
 		entries,
 		animeSeasons,
 		platforms,
-		metadataForm
+		scheduleForm,
+		addEntryForm,
+		editEntryForm,
+		toggleCancelledForm
 	};
 };
 
 export const actions: Actions = {
-	updateMetadata: async ({ request, params }) => {
-		const { datecode } = params;
-		const year = parseInt(datecode.slice(0, 4));
-		const week = parseInt(datecode.slice(4));
-
-		const form = await superValidate(request, zod4(EditScheduleMetadataSchema));
+	updateSchedule: async ({ request }) => {
+		const form = await superValidate(request, zod4(EditScheduleSchema));
 
 		if (!form.valid) {
 			return fail(400, { form });
 		}
 
 		try {
-			// Get the schedule
-			const [scheduleData] = await db
-				.select()
-				.from(schema.schedule)
-				.where(sql`${schema.schedule.year} = ${year} AND ${schema.schedule.week} = ${week}`)
-				.limit(1);
-
-			if (!scheduleData) {
-				return fail(404, { form, error: 'Schedule not found' });
-			}
-
-			// Check if year/week changed
-			const yearChanged = form.data.year !== year;
-			const weekChanged = form.data.week !== week;
-
-			if (yearChanged || weekChanged) {
-				// Check if target year/week already exists
-				const [existingSchedule] = await db
+			await db.transaction(async (tx) => {
+				const [scheduleData] = await tx
 					.select()
 					.from(schema.schedule)
-					.where(
-						sql`${schema.schedule.year} = ${form.data.year} AND ${schema.schedule.week} = ${form.data.week}`
-					)
+					.where(eq(schema.schedule.scheduleId, form.data.scheduleId))
 					.limit(1);
 
-				if (existingSchedule) {
-					return fail(409, {
-						form,
-						error: `Schedule for year ${form.data.year}, week ${form.data.week} already exists.`
-					});
+				if (!scheduleData) {
+					return fail(404, { form, error: 'Schedule not found' });
 				}
 
-				// Update schedule metadata
-				await db
+				await tx
 					.update(schema.schedule)
 					.set({
-						year: form.data.year,
-						week: form.data.week,
-						note: form.data.note || null
+						note: form.data.note,
+						preview: form.data.preview
 					})
 					.where(eq(schema.schedule.scheduleId, scheduleData.scheduleId));
 
-				// Recalculate all entry dates
-				const entries = await db
-					.select()
-					.from(schema.scheduleEntry)
-					.where(eq(schema.scheduleEntry.scheduleId, scheduleData.scheduleId));
-
-				for (const entry of entries) {
-					let date = parseISO(entry.date);
-					date = setISOWeekYear(date, form.data.year);
-					date = setISOWeek(date, form.data.week);
-					const newDateStr = format(date, 'yyyy-MM-dd');
-
-					await db
-						.update(schema.scheduleEntry)
-						.set({ date: newDateStr })
-						.where(eq(schema.scheduleEntry.scheduleEntryId, entry.scheduleEntryId));
-				}
-
-				// Redirect to new datecode
-				const newDatecode = `${form.data.year}${form.data.week.toString().padStart(2, '0')}`;
-				logger.warn(
-					'updateMetadata: schedule rekeyed to new year/week, all entry dates recalculated',
-					{
-						oldDatecode: datecode,
-						newDatecode,
-						entryCount: entries.length
+				return { form };
+			});
+		} catch (err) {
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: {
+					action: 'updateMetadata',
+					context: {
+						formData: form.data,
+						formErr: form.errors
 					}
-				);
-				return redirect(303, `/admin/schedule/${newDatecode}/edit`);
-			} else {
-				// Only update note
-				await db
-					.update(schema.schedule)
-					.set({ note: form.data.note || null })
-					.where(eq(schema.schedule.scheduleId, scheduleData.scheduleId));
-			}
+				}
+			});
+		}
+	},
+	updateEntry: async ({ request }) => {
+		const form = await superValidate(request, zod4(EditScheduleEntrySchema));
+
+		if (!form.valid) {
+			return fail(400, { form, error: 'Invalid entry data' });
+		}
+
+		// Validate entry exists
+		const [entry] = await db
+			.select()
+			.from(schema.scheduleEntry)
+			.where(eq(schema.scheduleEntry.scheduleEntryId, form.data.scheduleEntryId))
+			.limit(1);
+
+		if (!entry) {
+			return fail(404, { form, error: 'Entry not found' });
+		}
+
+		try {
+			await updateScheduleEntry(form.data);
+			return { form };
+		} catch (err) {
+			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
+				cause: err,
+				context: { action: 'updateEntry', scheduleEntryId: form.data.scheduleEntryId }
+			});
+		}
+	},
+	toggleCancelled: async ({ request }) => {
+		const form = await superValidate(request, zod4(ToggleCancelledSchema));
+
+		if (!form.valid) {
+			return fail(400, { form, error: 'Invalid data' });
+		}
+
+		try {
+			await db
+				.update(schema.scheduleEntry)
+				.set({ isCancelled: form.data.isCancelled })
+				.where(eq(schema.scheduleEntry.scheduleEntryId, form.data.scheduleEntryId));
 
 			return { form };
 		} catch (err) {
 			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
 				cause: err,
-				context: { action: 'updateMetadata', datecode }
+				context: { action: 'toggleCancelled', scheduleEntryId: form.data.scheduleEntryId }
 			});
 		}
 	},
-
-	updateEntry: async ({ request }) => {
-		const formData = await request.formData();
-
-		const scheduleEntryId = formData.get('scheduleEntryId') as string;
-		const time = (formData.get('time') as string) || null;
-		const title = (formData.get('title') as string) || null;
-		const description = (formData.get('description') as string) || null;
-		const logoUrl = (formData.get('logoUrl') as string) || null;
-		const note = (formData.get('note') as string) || null;
-		const cancelledText = (formData.get('cancelledText') as string) || null;
-		const isCancelled = formData.get('isCancelled') === 'true';
-
-		// Parse anime data (JSON string)
-		const animeJson = formData.get('anime') as string;
-		const anime = animeJson ? JSON.parse(animeJson) : null;
-
-		// Parse platforms data (JSON string)
-		const platformsJson = formData.get('platforms') as string;
-		const platforms = platformsJson ? JSON.parse(platformsJson) : null;
-
-		try {
-			// Validate entry exists
-			const [entry] = await db
-				.select()
-				.from(schema.scheduleEntry)
-				.where(eq(schema.scheduleEntry.scheduleEntryId, scheduleEntryId))
-				.limit(1);
-
-			if (!entry) {
-				return fail(404, { error: 'Entry not found' });
-			}
-
-			// Update entry
-			await db
-				.update(schema.scheduleEntry)
-				.set({
-					time,
-					title,
-					description,
-					logoUrl: logoUrl || null,
-					note,
-					cancelledText,
-					isCancelled
-				})
-				.where(eq(schema.scheduleEntry.scheduleEntryId, scheduleEntryId));
-
-			// Update anime season associations
-			if (anime !== null) {
-				// Delete existing associations
-				await db
-					.delete(schema.scheduleEntryAnimeSeason)
-					.where(eq(schema.scheduleEntryAnimeSeason.scheduleEntryId, scheduleEntryId));
-
-				// Insert new associations
-				if (anime.length > 0) {
-					for (const animeEntry of anime) {
-						await db.insert(schema.scheduleEntryAnimeSeason).values({
-							scheduleEntryId,
-							animeSeasonId: animeEntry.animeSeasonId,
-							episodes: animeEntry.episodes
-						});
-					}
-				}
-			}
-
-			// Update platform associations
-			if (platforms !== null) {
-				// Delete existing associations
-				await db
-					.delete(schema.scheduleEntryPlatform)
-					.where(eq(schema.scheduleEntryPlatform.scheduleEntryId, scheduleEntryId));
-
-				// Insert new associations
-				if (platforms.length > 0) {
-					for (const platformId of platforms) {
-						await db.insert(schema.scheduleEntryPlatform).values({
-							scheduleEntryId,
-							platformId
-						});
-					}
-				}
-			}
-
-			return { success: true };
-		} catch (err) {
-			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
-				cause: err,
-				context: { action: 'updateEntry', scheduleEntryId }
-			});
-		}
-	},
-
 	deleteEntry: async ({ request }) => {
 		const formData = await request.formData();
 		const scheduleEntryId = formData.get('scheduleEntryId') as string;
@@ -345,96 +250,42 @@ export const actions: Actions = {
 		}
 	},
 	addEntry: async ({ request, params }) => {
-		const formData = await request.formData();
+		const form = await superValidate(request, zod4(AddScheduleEntrySchema));
+
+		if (!form.valid) {
+			return fail(400, { form, error: 'Invalid entry data' });
+		}
+
 		const { datecode } = params;
 		const year = parseInt(datecode.slice(0, 4));
 		const week = parseInt(datecode.slice(4));
 
-		// Get form data
-		const date = formData.get('date') as string;
-		const type = ((formData.get('type') as string) || 'misc') as
-			| 'anime'
-			| 'hololive'
-			| 'game'
-			| 'event'
-			| 'sponsored'
-			| 'misc';
-		const time = (formData.get('time') as string) || null;
-		const title = (formData.get('title') as string) || null;
-		const description = (formData.get('description') as string) || null;
-		const logoUrl = (formData.get('logoUrl') as string) || null;
-		const note = (formData.get('note') as string) || null;
-		const cancelledText = (formData.get('cancelledText') as string) || null;
-		const isCancelled = formData.get('isCancelled') === 'true';
+		// Validate date is in the same week
+		const entryDate = parseISO(form.data.date);
+		const entryYear = getISOWeekYear(entryDate);
+		const entryWeek = getISOWeek(entryDate);
 
-		// Parse anime and platforms
-		const animeJson = formData.get('anime') as string;
-		const platformsJson = formData.get('platforms') as string;
-		const anime = animeJson ? JSON.parse(animeJson) : null;
-		const platforms = platformsJson ? JSON.parse(platformsJson) : null;
+		if (entryYear !== year || entryWeek !== week) {
+			return fail(400, {
+				form,
+				error: `Entry date must be in year ${year}, week ${week}. Selected date is in year ${entryYear}, week ${entryWeek}.`
+			});
+		}
+
+		// Get schedule
+		const [scheduleData] = await db
+			.select()
+			.from(schema.schedule)
+			.where(sql`${schema.schedule.year} = ${year} AND ${schema.schedule.week} = ${week}`)
+			.limit(1);
+
+		if (!scheduleData) {
+			return fail(404, { form, error: 'Schedule not found' });
+		}
 
 		try {
-			// Validate date is in the same week
-			const entryDate = parseISO(date);
-			const entryYear = getISOWeekYear(entryDate);
-			const entryWeek = getISOWeek(entryDate);
-
-			if (entryYear !== year || entryWeek !== week) {
-				return fail(400, {
-					error: `Entry date must be in year ${year}, week ${week}. Selected date is in year ${entryYear}, week ${entryWeek}.`
-				});
-			}
-
-			// Get schedule
-			const [scheduleData] = await db
-				.select()
-				.from(schema.schedule)
-				.where(sql`${schema.schedule.year} = ${year} AND ${schema.schedule.week} = ${week}`)
-				.limit(1);
-
-			if (!scheduleData) {
-				return fail(404, { error: 'Schedule not found' });
-			}
-
-			// Insert entry
-			const [newEntry] = await db
-				.insert(schema.scheduleEntry)
-				.values({
-					scheduleId: scheduleData.scheduleId,
-					type,
-					date,
-					time,
-					note,
-					logoUrl: logoUrl || null,
-					title,
-					description,
-					cancelledText,
-					isCancelled
-				})
-				.returning();
-
-			// Insert anime season associations
-			if (anime && anime.length > 0) {
-				for (const animeEntry of anime) {
-					await db.insert(schema.scheduleEntryAnimeSeason).values({
-						scheduleEntryId: newEntry.scheduleEntryId,
-						animeSeasonId: animeEntry.animeSeasonId,
-						episodes: animeEntry.episodes
-					});
-				}
-			}
-
-			// Insert platform associations
-			if (platforms && platforms.length > 0) {
-				for (const platformId of platforms) {
-					await db.insert(schema.scheduleEntryPlatform).values({
-						scheduleEntryId: newEntry.scheduleEntryId,
-						platformId
-					});
-				}
-			}
-
-			return { success: true };
+			await insertScheduleEntry(form.data, scheduleData.scheduleId);
+			return { form };
 		} catch (err) {
 			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
 				cause: err,

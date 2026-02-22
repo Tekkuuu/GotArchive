@@ -4,11 +4,16 @@ import { entryTypeEnum } from './common';
 export const ScheduleDataSchema = z.object({
 	year: z.number().int().min(1900).max(2100, 'Year must be between 1900 and 2100'),
 	week: z.number().int().min(1).max(53, 'Week must be between 1 and 53'),
-	note: z.string().max(1000, 'Note must be less than 1000 characters long').optional(),
+	note: z.string().max(1000, 'Note must be less than 1000 characters long').nullable(),
 	preview: z.boolean().default(true)
 });
 
-export const EditScheduleMetadataSchema = ScheduleDataSchema.omit({ preview: true });
+export const EditScheduleSchema = ScheduleDataSchema.omit({
+	year: true,
+	week: true
+}).extend({
+	scheduleId: z.uuid()
+});
 
 export const ValidateDateSchema = ScheduleDataSchema.pick({ year: true, week: true });
 
@@ -76,6 +81,21 @@ export const EditScheduleSlotSchema = AddScheduleSlotSchema.omit({
 	duplicateToDays: true,
 	isActive: true,
 	animeId: true
+});
+
+export const AddScheduleEntrySchema = ScheduleEntrySchema;
+
+export const EditScheduleEntrySchema = ScheduleEntrySchema.omit({
+	type: true,
+	date: true,
+	slotId: true
+}).extend({
+	scheduleEntryId: z.uuid()
+});
+
+export const ToggleCancelledSchema = z.object({
+	scheduleEntryId: z.uuid(),
+	isCancelled: z.boolean()
 });
 
 export const DeleteScheduleSchema = z.object({

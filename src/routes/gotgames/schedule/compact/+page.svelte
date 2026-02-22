@@ -10,6 +10,7 @@
 
 	type EntriesByWeekday = Map<number, typeof scheduleData.entries>;
 
+  // TODO: Verify entry being never[]
 	const entriesByWeekday = $derived.by((): EntriesByWeekday => {
 		if (!scheduleData) return new Map();
 		const groups: EntriesByWeekday = new Map();

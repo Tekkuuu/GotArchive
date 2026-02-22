@@ -225,7 +225,7 @@
 					Schedule Info
 				</h2>
 
-				<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+				<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 					<label class="input w-full">
             <span class="label">Year</span>
 						<input
@@ -237,7 +237,6 @@
               onchange={validateScheduleDate}
 						/>
 					</label>
-
 					<label class="input w-full">
             <span class="label">Week</span>
 						<input
@@ -249,15 +248,12 @@
               onchange={validateScheduleDate}
 						/>
 					</label>
-
-					<label class="input w-full">
+					<label class="textarea w-full sm:col-span-2">
             <span class="label">Note</span>
-						<input
-							type="text"
+						<textarea
 							bind:value={() => $form.schedule.note || '', (v) => ($form.schedule.note = v || undefined)}
-							placeholder="Any notes..."
 							class="w-full"
-						/>
+						></textarea>
 					</label>
 				</div>
 			</div>

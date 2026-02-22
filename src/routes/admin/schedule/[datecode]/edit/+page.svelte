@@ -261,7 +261,7 @@
 					Schedule Info
 				</h2>
 
-				<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+				<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 					<label class="input w-full">
 						<span class="label">Year</span>
 						<input
@@ -282,14 +282,12 @@
 							class="w-full"
 						/>
 					</label>
-					<label class="input w-full">
-						<span class="label">Note</span>
-						<input
-							type="text"
+					<label class="textarea w-full sm:col-span-2">
+            <span class="label">Note</span>
+						<textarea
 							bind:value={() => $metadataForm.note || '', (v) => ($metadataForm.note = v || undefined)}
-							placeholder="Any notes..."
 							class="w-full"
-						/>
+						></textarea>
 					</label>
 				</div>
 

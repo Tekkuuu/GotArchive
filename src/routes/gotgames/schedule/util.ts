@@ -59,13 +59,14 @@ export function getLogoUrl(entry: ScheduleEntryData): string | null {
 export function formatAnimeSeasonDisplay(animeSeason: ScheduleAnimeSeasonInfo): string {
 	const title =
 		animeSeason.shortTitle ||
-		animeSeason.anime.shortTitle ||
 		animeSeason.titleEnglish ||
-		animeSeason.anime.titleEnglish ||
 		animeSeason.titleRomaji ||
-		animeSeason.anime.titleRomaji ||
 		animeSeason.titleNative ||
-		animeSeason.anime.titleNative;
+		animeSeason.anime.shortTitle ||
+		animeSeason.anime.titleEnglish ||
+		animeSeason.anime.titleRomaji ||
+		animeSeason.anime.titleNative ||
+		'Unknown Title';
 
 	return `${title}`;
 }

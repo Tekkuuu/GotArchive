@@ -3,7 +3,7 @@ import postgres from 'postgres';
 import { eq, sql } from 'drizzle-orm';
 import { config } from 'dotenv';
 import * as oldSchema from './schema';
-import * as newSchema from '../src/lib/server/db/shared/schema';
+import * as newSchema from '../src/lib/server/db/schema';
 
 // Load environment variables from .env file
 config();
@@ -374,15 +374,16 @@ async function migrateScheduleEntries() {
 
 		// Handle anime entries
 		if (oldEntry.type === 'anime') {
-			// Get anime detail
-			const animeDetail = await oldDb
+			// Get ALL anime details for this entry (one per season)
+			const animeDetails = await oldDb
 				.select()
 				.from(oldSchema.scheduleAnimeDetail)
-				.where(eq(oldSchema.scheduleAnimeDetail.scheduleEntryId, oldEntry.scheduleEntryId))
-				.limit(1);
+				.where(eq(oldSchema.scheduleAnimeDetail.scheduleEntryId, oldEntry.scheduleEntryId));
 
-			if (animeDetail.length > 0) {
-				// Get ALL episodes for this anime detail
+			// Collect all episodes across every detail row, grouped by anime season
+			const episodesBySeason = new Map<string, number[]>();
+
+			for (const detail of animeDetails) {
 				const animeEpisodes = await oldDb
 					.select({
 						animeId: oldSchema.animeEpisode.animeId,
@@ -395,37 +396,29 @@ async function migrateScheduleEntries() {
 						eq(oldSchema.scheduleAnimeEpisode.animeEpisodeId, oldSchema.animeEpisode.animeEpisodeId)
 					)
 					.where(
-						eq(
-							oldSchema.scheduleAnimeEpisode.scheduleAnimeDetailId,
-							animeDetail[0].scheduleAnimeDetailId
-						)
+						eq(oldSchema.scheduleAnimeEpisode.scheduleAnimeDetailId, detail.scheduleAnimeDetailId)
 					);
 
-				if (animeEpisodes.length > 0) {
-					// Group episodes by anime season
-					const episodesBySeason = new Map<string, number[]>();
-
-					for (const episode of animeEpisodes) {
-						const mapKey = `${episode.animeId}-${episode.sequence}`;
-						if (!episodesBySeason.has(mapKey)) {
-							episodesBySeason.set(mapKey, []);
-						}
-						episodesBySeason.get(mapKey)!.push(episode.episodeNumber);
+				for (const episode of animeEpisodes) {
+					const mapKey = `${episode.animeId}-${episode.sequence}`;
+					if (!episodesBySeason.has(mapKey)) {
+						episodesBySeason.set(mapKey, []);
 					}
-
-					// Create entries for each season
-					for (const [mapKey, episodeNumbers] of episodesBySeason.entries()) {
-						const animeSeasonId = idMaps.animeSeason.get(mapKey);
-
-						if (!animeSeasonId) {
-							errors.push(`schedule_entry: Could not find anime season mapping for ${mapKey}`);
-							continue;
-						}
-
-						const episodeRange = formatEpisodeRanges(episodeNumbers);
-						animeSeasons.push({ animeSeasonId, episodes: episodeRange });
-					}
+					episodesBySeason.get(mapKey)!.push(episode.episodeNumber);
 				}
+			}
+
+			// Create a scheduleEntryAnimeSeason record for each season
+			for (const [mapKey, episodeNumbers] of episodesBySeason.entries()) {
+				const animeSeasonId = idMaps.animeSeason.get(mapKey);
+
+				if (!animeSeasonId) {
+					errors.push(`schedule_entry: Could not find anime season mapping for ${mapKey}`);
+					continue;
+				}
+
+				const episodeRange = formatEpisodeRanges(episodeNumbers);
+				animeSeasons.push({ animeSeasonId, episodes: episodeRange });
 			}
 		}
 

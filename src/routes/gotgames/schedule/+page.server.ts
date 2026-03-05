@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import { getISOWeek, getISOWeekYear } from 'date-fns';
 import { getScheduleByWeek } from '$lib/server/schedule/queries';
 import { formatWeekRange } from '$lib/util/dateUtils';
+import { isoWeekDateRange } from '$lib/api/schedule/timezone';
 import { logger } from '$lib/server/logger';
 import type { SchedulePageData } from './types';
 
@@ -18,7 +19,9 @@ export const load: PageServerLoad = async () => {
 			return {
 				schedule: null,
 				weekRange: formatWeekRange(currentYear, currentWeek),
+				weekDateRange: isoWeekDateRange(currentYear, currentWeek),
 				entries: [],
+				adjacentEntries: [],
 				currentYear,
 				currentWeek
 			} satisfies SchedulePageData;

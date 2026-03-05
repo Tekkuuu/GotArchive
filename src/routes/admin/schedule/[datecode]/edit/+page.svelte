@@ -21,7 +21,7 @@
 	import { enhance as defaultEnhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { notification } from '$lib/components/ui/toaster';
-	import { AddScheduleEntrySchema, EditScheduleSchema } from '$lib/schemas';
+	import { AddScheduleEntrySchema, EditScheduleEntrySchema, EditScheduleSchema } from '$lib/schemas';
 	import ToggleCancelledButton from '$lib/components/schedule/ToggleCancelledButton.svelte';
 
 	let { data }: PageProps = $props();
@@ -63,7 +63,7 @@
   const { form: editEntryForm, enhance: editEntryEnhance, submit: submitEditEntry } = superForm(data.editEntryForm,
   {
     dataType: 'json',
-    validators: zod4Client(EditScheduleSchema),
+    validators: zod4Client(EditScheduleEntrySchema),
     validationMethod: 'onsubmit',
     multipleSubmits: 'prevent',
     onResult: async ({ result }) => {

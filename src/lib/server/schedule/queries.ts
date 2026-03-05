@@ -1,6 +1,7 @@
 import { schema, db, eq, and, sql, asc } from '$lib/server/db';
 import { formatWeekRange } from '$lib/util/dateUtils';
-import { parseISO } from 'date-fns';
+import { parseISO, addWeeks, subWeeks, getISOWeek, getISOWeekYear } from 'date-fns';
+import { isoWeekDateRange } from '$lib/api/schedule/timezone';
 import type {
 	ScheduleData,
 	ScheduleEntryData,
@@ -8,27 +9,15 @@ import type {
 	SchedulePlatformInfo
 } from '$lib/api/schedule/datecode';
 
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
 /**
- * Fetch and format a schedule by year + ISO week number.
- * Returns `null` when no non-preview schedule exists for that week.
+ * Build the two CTEs and fetch formatted entries for a known schedule ID.
+ * This is the core query shared by all callers.
  */
-export async function getScheduleByWeek(year: number, week: number): Promise<ScheduleData | null> {
-	const [scheduleData] = await db
-		.select()
-		.from(schema.schedule)
-		.where(
-			and(
-				eq(schema.schedule.year, year),
-				eq(schema.schedule.week, week),
-				eq(schema.schedule.preview, false)
-			)
-		)
-		.limit(1);
-
-	if (!scheduleData) {
-		return null;
-	}
-
+async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntryData[]> {
 	// CTE: anime seasons per entry
 	const entryAnime = db.$with('entry_anime').as(
 		db
@@ -83,7 +72,7 @@ export async function getScheduleByWeek(year: number, week: number): Promise<Sch
 				eq(schema.scheduleEntryAnimeSeason.animeSeasonId, schema.animeSeason.animeSeasonId)
 			)
 			.leftJoin(schema.anime, eq(schema.animeSeason.animeId, schema.anime.animeId))
-			.where(eq(schema.scheduleEntry.scheduleId, scheduleData.scheduleId))
+			.where(eq(schema.scheduleEntry.scheduleId, scheduleId))
 			.groupBy(schema.scheduleEntry.scheduleEntryId)
 	);
 
@@ -114,12 +103,12 @@ export async function getScheduleByWeek(year: number, week: number): Promise<Sch
 				schema.platform,
 				eq(schema.scheduleEntryPlatform.platformId, schema.platform.platformId)
 			)
-			.where(eq(schema.scheduleEntry.scheduleId, scheduleData.scheduleId))
+			.where(eq(schema.scheduleEntry.scheduleId, scheduleId))
 			.groupBy(schema.scheduleEntry.scheduleEntryId)
 	);
 
 	// Combine
-	const entries = await db
+	const rows = await db
 		.with(entryAnime, entryPlatforms)
 		.select({
 			entry: schema.scheduleEntry,
@@ -132,10 +121,10 @@ export async function getScheduleByWeek(year: number, week: number): Promise<Sch
 			entryPlatforms,
 			eq(schema.scheduleEntry.scheduleEntryId, entryPlatforms.scheduleEntryId)
 		)
-		.where(eq(schema.scheduleEntry.scheduleId, scheduleData.scheduleId))
+		.where(eq(schema.scheduleEntry.scheduleId, scheduleId))
 		.orderBy(asc(schema.scheduleEntry.date), asc(schema.scheduleEntry.time));
 
-	const formattedEntries: ScheduleEntryData[] = entries.map((entryData) => {
+	return rows.map((entryData) => {
 		const entry = entryData.entry;
 		const date = parseISO(entry.date);
 		const dayOfWeek = date.getDay();
@@ -186,6 +175,72 @@ export async function getScheduleByWeek(year: number, week: number): Promise<Sch
 			platforms
 		};
 	});
+}
+
+/**
+ * Look up the schedule for a given year/week and return its entries.
+ * Returns an empty array when no non-preview schedule exists for that week.
+ * Used to fetch adjacent-week entries for timezone boundary handling.
+ */
+async function fetchEntriesByWeek(year: number, week: number): Promise<ScheduleEntryData[]> {
+	const [scheduleData] = await db
+		.select({ scheduleId: schema.schedule.scheduleId })
+		.from(schema.schedule)
+		.where(
+			and(
+				eq(schema.schedule.year, year),
+				eq(schema.schedule.week, week),
+				eq(schema.schedule.preview, false)
+			)
+		)
+		.limit(1);
+
+	if (!scheduleData) return [];
+	return fetchEntriesForSchedule(scheduleData.scheduleId);
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and format a schedule by year + ISO week number.
+ * Returns `null` when no non-preview schedule exists for that week.
+ *
+ * Also fetches entries from the immediately adjacent weeks so that
+ * timezone-aware views can include entries that shift into this week.
+ */
+export async function getScheduleByWeek(year: number, week: number): Promise<ScheduleData | null> {
+	const [scheduleData] = await db
+		.select()
+		.from(schema.schedule)
+		.where(
+			and(
+				eq(schema.schedule.year, year),
+				eq(schema.schedule.week, week),
+				eq(schema.schedule.preview, false)
+			)
+		)
+		.limit(1);
+
+	if (!scheduleData) {
+		return null;
+	}
+
+	// Compute adjacent week year/week numbers via date-fns (handles year boundaries)
+	const anchorDate = new Date(Date.UTC(year, 0, 4));
+	const anchorDowISO = (anchorDate.getUTCDay() + 6) % 7;
+	const week1Mon = new Date(anchorDate.getTime() - anchorDowISO * 86_400_000);
+	const weekMon = new Date(week1Mon.getTime() + (week - 1) * 7 * 86_400_000);
+
+	const prevWeekDate = subWeeks(weekMon, 1);
+	const nextWeekDate = addWeeks(weekMon, 1);
+
+	const [currentEntries, prevEntries, nextEntries] = await Promise.all([
+		fetchEntriesForSchedule(scheduleData.scheduleId),
+		fetchEntriesByWeek(getISOWeekYear(prevWeekDate), getISOWeek(prevWeekDate)),
+		fetchEntriesByWeek(getISOWeekYear(nextWeekDate), getISOWeek(nextWeekDate))
+	]);
 
 	return {
 		schedule: {
@@ -196,7 +251,9 @@ export async function getScheduleByWeek(year: number, week: number): Promise<Sch
 			preview: scheduleData.preview
 		},
 		weekRange: formatWeekRange(scheduleData.year, scheduleData.week),
-		entries: formattedEntries
+		weekDateRange: isoWeekDateRange(year, week),
+		entries: currentEntries,
+		adjacentEntries: [...prevEntries, ...nextEntries]
 	};
 }
 

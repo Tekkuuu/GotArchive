@@ -8,11 +8,20 @@
 		formatTime,
 		getLogoUrl,
 		formatAnimeSeasonDisplay,
-    getPlatformDisplayName,
+		getPlatformDisplayName
 	} from './util';
-  import { WEEKDAYS } from '$lib/schemas';
-  import { notification } from '$lib/components/ui/toaster';
-  import { logError } from '$lib/client/logger';
+	import { WEEKDAYS } from '$lib/schemas';
+	import { notification } from '$lib/components/ui/toaster';
+	import { logError } from '$lib/client/logger';
+	import LogoImage from '$lib/components/ui/LogoImage.svelte';
+	import {
+		parseTzParam,
+		tzLabel as resolveTzLabel,
+		groupEntriesByWeekday,
+		isoWeekDateRange
+	} from '$lib/api/schedule/datecode';
+	import type { TimezoneAdjustedEntry, IsoWeekDateRange } from '$lib/api/schedule/datecode';
+	import { page } from '$app/state';
 
 	let { data }: PageProps = $props();
 
@@ -20,31 +29,31 @@
 	let scheduleData = $derived<SchedulePageData>({
 		schedule: data.schedule,
 		weekRange: data.weekRange,
+		weekDateRange: data.weekDateRange,
 		entries: data.entries,
+		adjacentEntries: data.adjacentEntries,
 		currentYear: data.currentYear,
 		currentWeek: data.currentWeek
 	});
 	let loading = $state(false);
 	let errorMessage = $state<string | null>(null);
 
-	// Group entries by weekday
-	const entriesByWeekday = $derived.by((): EntriesByWeekday => {
-		const groups: EntriesByWeekday = new Map();
+	/** UTC offset in minutes — defaults to GMT when `tz` param is absent */
+	const tzOffsetMinutes = $derived(parseTzParam(page.url.searchParams.get('tz')));
 
-		scheduleData.entries.forEach((entry) => {
-			const day = entry.dayOfWeek; // Already adjusted (0=Monday, 6=Sunday)
+	/** Display label for the active timezone, e.g. "GMT", "UTC+1" */
+	const activeTzLabel = $derived(resolveTzLabel(page.url.searchParams.get('tz')));
 
-			if (!groups.has(day)) {
-				groups.set(day, []);
-			}
-			groups.get(day)!.push(entry);
-		});
+	// Group entries by weekday, with timezone applied
+	const entriesByWeekday = $derived.by((): Map<number, TimezoneAdjustedEntry[]> => {
+		const allEntries = [...scheduleData.entries, ...scheduleData.adjacentEntries];
+		const groups = groupEntriesByWeekday(allEntries, tzOffsetMinutes ?? 0, scheduleData.weekDateRange);
 
-		// Sort entries within each day by time
-		groups.forEach((entries) => {
-			entries.sort((a, b) => {
-				const timeA = a.time || '';
-				const timeB = b.time || '';
+		// Sort entries within each day by (adjusted) time
+		groups.forEach((entries: TimezoneAdjustedEntry[]) => {
+			entries.sort((a: TimezoneAdjustedEntry, b: TimezoneAdjustedEntry) => {
+				const timeA = a.time ?? '';
+				const timeB = b.time ?? '';
 				return timeA.localeCompare(timeB);
 			});
 		});
@@ -65,7 +74,7 @@
 			const response = await fetch(`/api/schedule/${datecode}`);
 			const result = await response.json();
 
-			if (result.success) {
+		if (result.success) {
 				scheduleData = {
 					...result.data,
 					currentYear: year,
@@ -76,7 +85,9 @@
 				scheduleData = {
 					schedule: null,
 					weekRange: `Week ${week}, ${year}`,
+					weekDateRange: isoWeekDateRange(year, week),
 					entries: [],
+					adjacentEntries: [],
 					currentYear: year,
 					currentWeek: week
 				};
@@ -172,6 +183,9 @@
 			{#if scheduleData.schedule?.note}
 				<p class="text-sm text-base-content/70">{scheduleData.schedule.note}</p>
 			{/if}
+			{#if activeTzLabel}
+				<p class="text-xs text-base-content/50">Times shown in {activeTzLabel}</p>
+			{/if}
 		</div>
 
 		<button
@@ -253,7 +267,11 @@
                     <!-- Logo (hidden on mobile, 240px x 48px on larger screens) -->
                     <div class="hidden sm:flex w-60 h-12 shrink-0 items-center justify-center">
                       {#if logoUrl}
-                        <img src={logoUrl} alt="" class="max-w-full max-h-full object-contain" />
+                        <LogoImage
+                          src={logoUrl}
+                          class="w-full h-full flex items-center justify-center"
+                          imgClass="max-w-full max-h-full object-contain"
+                        />
                       {:else}
                         <ImageOff class="text-base-content/70"/>
                       {/if}

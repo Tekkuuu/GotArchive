@@ -1,3 +1,5 @@
+import type { IsoWeekDateRange } from '../timezone';
+
 /**
  * API Types for Schedule Datecode Endpoint
  * Used by /api/schedule/[datecode] and public schedule page
@@ -58,7 +60,16 @@ export interface ScheduleMetadata {
 export interface ScheduleData {
 	schedule: ScheduleMetadata;
 	weekRange: string; // e.g., "Week 8, 17-23 February"
+	/** Inclusive Monday–Sunday date bounds of this ISO week (UTC). */
+	weekDateRange: IsoWeekDateRange;
 	entries: ScheduleEntryData[];
+	/**
+	 * Entries from the immediately preceding and following ISO weeks.
+	 * Used by views that apply a timezone offset: an entry from an adjacent
+	 * week can shift into this week after conversion, and an entry from this
+	 * week can shift out of it.
+	 */
+	adjacentEntries: ScheduleEntryData[];
 }
 
 // API Response wrapper

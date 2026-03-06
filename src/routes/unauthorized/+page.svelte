@@ -13,10 +13,6 @@
 			</p>
 			<div class="card-actions mt-6 flex gap-2">
 				<a href="/" class="btn btn-primary">Go to Homepage</a>
-        <!-- TODO: Implement -->
-				<a href="#" class="btn btn-ghost">
-          Logout and try different account
-        </a>
 			</div>
 		</div>
 	</div>

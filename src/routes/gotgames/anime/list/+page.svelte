@@ -17,6 +17,10 @@
 	let displayType: 'list' | 'more' | 'less' = $state('list');
 	let displayAmount = $state(24);
 
+  let sortedAnime = $derived.by(() => {
+    return _.orderBy(data.anime, ['titleEnglish', 'titleRomaji', 'titleNative']);
+  });
+
 	let modalData = $state<AnimeCard | null>(null);
 	let hoveredAnimeId: string | null = $state(null);
 
@@ -26,9 +30,9 @@
 	// Derived filtered anime list with Fuse.js
 	let filteredAnime = $derived.by(() => {
 		if (!searchInput || searchInput.length < 2) {
-			return data.anime;
+			return sortedAnime;
 		}
-		const fuse = new Fuse(data.anime, {
+		const fuse = new Fuse(sortedAnime, {
 			keys: ['titleEnglish', 'titleNative', 'titleRomaji', 'genres'],
 			threshold: 0.3,
 			ignoreLocation: true,
@@ -315,7 +319,7 @@
 		<p class="text-xs md:text-sm text-base-content/70 mt-2 text-center">
 			Showing {Math.min(displayAmount, filteredAnime.length)} of {filteredAnime.length} anime
 			{#if searchInput && searchInput.length >= 2}
-				(filtered from {data.anime.length})
+				(filtered from {sortedAnime.length})
 			{/if}
 		</p>
 	</div>

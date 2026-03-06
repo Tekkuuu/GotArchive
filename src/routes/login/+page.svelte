@@ -1,168 +1,257 @@
 <script lang="ts">
-	import { signIn, signUp } from '$lib/auth';
-	import { goto } from '$app/navigation';
+	import { superForm } from 'sveltekit-superforms';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { LoginFormSchema, RegisterFormSchema } from '$lib/schemas/auth';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
 	import { notification } from '$lib/components/ui/toaster';
+	import { signIn } from '$lib/auth';
+	import { goto } from '$app/navigation';
 	import { logError } from '$lib/client/logger';
-	import { LogIn, UserPlus } from 'lucide-svelte';
+	import { KeyRound, LogIn, Mail, UserPlus } from 'lucide-svelte';
 
-	let email = $state('');
-	let password = $state('');
-	let name = $state('');
+	interface Props {
+		data: {
+			loginForm: SuperValidated<Infer<typeof LoginFormSchema>>;
+			registerForm: SuperValidated<Infer<typeof RegisterFormSchema>>;
+		};
+	}
+
+	let { data }: Props = $props();
+
 	let isSignUp = $state(false);
-	let loading = $state(false);
+	let loginLoading = $state(false);
 
-	async function handleSignIn() {
-		loading = true;
+	// svelte-ignore state_referenced_locally
+	const { form: loginForm, errors: loginErrors } = superForm(data.loginForm, {
+		validators: zod4Client(LoginFormSchema),
+		validationMethod: 'onsubmit'
+	});
+
+	// svelte-ignore state_referenced_locally
+	const {
+		form: registerForm,
+		enhance: registerEnhance,
+		errors: registerErrors,
+		submitting: registerSubmitting
+	} = superForm(data.registerForm, {
+		dataType: 'json',
+		validators: zod4Client(RegisterFormSchema),
+		validationMethod: 'onsubmit',
+		multipleSubmits: 'prevent',
+		onResult: ({ result }) => {
+			if (result.type === 'success') {
+				notification.success('Account created! You can now sign in.');
+				isSignUp = false;
+			} else if (result.type === 'failure' || result.type === 'error') {
+				notification.error('Registration failed. Check the form for errors.');
+			}
+		}
+	});
+
+	async function handleLogin(e: SubmitEvent) {
+		e.preventDefault();
+
+		// Run client-side validation first
+		const parsed = LoginFormSchema.safeParse($loginForm);
+		if (!parsed.success) {
+			// superForm validators will display field errors automatically on submit
+			return;
+		}
+
+		loginLoading = true;
 		try {
 			const result = await signIn.email({
-				email,
-				password
+				email: $loginForm.email,
+				password: $loginForm.password
 			});
 
 			if (result.error) {
-				notification.error(result.error.message || 'Failed to sign in');
+				notification.error(result.error.message || 'Invalid email or password.');
 			} else {
-				notification.success('Successfully signed in!');
+				notification.success('Signed in successfully');
 				goto('/');
 			}
 		} catch (error) {
-			notification.error('An unexpected error occurred');
+			notification.error('An unexpected error occurred.');
 			logError('Sign-in failed unexpectedly', { error: String(error) });
 		} finally {
-			loading = false;
-		}
-	}
-
-	async function handleSignUp() {
-		loading = true;
-		try {
-			const result = await signUp.email({
-				email,
-				password,
-				name
-			});
-
-			if (result.error) {
-				notification.error(result.error.message || 'Failed to sign up');
-			} else {
-				notification.success('Successfully signed up! Please sign in.');
-				isSignUp = false;
-			}
-		} catch (error) {
-			notification.error('An unexpected error occurred');
-			logError('Sign-up failed unexpectedly', { error: String(error) });
-		} finally {
-			loading = false;
-		}
-	}
-
-	function handleSubmit(e: Event) {
-		e.preventDefault();
-		if (isSignUp) {
-			handleSignUp();
-		} else {
-			handleSignIn();
+			loginLoading = false;
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>{isSignUp ? 'Sign Up' : 'Login'} | G.O.T Archive</title>
+	<title>Auth | G.O.T Archive</title>
 	<meta
 		name="description"
-		content="{isSignUp ? 'Create an account' : 'Sign in'} to G.O.T Archive"
+		content="Login/Register to G.O.T Archive"
 	/>
 </svelte:head>
 
-<div class="container mx-auto flex min-h-[80vh] items-center justify-center">
+<div class="container mx-auto flex min-h-[80vh] items-center justify-center px-4">
 	<div class="card w-full max-w-md bg-base-100 shadow-xl">
-		<div class="card-body">
-			<h2 class="card-title text-center text-3xl font-bold">
+		<div class="card-body gap-0">
+			<h2 class="card-title mb-1 text-2xl font-bold">
 				{isSignUp ? 'Create Account' : 'Welcome Back'}
 			</h2>
-			<p class="text-center text-sm opacity-70">
-				{isSignUp ? 'Sign up to get started' : 'Sign in to your account'}
+			<p class="mb-5 text-sm opacity-60">
+				{isSignUp ? 'A registration code is required to create an account.' : 'Sign in to your account.'}
 			</p>
 
-			<form onsubmit={handleSubmit} class="mt-4 flex flex-col gap-4">
-				{#if isSignUp}
-					<div class="form-control">
-						<label class="label" for="name">
-							<span class="label-text">Name</span>
-						</label>
-						<input
-							id="name"
-							type="text"
-							placeholder="Your name"
-							class="input input-bordered"
-							bind:value={name}
-							required
-							disabled={loading}
-						/>
+		{#if !isSignUp}
+			<!-- Sign-in form -->
+			<form onsubmit={handleLogin} class="space-y-4">
+				<fieldset class="fieldset bg-base-200 rounded-box p-4">
+					<legend class="fieldset-legend">
+						<LogIn class="size-4" />
+						Credentials
+					</legend>
+
+					<div class="space-y-3">
+						<div>
+							<label class="input w-full">
+								<Mail class="size-4 opacity-50" />
+								<span class="label">Email</span>
+								<input
+									type="email"
+									bind:value={$loginForm.email}
+									disabled={loginLoading}
+								/>
+							</label>
+							{#if $loginErrors.email}
+								<p class="mt-1 text-xs text-error">{$loginErrors.email}</p>
+							{/if}
+						</div>
+
+						<div>
+							<label class="input w-full">
+								<KeyRound class="size-4 opacity-50" />
+								<span class="label">Password</span>
+								<input
+									type="password"
+									bind:value={$loginForm.password}
+									disabled={loginLoading}
+								/>
+							</label>
+							{#if $loginErrors.password}
+								<p class="mt-1 text-xs text-error">{$loginErrors.password}</p>
+							{/if}
+						</div>
 					</div>
-				{/if}
+				</fieldset>
 
-				<div class="form-control">
-					<label class="label" for="email">
-						<span class="label-text">Email</span>
-					</label>
-					<input
-						id="email"
-						type="email"
-						placeholder="your@email.com"
-						class="input input-bordered"
-						bind:value={email}
-						required
-						disabled={loading}
-					/>
-				</div>
-
-				<div class="form-control">
-					<label class="label" for="password">
-						<span class="label-text">Password</span>
-					</label>
-					<input
-						id="password"
-						type="password"
-						placeholder="••••••••"
-						class="input input-bordered"
-						bind:value={password}
-						required
-						disabled={loading}
-						minlength="8"
-					/>
-					{#if isSignUp}
-						<label class="label">
-							<span class="label-text-alt">At least 8 characters</span>
-						</label>
-					{/if}
-				</div>
-
-				<div class="form-control mt-4">
-					<button type="submit" class="btn btn-primary" disabled={loading}>
-						{#if loading}
-							<span class="loading loading-spinner"></span>
-						{:else if isSignUp}
-							<UserPlus size={20} />
+				<div class="flex items-center justify-between gap-3">
+					<button
+						type="button"
+						class="btn btn-ghost btn-sm"
+						onclick={() => (isSignUp = true)}
+						disabled={loginLoading}
+					>
+						Need an account?
+					</button>
+					<button type="submit" class="btn btn-primary" disabled={loginLoading}>
+						{#if loginLoading}
+							<span class="loading loading-spinner loading-sm"></span>
+							Signing in...
 						{:else}
-							<LogIn size={20} />
+							<LogIn class="size-4" />
+							Sign In
 						{/if}
-						<span class="font-bold">{isSignUp ? 'Sign Up' : 'Sign In'}</span>
 					</button>
 				</div>
 			</form>
+			{:else}
+				<!-- Register form -->
+				<form method="POST" action="?/register" use:registerEnhance class="space-y-4">
+					<fieldset class="fieldset bg-base-200 rounded-box p-4">
+						<legend class="fieldset-legend">
+							<UserPlus class="size-4" />
+							Account Details
+						</legend>
 
-			<div class="divider">OR</div>
+						<div class="space-y-3">
+							<div>
+								<label class="input w-full">
+									<span class="label">Name</span>
+									<input
+										type="text"
+										bind:value={$registerForm.name}
+									/>
+								</label>
+								{#if $registerErrors.name}
+									<p class="mt-1 text-xs text-error">{$registerErrors.name}</p>
+								{/if}
+							</div>
 
-			<button
-				class="btn btn-ghost btn-sm"
-				onclick={() => {
-					isSignUp = !isSignUp;
-				}}
-				disabled={loading}
-			>
-				{isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-			</button>
+							<div>
+								<label class="input w-full">
+									<Mail class="size-4 opacity-50" />
+									<span class="label">Email</span>
+									<input
+										type="email"
+										bind:value={$registerForm.email}
+									/>
+								</label>
+								{#if $registerErrors.email}
+									<p class="mt-1 text-xs text-error">{$registerErrors.email}</p>
+								{/if}
+							</div>
+
+							<div>
+								<label class="input w-full">
+									<KeyRound class="size-4 opacity-50" />
+									<span class="label">Password</span>
+									<input
+										type="password"
+										bind:value={$registerForm.password}
+									/>
+								</label>
+								{#if $registerErrors.password}
+									<p class="mt-1 text-xs text-error">{$registerErrors.password}</p>
+								{/if}
+							</div>
+						</div>
+					</fieldset>
+
+					<fieldset class="fieldset bg-base-200 rounded-box p-4">
+						<legend class="fieldset-legend">
+							<KeyRound class="size-4" />
+							Access
+						</legend>
+
+						<div>
+							<label class="input w-full">
+								<span class="label">Registration Code</span>
+								<input
+									type="password"
+									bind:value={$registerForm.registrationCode}
+								/>
+							</label>
+							{#if $registerErrors.registrationCode}
+								<p class="mt-1 text-xs text-error">{$registerErrors.registrationCode}</p>
+							{:else}
+								<p class="label">
+									<span class="label-text-alt">Contact an admin if you don't have a code.</span>
+								</p>
+							{/if}
+						</div>
+					</fieldset>
+
+					<div class="flex items-center justify-between gap-3">
+						<button
+							type="button"
+							class="btn btn-ghost btn-sm"
+							onclick={() => (isSignUp = false)}
+						>
+							Back to sign in
+						</button>
+						<button type="submit" class="btn btn-success">
+              <UserPlus class="size-4" />
+              Create Account
+						</button>
+					</div>
+				</form>
+			{/if}
 		</div>
 	</div>
 </div>

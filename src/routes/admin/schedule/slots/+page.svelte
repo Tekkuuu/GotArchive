@@ -153,7 +153,7 @@
 	<title>Schedule Slots | G.O.T Archive</title>
 </svelte:head>
 
-<div class="container mx-auto">
+<div class="container mx-auto space-y-4">
 	<!-- Page Header -->
 	<div class="my-2 w-full">
 		<h1 class="text-3xl text-center font-bold">Schedule Slots</h1>
@@ -315,7 +315,7 @@
 
 	<!-- Inactive Slots Section (Collapsed by Default) -->
 	{#if inactiveSlots.length > 0}
-		<div class="card bg-base-200 shadow-xl mt-6">
+		<div class="card bg-base-200 shadow-xl">
 			<div class="card-body">
 				<button
 					class="flex items-center justify-between cursor-pointer w-full"

@@ -20,7 +20,7 @@
 		groupEntriesByWeekday,
 		isoWeekDateRange
 	} from '$lib/api/schedule/datecode';
-	import type { TimezoneAdjustedEntry, IsoWeekDateRange } from '$lib/api/schedule/datecode';
+	import type { TimezoneAdjustedEntry } from '$lib/api/schedule/datecode';
 	import { page } from '$app/state';
 
 	let { data }: PageProps = $props();
@@ -304,7 +304,11 @@
                         {#each entry.animeSeasons as animeSeason}
                           <div>
                             <span>
-                              {formatAnimeSeasonDisplay(animeSeason)}
+                              {#if !entry.title}
+                                {formatAnimeSeasonDisplay(animeSeason)}
+                              {:else}
+                                {entry.title}
+                              {/if}
                             </span>
                             <span class="font-bold text-primary">
                               E{animeSeason.episodes}
@@ -312,14 +316,16 @@
                           </div>
                         {/each}
                       </div>
-                    {:else if entry.title}
-                      <span class="text-sm font-medium">{entry.title}</span>
+                    {:else}
+                      <div class="flex flex-col gap-0">
+                        <span>{entry.title || 'Untitled'}</span>
+                      </div>
                     {/if}
 
                     <!-- Description -->
-                    <div class="flex grow max-md:hidden">
+                    <div class="flex text-primary font-bold grow max-md:hidden">
                       {#if entry.description}
-                        <p class="text-base-content/70">{entry.description}</p>
+                        <span>{entry.description}</span>
                       {/if}
                     </div>
 

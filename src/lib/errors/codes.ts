@@ -234,6 +234,13 @@ export const ERROR_CODES = {
 			code: 'AUTH002',
 			message: 'You do not have permission to access this resource.',
 			httpStatus: 403
+		},
+
+		/** Registration was attempted with an invalid or missing registration code. */
+		INVALID_REGISTRATION_CODE: {
+			code: 'AUTH003',
+			message: 'Invalid registration code.',
+			httpStatus: 403
 		}
 	},
 

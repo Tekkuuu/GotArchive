@@ -87,7 +87,7 @@ export const actions: Actions = {
 				});
 			});
 
-			return { success: true };
+			return { success: true, form };
 		} catch (err) {
 			if (err instanceof AppError) {
 				logger.error('createSeason: DB insert returned no ID', {
@@ -137,7 +137,7 @@ export const actions: Actions = {
 					.where(eq(schema.animeSeasonMetadata.animeSeasonId, form.data.animeSeasonId));
 			});
 
-			return { success: true };
+			return { success: true, form };
 		} catch (err) {
 			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
 				cause: err,

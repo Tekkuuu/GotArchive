@@ -130,28 +130,26 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
+		const [scheduleData] = await db
+			.select()
+			.from(schema.schedule)
+			.where(eq(schema.schedule.scheduleId, form.data.scheduleId))
+			.limit(1);
+
+		if (!scheduleData) {
+			return fail(404, { form, error: 'Schedule not found' });
+		}
+
 		try {
-			await db.transaction(async (tx) => {
-				const [scheduleData] = await tx
-					.select()
-					.from(schema.schedule)
-					.where(eq(schema.schedule.scheduleId, form.data.scheduleId))
-					.limit(1);
+			await db
+				.update(schema.schedule)
+				.set({
+					note: form.data.note,
+					preview: form.data.preview
+				})
+				.where(eq(schema.schedule.scheduleId, scheduleData.scheduleId));
 
-				if (!scheduleData) {
-					return fail(404, { form, error: 'Schedule not found' });
-				}
-
-				await tx
-					.update(schema.schedule)
-					.set({
-						note: form.data.note,
-						preview: form.data.preview
-					})
-					.where(eq(schema.schedule.scheduleId, scheduleData.scheduleId));
-
-				return { form };
-			});
+			return { form };
 		} catch (err) {
 			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
 				cause: err,

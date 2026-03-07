@@ -60,7 +60,7 @@ export const EditSeasonFormSchema = z.object({
 	season: seasonEnum.nullable(),
 	year: z.number().int().min(1900).nullable(),
 	episodes: z.number().int().positive().nullable(),
-	episodeProgress: z.number().int().positive().nullable(),
+	episodeProgress: z.number().int().nonnegative().nullable(),
 	anilistId: z.number().int().positive().nullable(),
 	malId: z.number().int().positive().nullable(),
 	note: z.string().nullable()

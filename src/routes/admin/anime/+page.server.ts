@@ -267,6 +267,7 @@ export const actions: Actions = {
 		const form = await superValidate(request, zod4(NewSeasonFormSchema));
 
 		if (!form.valid) {
+			console.log(form.errors);
 			return fail(422, { form, text: ERROR_CODES.forms.VALIDATION_FAILED.message });
 		}
 
@@ -305,6 +306,7 @@ export const actions: Actions = {
 
 			return { success: true, form };
 		} catch (err) {
+			console.log(err);
 			if (err instanceof AppError) {
 				logger.error('createSeason: DB insert returned no ID', {
 					code: err.code,

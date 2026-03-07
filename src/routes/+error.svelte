@@ -14,7 +14,4 @@
 	<p class="mt-2">The issue has been reported and will be investigated.</p>
 	<p class="mt-2">Sorry for the inconvenience.</p>
 	<p class="mt-4">Error Code: <code>{page.error?.status || page.status}</code></p>
-	{#if page.error?.sentryErrorId}
-		<p class="mt-2">Error ID: <code>{page.error?.sentryErrorId}</code></p>
-	{/if}
 </div>

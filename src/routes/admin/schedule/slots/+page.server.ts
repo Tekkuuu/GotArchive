@@ -1,6 +1,7 @@
 import { db, schema, eq, asc, sql } from '$lib/server/db';
 import type { Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { fail } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { AddScheduleSlotSchema, EditScheduleSlotSchema } from '$lib/components/schedule/slot/util';
@@ -55,7 +56,16 @@ export const load: PageServerLoad = async () => {
 export const actions: Actions = {
 	addSlot: async ({ request }) => {
 		const form = await superValidate(request, zod4(AddScheduleSlotSchema));
-		return await slotActions.createScheduleSlot(form.data);
+
+		if (!form.valid) {
+			return fail(422, { form });
+		}
+
+		const result = await slotActions.createScheduleSlot(form.data);
+		if (result && !result.success) {
+			return fail(500, { form });
+		}
+		return { form };
 	},
 	editSlot: async ({ request }) => {
 		const formData = await request.formData();
@@ -64,7 +74,7 @@ export const actions: Actions = {
 
 		if (!form.valid || !slotId.success) {
 			logger.error('Invalid form data for editSlot', { form, slotId });
-			return { success: false, error: 'Invalid form data' };
+			return fail(422, { form });
 		}
 
 		logger.info('Editing slot', { slotId: slotId.data, data: form.data });
@@ -82,14 +92,14 @@ export const actions: Actions = {
 
 		if (existingSlot.length > 0) {
 			logger.warn('Duplicate slot detected', { slotId: slotId.data, existingSlot });
-			return {
-				success: false,
-				error: 'A slot with this day and time already exists'
-			};
+			return fail(409, { form });
 		}
 
 		const result = await slotActions.editScheduleSlot(slotId.data, form.data);
-		return result;
+		if (!result.success) {
+			return fail(500, { form });
+		}
+		return { form };
 	},
 	toggleSlot: async ({ request }) => {
 		const formData = await request.formData();

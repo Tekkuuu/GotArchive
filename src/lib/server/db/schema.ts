@@ -99,8 +99,8 @@ export const animeSeasonMetadata = pgTable(
 	{
 		animeSeasonMetadataId: uuid('anime_season_metadata_id').primaryKey().defaultRandom(),
 		animeSeasonId: uuid('anime_season_id').notNull(),
-		anilistId: integer('anilist_id').unique(),
-		malId: integer('mal_id').unique(),
+		anilistId: integer('anilist_id'),
+		malId: integer('mal_id'),
 		note: text('note')
 	},
 	(table) => [
@@ -108,7 +108,8 @@ export const animeSeasonMetadata = pgTable(
 			name: 'anime_season_fk',
 			columns: [table.animeSeasonId],
 			foreignColumns: [animeSeason.animeSeasonId]
-		}).onDelete('cascade')
+		}).onDelete('cascade'),
+		unique('unique_anilist_mal_combo').on(table.anilistId, table.malId)
 	]
 );
 

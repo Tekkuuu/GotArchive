@@ -23,8 +23,7 @@
 				</h2>
 				<div class="space-y-2 text-sm md:text-base">
 					<p>
-						We care about your privacy! You have choices about what information you share and how
-						your feedback and site activity are handled.
+            Currently we don't collect any personal data from users. We only collect error reports with browser and device info attached.
 					</p>
 				</div>
 			</div>
@@ -39,7 +38,6 @@
 				</h2>
 				<div class="space-y-2 text-sm md:text-base">
 					<p>You can use this site without logging in or sharing personal information.</p>
-					<p>Feedback is sent anonymously via discord bot to the admins.</p>
 				</div>
 			</div>
 		</div>
@@ -53,7 +51,7 @@
 				</h2>
 				<p class="text-sm md:text-base">
 					We use Logwell (self-hosted) to collect anonymous error and crash reports to help us
-					fix bugs and improve the site. All logs are stored on our own servers.
+					fix bugs and improve the site. All logs are stored on <a href="https://railway.com/" class="link link-primary" target="_blank" rel="noopener noreferrer">Railway</a> servers in the EU.
 				</p>
 			</div>
 		</div>
@@ -89,7 +87,6 @@
 					Data Access & Security
 				</h2>
 				<ul class="list-disc list-inside space-y-2 text-sm md:text-base">
-					<li>Only the site admin(s) can view feedback and error reports.</li>
 					<li>We do not use third-party analytics or ads.</li>
 					<li>We do not share your data with anyone.</li>
 					<li>
@@ -126,7 +123,7 @@
 					<Calendar class="h-5 w-5" />
 					Last Updated
 				</h2>
-				<p class="text-sm md:text-base">2026-02-08</p>
+				<p class="text-sm md:text-base">2026-03-07</p>
 			</div>
 		</div>
 	</div>

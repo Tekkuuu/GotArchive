@@ -76,7 +76,7 @@
 					<Calendar class="h-5 w-5" />
 					Last Updated
 				</h2>
-				<p class="text-sm md:text-base">2026-02-08</p>
+				<p class="text-sm md:text-base">2026-03-07</p>
 			</div>
 		</div>
 	</div>

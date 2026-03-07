@@ -9,6 +9,9 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
   import { DeleteAnimeFormSchema } from '$lib/schemas/anime';
+  import { updateAnimeImagesStore } from '$lib/stores';
+	import { onMount } from 'svelte';
+	import { logError } from '$lib/client/logger';
 
   type Anime = typeof data.anime[number];
 
@@ -81,6 +84,19 @@
     $deleteForm.animeId = animeId;
     deleteSubmit();
 	}
+
+  onMount(() => {
+    updateAnimeImagesStore(
+      data.anime.map(
+        (a) => a.seasons.sort(
+          (a, b) => a.sequence - b.sequence
+        )[0].anilistId
+      ).filter((x) => x != null)).catch(
+      (error) => {
+        logError('Failed to update anime images store', { error: String(error) });
+      }
+    );
+  });
 </script>
 
 <svelte:head>

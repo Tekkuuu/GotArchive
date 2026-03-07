@@ -122,7 +122,8 @@ export const actions: Actions = {
 						shortTitle: form.data.shortTitle,
 						season: form.data.season as never,
 						year: form.data.year,
-						episodes: form.data.episodes
+						episodes: form.data.episodes,
+						episodeProgress: form.data.episodeProgress || 0
 					})
 					.where(eq(schema.animeSeason.animeSeasonId, form.data.animeSeasonId));
 

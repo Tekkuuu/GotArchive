@@ -174,7 +174,6 @@
 				</a>
 			{/if}
 
-      {console.log($session.data)}
 			{#if $session.data}
 				<button
 					class="btn btn-ghost tooltip tooltip-bottom"

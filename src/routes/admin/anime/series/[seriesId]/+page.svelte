@@ -11,12 +11,12 @@
 
 	type Season = (typeof data.seasons)[number];
 
-	let editingSeason:  Season['data'] & Omit<Season['metadata'], 'animeSeasonId' | 'animeSeasonMetadataId'> | undefined = $state(undefined);
+	let editingSeason:  Season['data'] & Omit<Season['metadata'], 'animeSeasonMetadataId'> | undefined = $state(undefined);
 
 	function openEditModal(season: Season) {
 		editingSeason = {
       ...season.data,
-      ..._.omit(season.metadata, ['animeSeasonId', 'animeSeasonMetadataId'])
+      ..._.omit(season.metadata, ['animeSeasonMetadataId'])
     };
 		modalUtils.openModal('edit-season-modal');
 	}
@@ -110,7 +110,7 @@
 						title="Edit"
 						onclick={() => openEditModal(season)}
 					>
-						<Pencil class="h-4 w-4" />
+						<Pencil class="size-4" />
 					</button>
 
           <button
@@ -118,7 +118,7 @@
             title="Delete"
             onclick={() => handleDelete(season.data.animeSeasonId)}
           >
-            <Trash2 class="h-4 w-4" />
+            <Trash2 class="size-4" />
           </button>
 				</div>
 			</div>

@@ -130,7 +130,7 @@ export const actions: Actions = {
 				}
 			});
 
-			return { success: true };
+			return { success: true, form };
 		} catch (err) {
 			if (err instanceof AppError) {
 				logger.error('createAnime: DB insert returned no ID', {
@@ -184,7 +184,7 @@ export const actions: Actions = {
 				}
 			});
 
-			return { success: true };
+			return { success: true, form };
 		} catch (err) {
 			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
 				cause: err,
@@ -255,7 +255,7 @@ export const actions: Actions = {
 				animeId: form.data.animeId,
 				seasonCount: seasons.length
 			});
-			return { success: true };
+			return { success: true, form };
 		} catch (err) {
 			throw new AppError(ERROR_CODES.forms.INTERNAL_ERROR, {
 				cause: err,
@@ -303,7 +303,7 @@ export const actions: Actions = {
 				});
 			});
 
-			return { success: true };
+			return { success: true, form };
 		} catch (err) {
 			if (err instanceof AppError) {
 				logger.error('createSeason: DB insert returned no ID', {

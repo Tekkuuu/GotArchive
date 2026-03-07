@@ -8,10 +8,12 @@
 	import { EditSeasonFormSchema, seasonEnum, formatEnum } from '$lib/schemas';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
 
+  type PrefillData = Partial<Omit<Infer<typeof EditSeasonFormSchema>, 'adnimeSeasonId'>> & Required<Pick<Infer<typeof EditSeasonFormSchema>, 'animeSeasonId'>>;
+
 	interface Props {
 		id: string;
 		sForm: SuperValidated<Infer<typeof EditSeasonFormSchema>>;
-    prefill?: Partial<Infer<typeof EditSeasonFormSchema>>;
+    prefill?: PrefillData;
 		action: string;
 	}
 
@@ -35,19 +37,22 @@
 	});
 
   $effect(() => {
-    $form.sequence = prefill?.sequence || 1;
-    $form.format = prefill?.format || formatEnum.options[0];
-    $form.titleNative = prefill?.titleNative || '';
-    $form.titleRomaji = prefill?.titleRomaji || null;
-    $form.titleEnglish = prefill?.titleEnglish || null;
-    $form.shortTitle = prefill?.shortTitle || null;
-    $form.season = prefill?.season || null;
-    $form.year = prefill?.year || null;
-    $form.episodes = prefill?.episodes || null;
-    $form.episodeProgress = prefill?.episodeProgress || null;
-    $form.anilistId = prefill?.anilistId || null;
-    $form.malId = prefill?.malId || null;
-    $form.note = prefill?.note || null;
+    if (!prefill) return;
+
+    $form.animeSeasonId = prefill.animeSeasonId;
+    $form.sequence = prefill.sequence || 1;
+    $form.format = prefill.format || formatEnum.options[0];
+    $form.titleNative = prefill.titleNative || '';
+    $form.titleRomaji = prefill.titleRomaji || null;
+    $form.titleEnglish = prefill.titleEnglish || null;
+    $form.shortTitle = prefill.shortTitle || null;
+    $form.season = prefill.season || null;
+    $form.year = prefill.year || null;
+    $form.episodes = prefill.episodes || null;
+    $form.episodeProgress = prefill.episodeProgress || null;
+    $form.anilistId = prefill.anilistId || null;
+    $form.malId = prefill.malId || null;
+    $form.note = prefill.note || null;
   });
 </script>
 
@@ -169,6 +174,19 @@
 							}
 							min={1}
 							placeholder="Total episode count"
+						/>
+					</label>
+
+					<label class="input w-full col-span-2">
+						<span class="label">Episode Progress</span>
+						<input
+							type="number"
+							bind:value={
+								() => $form.episodeProgress || '',
+								(v) => ($form.episodeProgress = v === '' ? null : Number(v))
+							}
+							min={1}
+							placeholder="Episode progress"
 						/>
 					</label>
 

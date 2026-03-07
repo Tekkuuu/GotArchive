@@ -37,7 +37,7 @@ export const actions: Actions = {
 					name: form.data.name,
 					email: form.data.email,
 					password: form.data.password,
-					role: 'moderator'
+					role: 'user'
 				}
 			});
 

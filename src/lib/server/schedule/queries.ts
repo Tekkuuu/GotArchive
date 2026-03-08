@@ -25,6 +25,7 @@ async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntr
 				scheduleEntryId: schema.scheduleEntry.scheduleEntryId,
 				animeSeasons: sql<Array<{
 					animeSeasonId: string;
+					sequence: number;
 					episodes: string;
 					format: string;
 					season: string | null;
@@ -42,6 +43,7 @@ async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntr
 				}> | null>`json_agg(
           json_build_object(
             'animeSeasonId', ${schema.scheduleEntryAnimeSeason.animeSeasonId},
+            'sequence', ${schema.animeSeason.sequence},
             'episodes', ${schema.scheduleEntryAnimeSeason.episodes},
             'format', ${schema.animeSeason.format},
             'season', ${schema.animeSeason.season},
@@ -134,6 +136,7 @@ async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntr
 		const animeSeasons: ScheduleAnimeSeasonInfo[] =
 			entryData.animeSeasons?.map((as) => ({
 				animeSeasonId: as.animeSeasonId,
+				sequence: as.sequence,
 				episodes: as.episodes,
 				anime: {
 					animeId: as.animeId,

@@ -301,7 +301,7 @@
                     <!-- Title/Anime Info -->
                     {#if entry.animeSeasons && entry.animeSeasons.length > 0}
                       <div class="flex flex-col gap-0">
-                        {#each entry.animeSeasons as animeSeason}
+                        {#each entry.animeSeasons.sort((a, b) => a.sequence - b.sequence) as animeSeason}
                           <div>
                             <span>
                               {#if !entry.title}

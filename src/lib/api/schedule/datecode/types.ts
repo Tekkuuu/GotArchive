@@ -16,6 +16,7 @@ export interface ScheduleAnimeInfo {
 
 export interface ScheduleAnimeSeasonInfo {
 	animeSeasonId: string;
+	sequence: number;
 	episodes: string; // e.g., "1-4", "10-12"
 	anime: ScheduleAnimeInfo;
 	format: string;

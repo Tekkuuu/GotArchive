@@ -14,5 +14,5 @@ export * as schema from './schema';
 export type * from './types';
 
 // Drizzle helper exports for convenient imports
-export { eq, and, or, inArray, not, isNull, isNotNull, sql } from 'drizzle-orm';
+export { eq, and, or, ne, inArray, not, isNull, isNotNull, sql } from 'drizzle-orm';
 export { desc, asc } from 'drizzle-orm';

@@ -1,4 +1,4 @@
-import { db, schema, eq, asc, sql } from '$lib/server/db';
+import { db, schema, and, ne, eq, asc, sql } from '$lib/server/db';
 import type { Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
@@ -84,9 +84,13 @@ export const actions: Actions = {
 			.select()
 			.from(schema.scheduleSlot)
 			.where(
-				sql`${schema.scheduleSlot.dayOfWeek} = ${form.data.dayOfWeek} 
-            AND ${schema.scheduleSlot.time} = ${form.data.time}
-            AND ${schema.scheduleSlot.scheduleSlotId} != ${slotId.data}`
+				and(
+					eq(schema.scheduleSlot.dayOfWeek, form.data.dayOfWeek),
+					form.data.time !== null
+						? sql`${schema.scheduleSlot.time} = ${form.data.time}::time`
+						: sql`${schema.scheduleSlot.time} IS NULL`,
+					ne(schema.scheduleSlot.scheduleSlotId, slotId.data)
+				)
 			)
 			.limit(1);
 

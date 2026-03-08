@@ -84,7 +84,7 @@
 					</div>
 
 					<!-- Entries (or empty placeholder) -->
-					<div class="flex flex-col divide-y divide-zinc-700/50 rounded-lg overflow-hidden bg-zinc-800/40">
+					<div class="flex flex-col divide-y divide-zinc-700 rounded-lg overflow-hidden bg-zinc-800/40 pattern-diagonal">
 						{#if dayEntries.length === 0}
 							<div class="flex items-center gap-3 px-3 py-2 min-h-14"></div>
 						{:else}
@@ -206,3 +206,11 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+  /* Diagonal Lines */
+  .pattern-diagonal {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M0 8 L8 0' stroke='%2352525b' stroke-width='0.1' opacity='0.5'/%3E%3C/svg%3E");
+    background-size: 80px 80px;
+  }
+</style>

@@ -1,57 +1,49 @@
-import { Redis } from '@upstash/redis';
-import { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } from '$env/static/private';
-import { addDays } from 'date-fns';
-import * as z from 'zod/v4';
+import Redis from 'ioredis';
+import { REDIS_URL } from '$env/static/private';
 
-export const redis = new Redis({
-  url: UPSTASH_REDIS_REST_URL,
-  token: UPSTASH_REDIS_REST_TOKEN,
+/**
+ * Singleton ioredis client.
+ *
+ * Connects via the REDIS_URL environment variable (standard redis:// or
+ * rediss:// connection string). TLS is enabled automatically when the scheme
+ * is rediss:// — no extra configuration needed for Railway's private network.
+ *
+ * Connection errors are logged to stderr so they don't crash the app on boot.
+ */
+export const redis = new Redis(REDIS_URL, {
+	// Reconnect with exponential back-off, capped at 10 s
+	retryStrategy: (times) => Math.min(times * 200, 10_000),
+	// TLS options — ioredis enables TLS automatically for rediss:// URLs.
+	// Set rejectUnauthorized: false only if your Redis certificate is self-signed.
+	tls: REDIS_URL.startsWith('rediss://') ? {} : undefined,
+	// Suppress ioredis's default unhandled-error warning; we handle it below.
+	lazyConnect: false
+});
+
+redis.on('error', (err) => {
+	process.stderr.write(`[redis] Connection error: ${String(err)}\n`);
 });
 
 /**
- * Limits to `limit` requests per `windowSeconds`.
- * Returns true if under limit, false if blocked.
- * 
- * @param key Unique identifier (userId, IP, or anonId)
- * @param limit Max allowed requests per window
- * @param windowSeconds Time window in seconds
+ * Sliding-window rate limiter using a Redis counter.
+ *
+ * Returns `true` if the request is within the allowed limit, `false` if it
+ * should be blocked.
+ *
+ * @param key    Unique bucket identifier (e.g. `rl:logs:<ip>`)
+ * @param limit  Maximum number of requests allowed per window
+ * @param windowSeconds  Window duration in seconds
  */
 export async function rateLimit(
-  key: string,
-  limit: number,
-  windowSeconds: number
+	key: string,
+	limit: number,
+	windowSeconds: number
 ): Promise<boolean> {
-  const count = await redis.incr(key);
-
-  if (count === 1) {
-    await redis.expire(key, windowSeconds);
-  }
-
-  return count <= limit;
-}
-
-/**
- * Adds the given user UUID to today's Daily Active Users (DAU) set in Redis.
- * The set is keyed by the current date (YYYY-MM-DD) and will expire after 7 days.
- *
- * @param uuid - The unique identifier of the user to record as active today.
- */
-export async function updateDAU(uuid: string) {
-  const today = new Date().toISOString().slice(0, 10);
-  await redis.sadd(`dau:${today}`, uuid);
-  await redis.expire(`dau:${today}`, 24 * 60 * 60 * 7); // 1 day expiration
-}
-
-export async function getDAU(date: string): Promise<number | null> {
-  const validDate = z.iso.date().safeParse(date);
-  if (!validDate.success) {
-    return null;
-  }
-
-  try {
-    const dau = await redis.scard(`dau:${validDate.data}`);
-    return dau;
-  } catch (err) {
-    return null;
-  }
+	const count = await redis.incr(key);
+	if (count === 1) {
+		// Only set expiry on first increment — avoids resetting the window on
+		// every request while still being atomic enough for our use case.
+		await redis.expire(key, windowSeconds);
+	}
+	return count <= limit;
 }

@@ -1,56 +1,53 @@
-import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { useSchedule } from '$lib/hooks/useSchedule';
-import { handleApiError } from '$lib/api';
-import { AppError } from '$lib/errors';
-import { sentry } from '$lib/sentry';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { logger } from '$lib/server/logger';
+import { getScheduleByWeek, parseDatecode } from '$lib/server/schedule/queries';
+import type { ScheduleApiResponse } from '$lib/api/schedule/datecode';
 
-export const GET: RequestHandler = async ({ params, locals, url, request, setHeaders }) => {
-  try {
-    const referer = request.headers.get('referer') || '';
-    const previewParam = url.searchParams.get('preview');
-    let preview: boolean | undefined = undefined;
-    if (previewParam === 'true') {
-      preview = true;
-    } else if (previewParam === 'false') {
-      preview = false;
-    }
+export const GET: RequestHandler = async ({ params }) => {
+	const { datecode } = params;
 
-    if (params.datecode) {
-      sentry.addBreadcrumb({
-        category: 'db.request',
-        message: `Fetching schedule data for datecode ${params.datecode}`,
-        level: 'info',
-        data: {
-          datecode: params.datecode
-        }
-      });
+	const parsed = parseDatecode(datecode);
 
-      const data = await useSchedule(params.datecode, { preview });
+	if (!parsed) {
+		return json(
+			{
+				success: false,
+				error: 'Invalid datecode format. Expected YYYYWW (e.g., 202608)'
+			} satisfies ScheduleApiResponse,
+			{ status: 400 }
+		);
+	}
 
-      if (!data.scheduleInfo) {
-        error(404, "Schedule not found for give year and week");
-      }
+	const { year, week } = parsed;
 
-      // Set cache control headers
-      // Default to 1 hour
-      // If the referer is from admin pages set to no-store to always get accurate data
-      let cacheControl = 'public, max-age=3600';
-      if (referer.includes('/admin/')) {
-        cacheControl = 'no-store';
-      }
+	try {
+		const result = await getScheduleByWeek(year, week);
 
-      setHeaders({
-        'cache-control': cacheControl,
-      });
+		if (!result) {
+			return json(
+				{
+					success: false,
+					error: `Schedule not found for ${year} Week ${week}`
+				} satisfies ScheduleApiResponse,
+				{ status: 404 }
+			);
+		}
 
-      return json(data);
-    } else {
-      throw new AppError("A datecode parameter is required.", 400);
-    }
-  } catch (err) {
-    let tags = {
-      source: `useSchedule`,
-    }
-    return handleApiError(err, locals, url, tags);
-  }
+		return json({ success: true, data: result } satisfies ScheduleApiResponse, {
+			headers: { 'Cache-Control': 'public, max-age=300' }
+		});
+	} catch (err) {
+		logger.error('Failed to fetch schedule for datecode', {
+			datecode,
+			error: err instanceof Error ? { message: err.message, stack: err.stack } : String(err)
+		});
+		return json(
+			{
+				success: false,
+				error: 'Internal server error while fetching schedule'
+			} satisfies ScheduleApiResponse,
+			{ status: 500 }
+		);
+	}
 };

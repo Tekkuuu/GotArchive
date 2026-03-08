@@ -1,109 +1,116 @@
-import { PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY, PUBLIC_SUPABASE_URL } from '$env/static/public';
-import * as Sentry from '@sentry/sveltekit';
-import { createServerClient } from '@supabase/ssr';
 import { type Handle, type HandleServerError, redirect } from '@sveltejs/kit';
-import { sentry as sentryLogger, type SentryLoggerOptions } from '$lib/sentry/';
-import _ from 'lodash';
 import { dev } from '$app/environment';
 import { sequence } from '@sveltejs/kit/hooks';
+import { auth } from '$lib/server/auth';
+import { logger } from '$lib/server/logger';
+import { AppError } from '$lib/errors';
 
-Sentry.init({
-  dsn: "https://cab45777ee0c5385707ca195a91428c6@o4509638308921344.ingest.de.sentry.io/4509638312001616",
-  sendDefaultPii: true,
-  enabled: !dev, // Disable Sentry in development mode
-})
+export const handleError: HandleServerError = ({ error, event, status }) => {
+	// Build request context for structured logging
+	const requestContext = {
+		url: event.url.pathname,
+		method: event.request.method,
+		status,
+		userAgent: event.request.headers.get('user-agent'),
+		ip: event.getClientAddress()
+	};
 
-const supabase: Handle = async ({ event, resolve }) => {
-  /**
-   * Creates a Supabase client specific to this server request.
-   *
-   * The Supabase client gets the Auth token from the request cookies.
-   */
-  event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY, {
-    cookies: {
-      getAll: () => event.cookies.getAll(),
-      /**
-       * SvelteKit's cookies API requires `path` to be explicitly set in
-       * the cookie options. Setting `path` to `/` replicates previous/
-       * standard behavior.
-       */
-      setAll: (cookiesToSet) => {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          event.cookies.set(name, value, { ...options, path: '/' })
-        })
-      },
-    },
-  })
+	// Handle expected application errors (AppError)
+	if (error instanceof AppError) {
+		logger.error('AppError caught in handleError', {
+			...requestContext,
+			...error.toJSON()
+		});
 
-  /**
-   * Unlike `supabase.auth.getSession()`, which returns the session _without_
-   * validating the JWT, this function also calls `getUser()` to validate the
-   * JWT before returning the session.
-   */
-  event.locals.safeGetSession = async () => {
-    const {
-      data: { session },
-    } = await event.locals.supabase.auth.getSession()
-    if (!session) {
-      return { session: null, user: null }
-    }
+		return {
+			message: error.message
+		};
+	}
 
-    const {
-      data: { user },
-      error,
-    } = await event.locals.supabase.auth.getUser()
-    if (error) {
-      // JWT validation has failed
-      return { session: null, user: null }
-    }
+	// Handle unexpected JavaScript errors
+	if (error instanceof Error) {
+		logger.error('Unexpected error caught in handleError', {
+			...requestContext,
+			error: {
+				name: error.name,
+				message: error.message,
+				stack: error.stack
+			}
+		});
 
-    return { session, user }
-  }
+		return {
+			message: dev ? error.message : 'An unexpected error occurred'
+		};
+	}
 
-  return resolve(event, {
-    filterSerializedResponseHeaders(name) {
-      /**
-       * Supabase libraries use the `content-range` and `x-supabase-api-version`
-       * headers, so we need to tell SvelteKit to pass it through.
-       */
-      return name === 'content-range' || name === 'x-supabase-api-version'
-    },
-  })
-}
+	// Handle unknown error types (e.g., thrown primitives)
+	logger.error('Unknown error type caught in handleError', {
+		...requestContext,
+		error: typeof error === 'object' ? JSON.stringify(error) : String(error)
+	});
 
-const authGuard: Handle = async ({ event, resolve }) => {
-  const { session, user } = await event.locals.safeGetSession()
-  event.locals.session = session
-  event.locals.user = user
+	return {
+		message: 'An unexpected error occurred'
+	};
+};
 
-  const { data, error } = await event.locals.supabase.from('users').select('*').eq('supabase_id', user?.id || '').single();
-  const currentRole = error ? 'guest' : data?.role ?? 'guest';
+/**
+ * Authentication handler - checks user permissions for admin routes
+ */
+export const authHandle: Handle = async ({ event, resolve }) => {
+	const user = (await auth.api.getSession(event.request))?.user;
 
-  if (
-    (!event.locals.session || currentRole !== 'admin')
-    && event.url.pathname.startsWith('/admin')
-  ) {
-    redirect(303, '/')
-  }
+	if (
+		event.url.pathname.startsWith('/admin') &&
+		(!user || !['admin', 'moderator'].includes(user.role))
+	) {
+		logger.warn('Unauthorized access attempt', {
+			url: event.url.pathname,
+			userId: user?.id,
+			userRole: user?.role
+		});
 
-  if (
-    (event.locals.session && currentRole === 'admin')
-    && event.url.pathname === '/auth'
-  ) {
-    redirect(303, '/admin')
-  } else if (event.locals.session && event.url.pathname === '/auth') {
-    redirect(303, '/');
-  }
+		throw redirect(303, '/unauthorized');
+	}
 
-  return resolve(event)
-}
+	return await resolve(event);
+};
 
-export const handleError: HandleServerError = ({ error, event }) => {
-  let context: SentryLoggerOptions = {};
+export const requestLogHandle: Handle = async ({ event, resolve }) => {
+	const startTime = Date.now();
+	const SLOW_REQUEST_THRESHOLD_MS = 1000; // 1 second
 
-  _.set(context, 'tags.url', event.url.pathname);
+	const response = await resolve(event);
 
-  return sentryLogger.logServer(error, context);
-}
+	const duration = Date.now() - startTime;
+	const isSlowRequest = duration >= SLOW_REQUEST_THRESHOLD_MS;
+	const isError = response.status >= 400;
 
-export const handle: Handle = sequence(Sentry.sentryHandle(), supabase, authGuard);
+	// Only log slow requests or errors
+	if (isSlowRequest || isError) {
+		const logMessage =
+			isSlowRequest && isError
+				? 'Slow request with error'
+				: isSlowRequest
+					? 'Slow request detected'
+					: 'Request error';
+
+		const logMetadata = {
+			method: event.request.method,
+			url: event.url.pathname,
+			search: event.url.search || undefined,
+			status: response.status,
+			duration
+		};
+
+		if (isError) {
+			logger.warn(logMessage, logMetadata);
+		} else {
+			logger.info(logMessage, logMetadata);
+		}
+	}
+
+	return response;
+};
+
+export const handle: Handle = sequence(requestLogHandle, authHandle);

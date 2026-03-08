@@ -1,26 +1,19 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import type { WatchingWeek } from '$lib/hooks';
-	import _ from 'lodash';
 	import { getAnimeImagesStore, updateAnimeImagesStore } from '$lib/stores/';
-	import { extractId } from '$lib/anilist/';
 	import * as Suspense from '$lib/components/ui/suspense';
 	import { fly } from 'svelte/transition';
 	import { onMount } from 'svelte';
-	import { LinkButton } from '$lib/components/forms';
-	import { HttpError } from '$lib/components/ui/';
-	import { Calendar, Heart, Logs, TvMinimalPlay } from 'lucide-svelte';
-	import { format, getISOWeek } from 'date-fns';
-	import type { ApiErrorResponse } from '$lib/api';
-	import { toast } from '$lib/components/ui/toaster';
+	import { Calendar, Heart, TvMinimalPlay } from 'lucide-svelte';
+	import { notification } from '$lib/components/ui/toaster';
 
 	let { data }: PageProps = $props();
 	let images = getAnimeImagesStore();
 
-	let watching: WatchingWeek = $state([]);
+	let watching = $derived(data.watching);
 
 	let focus = $state(0);
-	let direction = $state(1); // 1 for next, -1 for prev
+	let direction = $state(1);
 	let cardEl: HTMLDivElement | null = $state(null);
 	let slider: ReturnType<typeof setInterval>;
 
@@ -45,34 +38,18 @@
 	}
 
 	onMount(() => {
-		let getWatching = async () => {
-			let date = new Date();
-			let year = date.getFullYear();
-			let week = getISOWeek(date);
+    for (const err in data.errors) {
+      notification.error(err, 5000);
+    }
 
-			const response = await fetch(
-				`/api/watching/${year}${week < 10 ? '0' + week.toString() : week}`
-			);
+		async function fetchImages() {
+			const anilistIds = watching
+				.filter((w) => w.anilistId !== null)
+				.map((w) => w.anilistId as number);
+			await updateAnimeImagesStore(anilistIds);
+		}
 
-			if (response.ok) {
-				watching = await response.json();
-			} else {
-				try {
-					const errorPayload: ApiErrorResponse = await response.json();
-					toast.error(
-						`${errorPayload.error.message}, Error ID: ${errorPayload.error.sentryErrorId || 'N/A'}`
-					);
-					console.error(`Error ID: ${errorPayload.error.sentryErrorId || 'N/A'}`);
-				} catch (err) {
-					toast.error('An unexptected error has occured');
-				}
-			}
-
-			const urls = watching.map((w) => w.anilistLink);
-			await updateAnimeImagesStore(urls);
-		};
-
-		getWatching();
+		fetchImages();
 		startSlider();
 
 		return () => {
@@ -89,38 +66,38 @@
 	/>
 </svelte:head>
 
-{#snippet card(entry: WatchingWeek[number])}
-	{@const anilistId = extractId(entry.anilistLink)}
+{#snippet card(entry: (typeof watching)[number])}
+	{@const anilistId = entry.anilistId}
 	{@const srcMedium = images.value.find((i) => i.id === anilistId)?.coverImage.medium}
 	{@const srcExtraLarge = images.value.find((i) => i.id === anilistId)?.coverImage.extraLarge}
 	<a
 		href="/gotgames/anime/{entry.animeId}"
-		class="card bg-base-100 m-4 w-68 shadow-sm transition-all duration-150 hover:scale-[102%]"
+		class="card bg-base-300 m-4 w-68 shadow-sm transition-all duration-150 hover:scale-[102%]"
 	>
 		{#key anilistId}
-			{#if srcMedium}
+			{#if srcMedium && anilistId}
 				<figure>
 					<img
 						loading="lazy"
-						onload={() => handleMediumLoad(anilistId || 0)}
+						onload={() => handleMediumLoad(anilistId)}
 						src={srcMedium}
 						alt={entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
-						class="block aspect-[3/4] w-68 object-cover {extraLargeLoaded[anilistId || 0]
+						class="block aspect-3/4 w-68 object-cover {extraLargeLoaded[anilistId]
 							? 'hidden'
 							: ''}"
 					/>
 					<img
 						loading="lazy"
-						onload={() => handleExtraLargeLoad(anilistId || 0)}
+						onload={() => handleExtraLargeLoad(anilistId)}
 						src={srcExtraLarge}
 						alt={entry.titles.english ?? entry.titles.romaji ?? entry.titles.native}
-						class="block aspect-[3/4] w-68 object-cover {extraLargeLoaded[anilistId || 0]
+						class="block aspect-3/4 w-68 object-cover {extraLargeLoaded[anilistId]
 							? 'opacity-100'
 							: 'absolute opacity-0'}"
 					/>
 				</figure>
 			{:else}
-				<div class="block aspect-[3/4] h-88 w-68 rounded-lg object-cover">
+				<div class="block aspect-3/4 h-88 w-68 rounded-lg object-cover">
 					<Suspense.Image />
 				</div>
 			{/if}
@@ -136,14 +113,6 @@
 			</p>
 		</div>
 	</a>
-{/snippet}
-
-{#snippet statistic(title: string, stat: string | number, desc: string)}
-	<div class="stat">
-		<div class="stat-title">{title}</div>
-		<div class="stat-value">{stat}</div>
-		<div class="stat-desc">{desc}</div>
-	</div>
 {/snippet}
 
 <div class="container mx-auto">
@@ -190,7 +159,7 @@
 		{/if}
 		{#if watching.length >= 3}
 			<div class="border-neutral flex gap-2 rounded-full border p-2">
-				{#each watching as w, i}
+				{#each { length: watching.length }, i}
 					<button
 						class="join-item btn btn-circle btn-xs btn-neutral {i === focus && 'btn-primary'}"
 						aria-label="carousel-{i}"
@@ -213,21 +182,28 @@
 
 	<!-- Archive Stats -->
 	<section class="flex flex-col items-center justify-center">
-		{#if !data.error}
-			<div class="stats bg-base-100 shadow">
-				{@render statistic('Total anime', data.totalAnime, '')}
-				{@render statistic('Total episodes watched', data.totalEpisodesWatched, '')}
-			</div>
-		{:else}
-			<HttpError error={data.error} />
-		{/if}
+    <div class="stats bg-base-100 shadow">
+      <div class="stat">
+        <div class="stat-title">Total anime</div>
+        <div class="stat-value">{data.totalAnime}</div>
+        <div class="stat-desc">Total anime series watched</div>
+      </div>
+      <div class="stat">
+        <div class="stat-title">Total episodes</div>
+        <div class="stat-value">{data.totalEpisodesWatched}</div>
+        <div class="stat-desc relative tooltip" data-tip="Includes unwatched fillers">
+          Total episodes watched
+          <span class="text-error">*</span>
+        </div>
+      </div>
+    </div>
 	</section>
 
 	<div class="divider text-2xl font-bold">Useful links</div>
 
 	<!-- Useful Links -->
 	<section class="flex flex-col items-center justify-center">
-		<div class="grid w-full grid-cols-1 gap-4 min-md:grid-cols-2">
+		<div class="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
 			<a href="/gotgames/schedule" class="btn btn-info">
 				<Calendar /><span class="pl-2 font-bold">Check out this week's schedule</span>
 			</a>
@@ -237,27 +213,6 @@
 			<a href="/about" class="btn btn-primary md:col-span-2">
 				<Heart /><span class="pl-2 font-bold">Support this project</span>
 			</a>
-		</div>
-	</section>
-
-	<div class="divider text-2xl font-bold">Site news</div>
-
-	<!-- Changelog -->
-	<section class="flex flex-col items-center justify-center gap-2">
-		<div class="flex w-full flex-col gap-2 min-md:flex-row">
-			{#each _.take(_.orderBy(data.changelogs, ['createdAt'], ['desc']), 3) as c}
-				<div
-					class="border-neutral bg-base-300 flex w-full flex-col items-center justify-center gap-2 rounded-lg border p-2"
-				>
-					<h3 class="text-center text-xl font-semibold">{c.title}</h3>
-					<div class="badge badge-neutral">
-						{c.author} · {format(c.createdAt, 'yyyy-MM-dd, HH:mm')}
-					</div>
-					<a href={`/changelog/${c.changelogId}`} class="btn btn-info w-full">
-						<Logs /><span class="font-bold">Read more</span>
-					</a>
-				</div>
-			{/each}
 		</div>
 	</section>
 </div>

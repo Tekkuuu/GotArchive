@@ -7,10 +7,10 @@ import { fetchGraphQL } from './client';
  * @template TApiResponse The raw data shape returned by the GraphQL API.
  */
 interface ApiMethodConfig<TInput, TResult, TApiResponse> {
-  query: string | ((input: TInput) => string);
-  validate?: (input: TInput) => void;
-  mapInputToVariables: (input: TInput) => Record<string, any> | undefined;
-  transformResponse: (response: TApiResponse) => TResult;
+	query: string | ((input: TInput) => string);
+	validate?: (input: TInput) => void;
+	mapInputToVariables: (input: TInput) => Record<string, any> | undefined;
+	transformResponse: (response: TApiResponse) => TResult;
 }
 
 /**
@@ -21,20 +21,20 @@ interface ApiMethodConfig<TInput, TResult, TApiResponse> {
  * @returns An async function that takes an input and returns the transformed result.
  */
 export function createApiMethod<TInput, TResult, TApiResponse>(
-  config: ApiMethodConfig<TInput, TResult, TApiResponse>
+	config: ApiMethodConfig<TInput, TResult, TApiResponse>
 ) {
-  return async (input: TInput): Promise<TResult> => {
-    //  Validate Input
-    config.validate?.(input);
+	return async (input: TInput): Promise<TResult> => {
+		//  Validate Input
+		config.validate?.(input);
 
-    // Prepare Query and Variables
-    const query = typeof config.query === 'function' ? config.query(input) : config.query;
-    const variables = config.mapInputToVariables(input);
+		// Prepare Query and Variables
+		const query = typeof config.query === 'function' ? config.query(input) : config.query;
+		const variables = config.mapInputToVariables(input);
 
-    // Execute Query
-    const response = await fetchGraphQL<TApiResponse>(query, variables);
+		// Execute Query
+		const response = await fetchGraphQL<TApiResponse>(query, variables);
 
-    // Transform Response
-    return config.transformResponse(response);
-  };
+		// Transform Response
+		return config.transformResponse(response);
+	};
 }

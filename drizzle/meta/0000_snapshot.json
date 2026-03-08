@@ -1,855 +1,569 @@
 {
-  "id": "aec1f7d7-1a83-45c5-9e88-9cb0120e63f1",
-  "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "7",
-  "dialect": "postgresql",
-  "tables": {
-    "public.anime": {
-      "name": "anime",
-      "schema": "",
-      "columns": {
-        "anime_id": {
-          "name": "anime_id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "title_native": {
-          "name": "title_native",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title_romaji": {
-          "name": "title_romaji",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title_english": {
-          "name": "title_english",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "anime_titles_unique": {
-          "name": "anime_titles_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "title_native",
-            "title_romaji",
-            "title_english"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.anime_episode": {
-      "name": "anime_episode",
-      "schema": "",
-      "columns": {
-        "anime_episode_id": {
-          "name": "anime_episode_id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "anime_id": {
-          "name": "anime_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sequence": {
-          "name": "sequence",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "episode_number": {
-          "name": "episode_number",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "watched": {
-          "name": "watched",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "anime_season_fk": {
-          "name": "anime_season_fk",
-          "tableFrom": "anime_episode",
-          "tableTo": "anime_season",
-          "columnsFrom": [
-            "anime_id",
-            "sequence"
-          ],
-          "columnsTo": [
-            "anime_id",
-            "sequence"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "unique_anime_season_episode": {
-          "name": "unique_anime_season_episode",
-          "nullsNotDistinct": false,
-          "columns": [
-            "anime_id",
-            "sequence",
-            "episode_number"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.anime_genre": {
-      "name": "anime_genre",
-      "schema": "",
-      "columns": {
-        "anime_id": {
-          "name": "anime_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "genre_id": {
-          "name": "genre_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "anime_fk": {
-          "name": "anime_fk",
-          "tableFrom": "anime_genre",
-          "tableTo": "anime",
-          "columnsFrom": [
-            "anime_id"
-          ],
-          "columnsTo": [
-            "anime_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "genre_fk": {
-          "name": "genre_fk",
-          "tableFrom": "anime_genre",
-          "tableTo": "genre",
-          "columnsFrom": [
-            "genre_id"
-          ],
-          "columnsTo": [
-            "genre_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "anime_genre_anime_id_genre_id_pk": {
-          "name": "anime_genre_anime_id_genre_id_pk",
-          "columns": [
-            "anime_id",
-            "genre_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.anime_link": {
-      "name": "anime_link",
-      "schema": "",
-      "columns": {
-        "anime_id": {
-          "name": "anime_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "url": {
-          "name": "url",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "platform_id": {
-          "name": "platform_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "anime_fk": {
-          "name": "anime_fk",
-          "tableFrom": "anime_link",
-          "tableTo": "anime",
-          "columnsFrom": [
-            "anime_id"
-          ],
-          "columnsTo": [
-            "anime_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "platform_fk": {
-          "name": "platform_fk",
-          "tableFrom": "anime_link",
-          "tableTo": "platform",
-          "columnsFrom": [
-            "platform_id"
-          ],
-          "columnsTo": [
-            "platform_id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "anime_link_anime_id_url_pk": {
-          "name": "anime_link_anime_id_url_pk",
-          "columns": [
-            "anime_id",
-            "url"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.anime_season": {
-      "name": "anime_season",
-      "schema": "",
-      "columns": {
-        "anime_id": {
-          "name": "anime_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sequence": {
-          "name": "sequence",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "format": {
-          "name": "format",
-          "type": "typeFormat",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title_native": {
-          "name": "title_native",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title_romaji": {
-          "name": "title_romaji",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title_english": {
-          "name": "title_english",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "season": {
-          "name": "season",
-          "type": "typeSeason",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "year": {
-          "name": "year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "episodes": {
-          "name": "episodes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "anilist_link": {
-          "name": "anilist_link",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "anime_fk": {
-          "name": "anime_fk",
-          "tableFrom": "anime_season",
-          "tableTo": "anime",
-          "columnsFrom": [
-            "anime_id"
-          ],
-          "columnsTo": [
-            "anime_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "anime_season_anime_id_sequence_pk": {
-          "name": "anime_season_anime_id_sequence_pk",
-          "columns": [
-            "anime_id",
-            "sequence"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.anime_season_status": {
-      "name": "anime_season_status",
-      "schema": "",
-      "columns": {
-        "anime_id": {
-          "name": "anime_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sequence": {
-          "name": "sequence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "typeSeasonStatus",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "anime_season_fk": {
-          "name": "anime_season_fk",
-          "tableFrom": "anime_season_status",
-          "tableTo": "anime_season",
-          "columnsFrom": [
-            "anime_id",
-            "sequence"
-          ],
-          "columnsTo": [
-            "anime_id",
-            "sequence"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "anime_season_status_anime_id_sequence_pk": {
-          "name": "anime_season_status_anime_id_sequence_pk",
-          "columns": [
-            "anime_id",
-            "sequence"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.episode_link": {
-      "name": "episode_link",
-      "schema": "",
-      "columns": {
-        "anime_episode_id": {
-          "name": "anime_episode_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "url": {
-          "name": "url",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "platform_id": {
-          "name": "platform_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "anime_episode_fk": {
-          "name": "anime_episode_fk",
-          "tableFrom": "episode_link",
-          "tableTo": "anime_episode",
-          "columnsFrom": [
-            "anime_episode_id"
-          ],
-          "columnsTo": [
-            "anime_episode_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "platform_fk": {
-          "name": "platform_fk",
-          "tableFrom": "episode_link",
-          "tableTo": "platform",
-          "columnsFrom": [
-            "platform_id"
-          ],
-          "columnsTo": [
-            "platform_id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "episode_link_anime_episode_id_url_pk": {
-          "name": "episode_link_anime_episode_id_url_pk",
-          "columns": [
-            "anime_episode_id",
-            "url"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.genre": {
-      "name": "genre",
-      "schema": "",
-      "columns": {
-        "genre_id": {
-          "name": "genre_id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "genre_name_unique": {
-          "name": "genre_name_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.platform": {
-      "name": "platform",
-      "schema": "",
-      "columns": {
-        "platform_id": {
-          "name": "platform_id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "url": {
-          "name": "url",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.schedule": {
-      "name": "schedule",
-      "schema": "",
-      "columns": {
-        "schedule_id": {
-          "name": "schedule_id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "year": {
-          "name": "year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "week": {
-          "name": "week",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "unique_year_week": {
-          "name": "unique_year_week",
-          "nullsNotDistinct": false,
-          "columns": [
-            "year",
-            "week"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "check_week_range": {
-          "name": "check_week_range",
-          "value": "\"schedule\".\"week\" BETWEEN 1 AND 53"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.schedule_anime_detail": {
-      "name": "schedule_anime_detail",
-      "schema": "",
-      "columns": {
-        "schedule_anime_detail_id": {
-          "name": "schedule_anime_detail_id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "schedule_entry_id": {
-          "name": "schedule_entry_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "schedule_entry_fk": {
-          "name": "schedule_entry_fk",
-          "tableFrom": "schedule_anime_detail",
-          "tableTo": "schedule_entry",
-          "columnsFrom": [
-            "schedule_entry_id"
-          ],
-          "columnsTo": [
-            "schedule_entry_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.schedule_anime_episode": {
-      "name": "schedule_anime_episode",
-      "schema": "",
-      "columns": {
-        "schedule_anime_detail_id": {
-          "name": "schedule_anime_detail_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "anime_episode_id": {
-          "name": "anime_episode_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "schedule_anime_detail_fk": {
-          "name": "schedule_anime_detail_fk",
-          "tableFrom": "schedule_anime_episode",
-          "tableTo": "schedule_anime_detail",
-          "columnsFrom": [
-            "schedule_anime_detail_id"
-          ],
-          "columnsTo": [
-            "schedule_anime_detail_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "anime_episode_fk": {
-          "name": "anime_episode_fk",
-          "tableFrom": "schedule_anime_episode",
-          "tableTo": "anime_episode",
-          "columnsFrom": [
-            "anime_episode_id"
-          ],
-          "columnsTo": [
-            "anime_episode_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "schedule_anime_episode_schedule_anime_detail_id_anime_episode_id_pk": {
-          "name": "schedule_anime_episode_schedule_anime_detail_id_anime_episode_id_pk",
-          "columns": [
-            "schedule_anime_detail_id",
-            "anime_episode_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.schedule_entry": {
-      "name": "schedule_entry",
-      "schema": "",
-      "columns": {
-        "schedule_entry_id": {
-          "name": "schedule_entry_id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "schedule_id": {
-          "name": "schedule_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "typeScheduleEntry",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "datetime": {
-          "name": "datetime",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "platform_id": {
-          "name": "platform_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "schedule_fk": {
-          "name": "schedule_fk",
-          "tableFrom": "schedule_entry",
-          "tableTo": "schedule",
-          "columnsFrom": [
-            "schedule_id"
-          ],
-          "columnsTo": [
-            "schedule_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "platform_fk": {
-          "name": "platform_fk",
-          "tableFrom": "schedule_entry",
-          "tableTo": "platform",
-          "columnsFrom": [
-            "platform_id"
-          ],
-          "columnsTo": [
-            "platform_id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    }
-  },
-  "enums": {
-    "public.typeSeasonStatus": {
-      "name": "typeSeasonStatus",
-      "schema": "public",
-      "values": [
-        "On hold",
-        "Dropped"
-      ]
-    },
-    "public.typeFormat": {
-      "name": "typeFormat",
-      "schema": "public",
-      "values": [
-        "TV",
-        "TV_SHORT",
-        "MOVIE",
-        "SPECIAL",
-        "OVA",
-        "ONA",
-        "MUSIC"
-      ]
-    },
-    "public.typeScheduleEntry": {
-      "name": "typeScheduleEntry",
-      "schema": "public",
-      "values": [
-        "anime",
-        "hololive",
-        "game",
-        "event",
-        "sponsored"
-      ]
-    },
-    "public.typeSeason": {
-      "name": "typeSeason",
-      "schema": "public",
-      "values": [
-        "WINTER",
-        "SPRING",
-        "SUMMER",
-        "FALL"
-      ]
-    }
-  },
-  "schemas": {},
-  "sequences": {},
-  "roles": {},
-  "policies": {},
-  "views": {
-    "public.anime_season_status_view": {
-      "columns": {
-        "anime_id": {
-          "name": "anime_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sequence": {
-          "name": "sequence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "definition": "\n  SELECT\n  s.anime_id,\n  s.sequence,\n  COALESCE(\n    m.status::text,\n    CASE\n      WHEN COUNT(e.*) FILTER (WHERE e.watched) = 0\n        THEN 'Planned'\n      WHEN COUNT(e.*) FILTER (WHERE e.watched) = COUNT(e.*)\n        THEN 'Completed'\n      ELSE 'Watching'\n    END\n  ) AS status\n  FROM anime_season AS s\n  LEFT JOIN anime_season_status AS m\n    ON m.anime_id = s.anime_id\n  AND m.sequence = s.sequence\n  LEFT JOIN anime_episode AS e\n    ON e.anime_id        = s.anime_id\n  AND e.sequence = s.sequence\n  GROUP BY s.anime_id, s.sequence, m.status\n",
-      "name": "anime_season_status_view",
-      "schema": "public",
-      "isExisting": false,
-      "materialized": false
-    }
-  },
-  "_meta": {
-    "columns": {},
-    "schemas": {},
-    "tables": {}
-  }
+	"id": "b79e89ad-66b0-4a04-9ac5-ee8cac3d1c2d",
+	"prevId": "00000000-0000-0000-0000-000000000000",
+	"version": "7",
+	"dialect": "postgresql",
+	"tables": {
+		"public.anime": {
+			"name": "anime",
+			"schema": "",
+			"columns": {
+				"anime_id": {
+					"name": "anime_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"title_native": {
+					"name": "title_native",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"title_romaji": {
+					"name": "title_romaji",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"title_english": {
+					"name": "title_english",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"logo_url": {
+					"name": "logo_url",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"short_title": {
+					"name": "short_title",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"anime_titles_unique": {
+					"name": "anime_titles_unique",
+					"nullsNotDistinct": false,
+					"columns": ["title_native", "title_romaji", "title_english"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.anime_genre": {
+			"name": "anime_genre",
+			"schema": "",
+			"columns": {
+				"anime_id": {
+					"name": "anime_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"genre_id": {
+					"name": "genre_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"anime_fk": {
+					"name": "anime_fk",
+					"tableFrom": "anime_genre",
+					"tableTo": "anime",
+					"columnsFrom": ["anime_id"],
+					"columnsTo": ["anime_id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"genre_fk": {
+					"name": "genre_fk",
+					"tableFrom": "anime_genre",
+					"tableTo": "genre",
+					"columnsFrom": ["genre_id"],
+					"columnsTo": ["genre_id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"anime_genre_anime_id_genre_id_pk": {
+					"name": "anime_genre_anime_id_genre_id_pk",
+					"columns": ["anime_id", "genre_id"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.anime_link": {
+			"name": "anime_link",
+			"schema": "",
+			"columns": {
+				"anime_id": {
+					"name": "anime_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"url": {
+					"name": "url",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"platform_id": {
+					"name": "platform_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"note": {
+					"name": "note",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"anime_fk": {
+					"name": "anime_fk",
+					"tableFrom": "anime_link",
+					"tableTo": "anime",
+					"columnsFrom": ["anime_id"],
+					"columnsTo": ["anime_id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"platform_fk": {
+					"name": "platform_fk",
+					"tableFrom": "anime_link",
+					"tableTo": "platform",
+					"columnsFrom": ["platform_id"],
+					"columnsTo": ["platform_id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"anime_link_anime_id_url_pk": {
+					"name": "anime_link_anime_id_url_pk",
+					"columns": ["anime_id", "url"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.anime_season": {
+			"name": "anime_season",
+			"schema": "",
+			"columns": {
+				"anime_season_id": {
+					"name": "anime_season_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"anime_id": {
+					"name": "anime_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"sequence": {
+					"name": "sequence",
+					"type": "smallint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"format": {
+					"name": "format",
+					"type": "typeFormat",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"title_native": {
+					"name": "title_native",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"title_romaji": {
+					"name": "title_romaji",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"title_english": {
+					"name": "title_english",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"short_title": {
+					"name": "short_title",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"season": {
+					"name": "season",
+					"type": "typeSeason",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"year": {
+					"name": "year",
+					"type": "smallint",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"episodes": {
+					"name": "episodes",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"episode_progress": {
+					"name": "episode_progress",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"anime_fk": {
+					"name": "anime_fk",
+					"tableFrom": "anime_season",
+					"tableTo": "anime",
+					"columnsFrom": ["anime_id"],
+					"columnsTo": ["anime_id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"unique_anime_season": {
+					"name": "unique_anime_season",
+					"nullsNotDistinct": false,
+					"columns": ["anime_id", "sequence"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.genre": {
+			"name": "genre",
+			"schema": "",
+			"columns": {
+				"genre_id": {
+					"name": "genre_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"name": {
+					"name": "name",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"genre_name_unique": {
+					"name": "genre_name_unique",
+					"nullsNotDistinct": false,
+					"columns": ["name"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.platform": {
+			"name": "platform",
+			"schema": "",
+			"columns": {
+				"platform_id": {
+					"name": "platform_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"name": {
+					"name": "name",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"url": {
+					"name": "url",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.schedule": {
+			"name": "schedule",
+			"schema": "",
+			"columns": {
+				"schedule_id": {
+					"name": "schedule_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"year": {
+					"name": "year",
+					"type": "smallint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"week": {
+					"name": "week",
+					"type": "smallint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"note": {
+					"name": "note",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"preview": {
+					"name": "preview",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"unique_year_week": {
+					"name": "unique_year_week",
+					"nullsNotDistinct": false,
+					"columns": ["year", "week"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {
+				"check_week_range": {
+					"name": "check_week_range",
+					"value": "\"schedule\".\"week\" BETWEEN 1 AND 53"
+				}
+			},
+			"isRLSEnabled": false
+		},
+		"public.schedule_entry": {
+			"name": "schedule_entry",
+			"schema": "",
+			"columns": {
+				"schedule_entry_id": {
+					"name": "schedule_entry_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"schedule_id": {
+					"name": "schedule_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"type": {
+					"name": "type",
+					"type": "typeScheduleEntry",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"date": {
+					"name": "date",
+					"type": "date",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"time": {
+					"name": "time",
+					"type": "time",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"note": {
+					"name": "note",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"logo_url": {
+					"name": "logo_url",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"anime_season_id": {
+					"name": "anime_season_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"title": {
+					"name": "title",
+					"type": "varchar",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"description": {
+					"name": "description",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"schedule_fk": {
+					"name": "schedule_fk",
+					"tableFrom": "schedule_entry",
+					"tableTo": "schedule",
+					"columnsFrom": ["schedule_id"],
+					"columnsTo": ["schedule_id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"anime_season_fk": {
+					"name": "anime_season_fk",
+					"tableFrom": "schedule_entry",
+					"tableTo": "anime_season",
+					"columnsFrom": ["anime_season_id"],
+					"columnsTo": ["anime_season_id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.schedule_entry_platform": {
+			"name": "schedule_entry_platform",
+			"schema": "",
+			"columns": {
+				"schedule_entry_id": {
+					"name": "schedule_entry_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"platform_id": {
+					"name": "platform_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"schedule_entry_fk": {
+					"name": "schedule_entry_fk",
+					"tableFrom": "schedule_entry_platform",
+					"tableTo": "schedule_entry",
+					"columnsFrom": ["schedule_entry_id"],
+					"columnsTo": ["schedule_entry_id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"platform_fk": {
+					"name": "platform_fk",
+					"tableFrom": "schedule_entry_platform",
+					"tableTo": "platform",
+					"columnsFrom": ["platform_id"],
+					"columnsTo": ["platform_id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"schedule_entry_platform_schedule_entry_id_platform_id_pk": {
+					"name": "schedule_entry_platform_schedule_entry_id_platform_id_pk",
+					"columns": ["schedule_entry_id", "platform_id"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		}
+	},
+	"enums": {
+		"public.typeFormat": {
+			"name": "typeFormat",
+			"schema": "public",
+			"values": ["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"]
+		},
+		"public.typeScheduleEntry": {
+			"name": "typeScheduleEntry",
+			"schema": "public",
+			"values": ["anime", "hololive", "game", "event", "sponsored", "misc"]
+		},
+		"public.typeSeason": {
+			"name": "typeSeason",
+			"schema": "public",
+			"values": ["WINTER", "SPRING", "SUMMER", "FALL"]
+		}
+	},
+	"schemas": {},
+	"sequences": {},
+	"roles": {},
+	"policies": {},
+	"views": {},
+	"_meta": {
+		"columns": {},
+		"schemas": {},
+		"tables": {}
+	}
 }

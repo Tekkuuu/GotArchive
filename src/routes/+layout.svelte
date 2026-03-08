@@ -4,357 +4,210 @@
 	import { page } from '$app/state';
 	import {
 		Home,
-		Database,
 		TvMinimalPlay,
 		Calendar,
-		Sun,
-		Moon,
-		Globe,
-		List,
-		Info
+		Palette,
+		Info,
+		LogOut,
+		ShieldUser,
+		FileText,
+		Lock,
+		Bell
 	} from 'lucide-svelte';
-	import { FeedbackModal, CookieConsent } from '$lib/components/ui/';
-	import { Toaster } from '$lib/components/ui/toaster';
-	import { invalidate } from '$app/navigation';
-	import { getDarkModeStore, getAnonymousUUIDStore, getCookieConsentStore } from '$lib/stores';
-	import { onMount } from 'svelte';
+	import {
+		NotificationCenter,
+		NotificationPopup,
+    notification,
+	} from '$lib/components/ui/toaster';
+	import MobileDock from '$lib/components/ui/navbar/MobileDock.svelte';
+	import MobileMenu from '$lib/components/ui/navbar/MobileMenu.svelte';
+	import { getThemeStore, AVAILABLE_THEMES, type Theme } from '$lib/stores';
+	import { session, signOut } from '$lib/auth';
 
 	let { children, data }: LayoutProps = $props();
-	let { session, supabase } = $derived(data);
+	let theme = getThemeStore();
 
-	let darkMode = getDarkModeStore();
+	function changeTheme(newTheme: Theme) {
+		theme.set(newTheme);
+		if (typeof document !== 'undefined') {
+			document.documentElement.setAttribute('data-theme', newTheme);
+		}
+	}
+
+	function handleLogout(e?: Event) {
+		e?.preventDefault();
+		signOut();
+	}
+
+	const isAdmin = $derived(
+		($session.data?.user as { role?: string })?.role === 'admin' ||
+			($session.data?.user as { role?: string })?.role === 'moderator'
+	);
+
+	const dockItems = $derived([
+		{ route: '/', icon: Home, label: 'Home' },
+		{ route: '/gotgames/schedule', icon: Calendar, label: 'Schedule' },
+		{ route: '/gotgames/anime/list', icon: TvMinimalPlay, label: 'Anime' },
+		{ route: '/notifications', icon: Bell, label: 'Notifications', isNotification: true },
+		...(isAdmin ? [{ route: '/admin', icon: ShieldUser, label: 'Admin' }] : [])
+	]);
+
+	const menuItems = $derived([
+		{ label: 'About', route: '/about', icon: Info },
+		{ label: 'Privacy', route: '/privacy', icon: Lock },
+		{ label: 'Terms', route: '/tos', icon: FileText },
+		{ label: 'Theme', action: 'theme' as const, icon: Palette },
+		...($session.data ? [{ label: 'Logout', action: 'logout' as const, icon: LogOut }] : [])
+	]);
 
 	$effect(() => {
-		if (supabase) {
-			const { data: authListener } = supabase.auth.onAuthStateChange((_, newSession) => {
-				if (newSession?.expires_at !== session?.expires_at) {
-					invalidate('supabase:auth');
-				}
-			});
-
-			return () => {
-				authListener?.subscription.unsubscribe();
-			};
+		if (typeof document !== 'undefined') {
+			document.documentElement.setAttribute('data-theme', theme.value);
 		}
-	});
-
-	onMount(() => {
-		getAnonymousUUIDStore();
 	});
 </script>
 
 <div class="flex min-h-screen flex-col">
-	<CookieConsent />
-	<div class="navbar bg-base-300 fixed z-50 shadow-sm">
-		<div class="navbar-start">
-			<div class="dropdown">
-				<div tabindex="0" role="button" class="btn btn-ghost lg:hidden">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-5 w-5"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 6h16M4 12h8m-8 6h16"
-						/>
-					</svg>
-				</div>
-				<ul class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-4 p-2 shadow">
-					<li>
-						<a href="/">Dashboard</a>
-					</li>
-					<li>
-						<a href="/gotgames/schedule">Schedule</a>
-					</li>
-					<li>
-						<details>
-							<summary>Reactions</summary>
-							<ul class="**:text-nowrap">
-								<li>
-									<a href="/gotgames/anime/list">Anime</a>
-								</li>
-							</ul>
-						</details>
-					</li>
-					<li>
-						<a href="/changelog">Changelog</a>
-					</li>
-					<li>
-						<a href="/about">About</a>
-					</li>
-					<li>
-						<details>
-							<summary>Socials</summary>
-							<ul class="**:text-nowrap">
-								<li>
-									<a target="_blank" href="https://www.youtube.com/c/GOTGames">
-										G.O.T Games Youtube
-									</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://www.youtube.com/@GOTExtraChannel">
-										G.O.T Extra Youtube
-									</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://www.youtube.com/@GOT_Clips">
-										G.O.T Clips Youtube
-									</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://www.twitch.tv/gotgames_tb">Twitch</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://x.com/GOTGAMES_TB">X (Twitter)</a>
-								</li>
-								<li>
-									<a target="_blank" href="https://discord.gg/MXTebs9yb2">Discord</a>
-								</li>
-							</ul>
-						</details>
-					</li>
-					{#if session?.user}
+	<!-- Desktop Navbar -->
+	<nav
+		class="fixed top-0 z-50 hidden h-16 w-full items-center border-b border-base-content/10 bg-base-300 px-2 md:flex"
+	>
+		<!-- Left Section -->
+		<div class="flex flex-1 items-center justify-start">
+			<a
+				href="/"
+				class="px-2 text-2xl font-bold transition-all duration-150 hover:text-primary"
+			>
+				GotArchive
+			</a>
+		</div>
+
+		<!-- Middle Section - Centered Navigation -->
+		<div class="flex items-center justify-center">
+			<div class="join">
+				<a
+					href="/"
+					class={[
+						'btn join-item tooltip tooltip-bottom',
+						page.route.id === '/' && 'btn-secondary'
+					].join(' ')}
+					data-tip="Dashboard"
+				>
+					<Home class="h-5 w-5" />
+				</a>
+				<a
+					href="/gotgames/schedule"
+					class={[
+						'btn join-item tooltip tooltip-bottom',
+						page.route.id === '/gotgames/schedule' && 'btn-secondary'
+					].join(' ')}
+					data-tip="Schedule"
+				>
+					<Calendar class="h-5 w-5" />
+				</a>
+				<a
+					href="/gotgames/anime/list"
+					class={[
+						'btn join-item tooltip tooltip-bottom',
+						page.route.id === '/gotgames/anime/list' && 'btn-secondary'
+					].join(' ')}
+					data-tip="Anime reactions"
+				>
+					<TvMinimalPlay class="h-5 w-5" />
+				</a>
+				<a
+					href="/about"
+					class={[
+						'btn join-item tooltip tooltip-bottom',
+						page.route.id === '/about' && 'btn-secondary'
+					].join(' ')}
+					data-tip="About"
+				>
+					<Info class="h-5 w-5" />
+				</a>
+			</div>
+		</div>
+
+		<!-- Right Section -->
+		<div class="flex flex-1 items-center justify-end gap-2">
+      <button
+        class="btn btn-ghost tooltip tooltip-bottom relative"
+        data-tip={`Notifications ${notification.unreadCount > 99 ? "(99+)" : (notification.unreadCount > 0 ? `(${notification.unreadCount})` : "")}`}
+        onclick={() => notification.toggleDrawer()}
+      >
+        {#if notification.unreadCount > 0}
+          <span class="status status-success absolute top-1 right-1"></span>
+        {/if}
+        <Bell />
+      </button>
+
+			<div class="dropdown dropdown-end tooltip tooltip-bottom" data-tip="Select theme">
+				<button tabindex="0" class="btn btn-ghost" aria-label="Select theme">
+					<Palette class="h-5 w-5" />
+				</button>
+				<ul
+					class="menu dropdown-content z-10 mt-2 w-52 rounded-box bg-base-200 p-2 shadow-xl"
+				>
+					{#each AVAILABLE_THEMES as themeName}
 						<li>
-							<details>
-								<summary> Admin </summary>
-								<ul class="**:text-nowrap">
-									<li>
-										<a href="/admin/feedback">Feedback</a>
-									</li>
-									<li>
-										<details>
-											<summary>New</summary>
-											<ul>
-												<li>
-													<a href="/admin/new/anime">Anime</a>
-												</li>
-												<li>
-													<a href="/admin/new/season">Season</a>
-												</li>
-												<li>
-													<a href="/admin/new/schedule">Schedule</a>
-												</li>
-											</ul>
-										</details>
-									</li>
-									<li>
-										<details>
-											<summary>Edit</summary>
-											<ul>
-												<li>
-													<a href="/admin/edit/anime">Anime</a>
-												</li>
-												<li>
-													<a href="/admin/edit/schedule">Schedule</a>
-												</li>
-											</ul>
-										</details>
-									</li>
-								</ul>
-							</details>
+							<button
+								class={theme.value === themeName ? 'active' : ''}
+								onclick={() => changeTheme(themeName)}
+							>
+								{themeName}
+							</button>
 						</li>
-					{/if}
+					{/each}
 				</ul>
 			</div>
-			<a href="/" class="btn btn-ghost text-xl">GotArchive</a>
-		</div>
-		<div class="navbar-center hidden lg:flex">
-			<ul class="menu menu-horizontal gap-2 px-1">
-				<li>
-					<a href="/" class="btn {page.route.id === '/' && 'btn-secondary'}">
-						<Home />
-						Dashboard
-					</a>
-				</li>
-				<li>
-					<a
-						href="/gotgames/schedule"
-						class="btn {page.route.id === '/gotgames/schedule' && 'btn-secondary'}"
-					>
-						<Calendar />
-						Schedule
-					</a>
-				</li>
-				<li>
-					<details>
-						<summary class="btn {page.route.id?.startsWith('/gotgames/anime') && 'btn-secondary'}">
-							<TvMinimalPlay />
-							Reactions
-						</summary>
-						<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
-							<li>
-								<a
-									href="/gotgames/anime/list"
-									class={[page.route.id === '/gotgames/anime/list' && 'underline']}
-								>
-									Anime
-								</a>
-							</li>
-						</ul>
-					</details>
-				</li>
-				<li>
-					<a href="/changelog" class="btn {page.route.id === '/changelog' && 'btn-secondary'}">
-						<List />
-						Changelog
-					</a>
-				</li>
-				<li>
-					<a href="/about" class="btn {page.route.id === '/about' && 'btn-secondary'}">
-						<Info />
-						About
-					</a>
-				</li>
-				<li>
-					<details>
-						<summary class="btn">
-							<Globe />
-							Socials
-						</summary>
-						<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
-							<li>
-								<a target="_blank" href="https://www.youtube.com/c/GOTGames">
-									G.O.T Games Youtube
-								</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://www.youtube.com/@GOTExtraChannel">
-									G.O.T Extra Youtube
-								</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://www.youtube.com/@GOT_Clips">
-									G.O.T Clips Youtube
-								</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://www.twitch.tv/gotgames_tb">Twitch</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://x.com/GOTGAMES_TB">X (Twitter)</a>
-							</li>
-							<li>
-								<a target="_blank" href="https://discord.gg/MXTebs9yb2">Discord</a>
-							</li>
-						</ul>
-					</details>
-				</li>
-				{#if session?.user}
-					<li>
-						<details>
-							<summary class={['btn', page.route.id?.startsWith('/admin') && 'btn-secondary']}>
-								<Database />
-								Admin
-							</summary>
-							<ul class="bg-base-300 left-1/2 -translate-x-1/2 translate-y-2 p-2 **:text-nowrap">
-								<li>
-									<a
-										href="/admin/feedback"
-										class={[page.route.id === '/admin/feedback' && 'underline']}>Feedback</a
-									>
-								</li>
-								<li>
-									<details>
-										<summary class={[page.route.id?.startsWith('/admin/new') && 'underline']}
-											>New</summary
-										>
-										<ul>
-											<li>
-												<a
-													href="/admin/new/anime"
-													class={[page.route.id === '/admin/new/anime' && 'underline']}>Anime</a
-												>
-											</li>
-											<li>
-												<a
-													href="/admin/new/season"
-													class={[page.route.id === '/admin/new/season' && 'underline']}>Season</a
-												>
-											</li>
-											<li>
-												<a
-													href="/admin/new/schedule"
-													class={[page.route.id === '/admin/new/schedule' && 'underline']}
-													>Schedule</a
-												>
-											</li>
-										</ul>
-									</details>
-								</li>
-								<li>
-									<details>
-										<summary class={[page.route.id?.startsWith('/admin/edit') && 'underline']}
-											>Edit</summary
-										>
-										<ul>
-											<li>
-												<a
-													href="/admin/edit/anime"
-													class={[page.route.id === '/admin/edit/anime' && 'underline']}>Anime</a
-												>
-											</li>
-											<li>
-												<a
-													href="/admin/edit/schedule"
-													class={[page.route.id === '/admin/edit/schedule' && 'underline']}
-												>
-													Schedule
-												</a>
-											</li>
-										</ul>
-									</details>
-								</li>
-							</ul>
-						</details>
-					</li>
-				{/if}
-			</ul>
-		</div>
-		<div class="navbar-end">
-			{#if session?.user}
-				<button
-					class="btn"
-					type="button"
-					onclick={() => {
-						supabase.auth.signOut();
-					}}
+
+			{#if isAdmin}
+				<a
+					href="/admin"
+					class={[
+						'btn btn-ghost tooltip tooltip-bottom',
+						page.route.id === '/admin' && 'btn-secondary'
+					].join(' ')}
+					data-tip="Admin"
 				>
-					Logout
+					<ShieldUser class="h-5 w-5" />
+				</a>
+			{/if}
+
+			{#if $session.data}
+				<button
+					class="btn btn-ghost tooltip tooltip-bottom"
+					data-tip="Logout"
+					onclick={handleLogout}
+				>
+					<LogOut class="h-5 w-5" />
 				</button>
 			{/if}
 		</div>
-	</div>
-	<Toaster />
-	<main class="mx-2 mt-20 mb-2 flex grow flex-col">
+	</nav>
+
+	<NotificationCenter />
+	<NotificationPopup />
+
+	<!-- Mobile Dock (bottom navigation) -->
+	<MobileDock items={dockItems} />
+
+	<!-- Mobile FAB Menu -->
+	<MobileMenu items={menuItems} {changeTheme} {handleLogout} />
+
+	<!-- Main Content -->
+	<main class="mx-2 mb-16 mt-2 md:mt-16 flex grow flex-col md:mb-2">
 		{@render children()}
 	</main>
-	<FeedbackModal formData={data.feedbackForm} />
-	<footer class="bg-base-300 flex w-full gap-2 p-2">
-		<nav class="flex gap-2">
-			<label class="swap swap-rotate btn btn-secondary btn-outline">
-				<input
-					type="checkbox"
-					class="theme-controller"
-					value="gotdark"
-					bind:checked={() => darkMode.value, (v) => darkMode.update(() => v)}
-				/>
-				<Sun class="swap-off" />
-				<Moon class="swap-on" />
-			</label>
-			<button
-				class="btn btn-secondary btn-outline"
-				onclick={() =>
-					(document.getElementById('feedback-modal') as HTMLDialogElement)?.showModal()}
-			>
-				Feedback
-			</button>
-			<a href="/privacy" class="btn btn-secondary btn-outline">Privacy</a>
-			<a href="/tos" class="btn btn-secondary btn-outline">Terms</a>
+
+	<!-- Footer -->
+	<footer
+		class="hidden w-full gap-2 border-t border-base-content/10 bg-base-300 p-2 shadow-sm md:flex"
+	>
+		<nav class="flex flex-wrap items-center gap-2">
+			<a href="/privacy" class="link-hover link text-sm">Privacy</a>
+			<a href="/tos" class="link-hover link text-sm">Terms</a>
 		</nav>
 	</footer>
 </div>
+

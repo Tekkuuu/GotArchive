@@ -1,8 +1,41 @@
 import type { PageServerLoad } from './$types';
-import { services, db } from '$lib/server/db';
+import { error } from '@sveltejs/kit';
+import { getISOWeek, getISOWeekYear } from 'date-fns';
+import { getScheduleByWeek } from '$lib/server/schedule/queries';
+import { formatWeekRange } from '$lib/util/dateUtils';
+import { isoWeekDateRange } from '$lib/api/schedule/timezone';
+import { logger } from '$lib/server/logger';
+import type { SchedulePageData } from './types';
 
 export const load: PageServerLoad = async () => {
-  const data = await services.platform.select(db);
+	const now = new Date();
+	const currentYear = getISOWeekYear(now);
+	const currentWeek = getISOWeek(now);
 
-  return { platforms: data }
-}
+	try {
+		const result = await getScheduleByWeek(currentYear, currentWeek);
+
+		if (!result) {
+			return {
+				schedule: null,
+				weekRange: formatWeekRange(currentYear, currentWeek),
+				weekDateRange: isoWeekDateRange(currentYear, currentWeek),
+				entries: [],
+				adjacentEntries: [],
+				currentYear,
+				currentWeek
+			} satisfies SchedulePageData;
+		}
+
+		return {
+			...result,
+			currentYear: result.schedule.year,
+			currentWeek: result.schedule.week
+		} satisfies SchedulePageData;
+	} catch (err) {
+		logger.error('Failed to load schedule page', {
+			error: err instanceof Error ? { message: err.message, stack: err.stack } : String(err)
+		});
+		throw error(500, { message: 'Failed to load schedule' });
+	}
+};

@@ -31,6 +31,7 @@ src/lib/paraglide
  
 # Logs
 logs
+!src/routes/api/logs
 
 # Sentry Config File
 .env.sentry-build-plugin

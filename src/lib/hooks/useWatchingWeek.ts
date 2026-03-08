@@ -1,92 +1,88 @@
 import { schema, db } from '$lib/server/db';
 import { eq, and } from 'drizzle-orm';
 import _ from 'lodash';
+import { parseEpisodeList } from '$lib/util/schedule/episodeProgressParser';
 
 export async function useWatchingWeek(datecode: string) {
-  // Check if id has a vaild structure
-  if (datecode.length < 6) {
-    throw new Error('Invalid datecode');
-  }
+	if (datecode.length < 6) {
+		throw new Error('Invalid datecode');
+	}
 
-  const year = Number(datecode.substring(0, 4));
-  const week = Number(datecode.substring(4));
+	const year = Number(datecode.substring(0, 4));
+	const week = Number(datecode.substring(4));
 
-  // Check if converted year and week values are valid numbers
-  if (!Number.isFinite(year) || !Number.isFinite(week)) {
-    throw new Error('Invalid datecode');
-  }
+	if (!Number.isFinite(year) || !Number.isFinite(week)) {
+		throw new Error('Invalid datecode');
+	}
 
-  // Check if year and week are positive values
-  if (year < 1900 || year > new Date().getFullYear() + 10 || week < 0 || week > 53) {
-    throw new Error('Invalid datecode');
-  }
+	if (year < 1900 || year > new Date().getFullYear() + 10 || week < 0 || week > 53) {
+		throw new Error('Invalid datecode');
+	}
 
-  const watchingRaw = await db
-    .select({
-      animeId: schema.animeSeason.animeId,
-      sequence: schema.animeSeason.sequence,
-      titles: {
-        native: schema.animeSeason.titleNative,
-        romaji: schema.animeSeason.titleRomaji,
-        english: schema.animeSeason.titleEnglish
-      },
-      episodeNumber: schema.animeEpisode.episodeNumber,
-      date: schema.scheduleEntry.date,
-      time: schema.scheduleEntry.time,
-      anilistLink: schema.animeSeason.anilistLink,
-    })
-    .from(schema.schedule)
-    .innerJoin(
-      schema.scheduleEntry,
-      eq(schema.schedule.scheduleId, schema.scheduleEntry.scheduleId)
-    )
-    .innerJoin(
-      schema.scheduleAnimeDetail,
-      eq(schema.scheduleEntry.scheduleEntryId, schema.scheduleAnimeDetail.scheduleEntryId)
-    )
-    .innerJoin(
-      schema.scheduleAnimeEpisode,
-      eq(schema.scheduleAnimeDetail.scheduleAnimeDetailId, schema.scheduleAnimeEpisode.scheduleAnimeDetailId)
-    )
-    .innerJoin(
-      schema.animeEpisode,
-      eq(schema.scheduleAnimeEpisode.animeEpisodeId, schema.animeEpisode.animeEpisodeId)
-    )
-    .innerJoin(
-      schema.animeSeason,
-      and(
-        eq(schema.animeSeason.animeId, schema.animeEpisode.animeId),
-        eq(schema.animeSeason.sequence, schema.animeEpisode.sequence)
-      )
-    )
-    .where(and(
-      eq(schema.schedule.year, year),
-      eq(schema.schedule.week, week)
-    ))
-    .orderBy(
-      schema.scheduleEntry.date,
-      schema.scheduleEntry.time,
-      schema.animeSeason.animeId,
-      schema.animeSeason.sequence,
-      schema.animeEpisode.episodeNumber
-    );
+	const watchingRaw = await db
+		.select({
+			animeSeasonId: schema.animeSeason.animeSeasonId,
+			animeId: schema.animeSeason.animeId,
+			titles: {
+				native: schema.animeSeason.titleNative,
+				romaji: schema.animeSeason.titleRomaji,
+				english: schema.animeSeason.titleEnglish
+			},
+			anilistId: schema.animeSeasonMetadata.anilistId,
+			malId: schema.animeSeasonMetadata.malId,
+			episodes: schema.scheduleEntryAnimeSeason.episodes
+		})
+		.from(schema.schedule)
+		.innerJoin(
+			schema.scheduleEntry,
+			eq(schema.schedule.scheduleId, schema.scheduleEntry.scheduleId)
+		)
+		.innerJoin(
+			schema.scheduleEntryAnimeSeason,
+			eq(schema.scheduleEntry.scheduleEntryId, schema.scheduleEntryAnimeSeason.scheduleEntryId)
+		)
+		.innerJoin(
+			schema.animeSeason,
+			eq(schema.scheduleEntryAnimeSeason.animeSeasonId, schema.animeSeason.animeSeasonId)
+		)
+		.leftJoin(
+			schema.animeSeasonMetadata,
+			eq(schema.animeSeason.animeSeasonId, schema.animeSeasonMetadata.animeSeasonId)
+		)
+		.where(
+			and(
+				eq(schema.schedule.year, year),
+				eq(schema.schedule.week, week),
+				eq(schema.schedule.preview, false)
+			)
+		)
+		.orderBy(
+			schema.scheduleEntry.date,
+			schema.scheduleEntry.time,
+			schema.animeSeason.animeSeasonId
+		);
 
-  const grouped = _.groupBy(watchingRaw, (item) => `${item.animeId}-${item.sequence}`);
+	const grouped = _.groupBy(watchingRaw, 'animeSeasonId');
 
-  const watching = Object.values(grouped).map((episodes) => {
-    const first = episodes[0];
+	const watching = Object.values(grouped).map((entries) => {
+		const first = entries[0];
 
-    const uniqueEpisodes = _.uniqBy(episodes, 'episodeNumber');
-    const sortedUniqueEpisodes = _.sortBy(uniqueEpisodes, 'episodeNumber');
+		const allEpisodes: number[] = [];
+		for (const entry of entries) {
+			const episodes = parseEpisodeList(entry.episodes);
+			allEpisodes.push(...episodes);
+		}
+		const uniqueEpisodes = _.uniq(allEpisodes).sort((a, b) => a - b);
 
-    return {
-      animeId: first.animeId,
-      sequence: first.sequence,
-      titles: first.titles,
-      episodes: sortedUniqueEpisodes.map((e) => e.episodeNumber),
-      anilistLink: first.anilistLink
-    };
-  });
+		return {
+			animeSeasonId: first.animeSeasonId,
+			animeId: first.animeId,
+			titles: first.titles,
+			anilistId: first.anilistId,
+			malId: first.malId,
+			episodes: uniqueEpisodes
+		};
+	});
 
-  return watching;
+	return watching;
 }

@@ -114,7 +114,7 @@
 									<div class="flex-1 font-bold min-w-0 font-mplus2 text-xl leading-snug">
 										{#if entry.animeSeasons && entry.animeSeasons.length > 0}
 											<div class="flex flex-col gap-2">
-												{#each entry.animeSeasons as animeSeason}
+												{#each entry.animeSeasons.sort((a, b) => a.sequence - b.sequence) as animeSeason}
 													<div class="flex flex-wrap items-baseline gap-x-1.5">
 														<span
 															class={[entry.isCancelled && 'line-through decoration-red-500']}

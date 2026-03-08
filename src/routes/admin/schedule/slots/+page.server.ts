@@ -1,4 +1,4 @@
-import { db, schema, and, ne, eq, asc, sql } from '$lib/server/db';
+import { db, schema, eq, asc, sql } from '$lib/server/db';
 import type { Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
@@ -78,26 +78,6 @@ export const actions: Actions = {
 		}
 
 		logger.info('Editing slot', { slotId: slotId.data, data: form.data });
-
-		// Check for duplicate day/time combo (excluding current slot)
-		const existingSlot = await db
-			.select()
-			.from(schema.scheduleSlot)
-			.where(
-				and(
-					eq(schema.scheduleSlot.dayOfWeek, form.data.dayOfWeek),
-					form.data.time !== null
-						? sql`${schema.scheduleSlot.time} = ${form.data.time}::time`
-						: sql`${schema.scheduleSlot.time} IS NULL`,
-					ne(schema.scheduleSlot.scheduleSlotId, slotId.data)
-				)
-			)
-			.limit(1);
-
-		if (existingSlot.length > 0) {
-			logger.warn('Duplicate slot detected', { slotId: slotId.data, existingSlot });
-			return fail(409, { form });
-		}
 
 		const result = await slotActions.editScheduleSlot(slotId.data, form.data);
 		if (!result.success) {

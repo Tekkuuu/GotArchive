@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import type { EntriesByWeekday, SchedulePageData } from './types';
+	import type { SchedulePageData } from './types';
 	import { ChevronLeft, ChevronRight, Calendar, Info, X, ImageOff, Clock } from 'lucide-svelte';
 	import { addWeeks, subWeeks, getISOWeek, getISOWeekYear } from 'date-fns';
 	import { onMount } from 'svelte';
@@ -180,9 +180,6 @@
 				<Calendar class="size-5" />
 				{scheduleData.weekRange}
 			</h1>
-			{#if scheduleData.schedule?.note}
-				<p class="text-sm text-base-content/70">{scheduleData.schedule.note}</p>
-			{/if}
 			{#if activeTzLabel}
 				<p class="text-xs text-base-content/50">Times shown in {activeTzLabel}</p>
 			{/if}
@@ -358,4 +355,8 @@
 			{/each}
 		</div>
 	{/if}
+
+  <div class="whitespace-pre-wrap text-wrap p-2 mt-2 bg-primary/15 rounded-box">
+    {@html scheduleData.schedule?.note}
+  </div>
 </div>

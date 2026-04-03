@@ -11,6 +11,8 @@ export function getPlatformDisplayName(platformName: string): string {
 		return 'Patreon';
 	} else if (platformName.toLowerCase().includes('twitch')) {
 		return 'Twitch';
+  } else if (platformName.toLowerCase().includes('rumble')) {
+    return "Rumble";
 	} else {
 		return platformName; // Default to original name if no match
 	}

@@ -12,7 +12,6 @@ services:
       POSTGRES_MULTIPLE_DATABASES: gotarchive,logwell
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./scripts/create-multiple-databases.sh:/docker-entrypoint-initdb.d/create-multiple-databases.sh
     ports:
       - '5775:5432'
     healthcheck:

@@ -1,9 +1,4 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
-import type { CalendarRangeProps, CalendarMonthProps, CalendarDateProps } from 'cally';
-
-type MapEvents<T> = {
-	[K in keyof T as K extends `on${infer E}` ? `on:${Lowercase<E>}` : K]: T[K];
-};
 
 // for information about these interfaces
 declare global {
@@ -15,17 +10,13 @@ declare global {
 			session: {
 				user: {
 					id: string;
-					name: string | null;
+					name: string;
 					email: string;
-					image: string | null;
 					emailVerified: boolean;
+					image?: string | null;
 					createdAt: Date;
 					updatedAt: Date;
-					user_metadata?: {
-						role?: 'admin' | 'moderator';
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						[key: string]: any;
-					};
+					role: string;
 				};
 				session: {
 					id: string;
@@ -34,31 +25,24 @@ declare global {
 					createdAt: Date;
 					updatedAt: Date;
 					userId: string;
+					ipAddress?: string | null;
+					userAgent?: string | null;
 				};
 			} | null;
 			user: {
 				id: string;
-				name: string | null;
+				name: string;
 				email: string;
-				image: string | null;
 				emailVerified: boolean;
+				image?: string | null;
 				createdAt: Date;
 				updatedAt: Date;
-				user_metadata?: {
-					role?: 'admin' | 'moderator';
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					[key: string]: any;
-				};
+				role: string;
 			} | null;
 		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
-		interface SvelteHTMLElements {
-			'calendar-range': MapEvents<CalendarRangeProps>;
-			'calendar-month': MapEvents<CalendarMonthProps>;
-			'calendar-date': MapEvents<CalendarDateProps>;
-		}
 	}
 }
 

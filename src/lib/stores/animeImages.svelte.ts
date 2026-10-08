@@ -1,7 +1,18 @@
 import { z } from 'zod/v4';
-import _ from 'lodash';
 import { localStore } from './localStore.svelte';
 import { anilistServices as s, extractId } from '$lib/anilist/';
+
+/** Checks dotted path. */
+function hasPath(obj: unknown, path: string): boolean {
+	let current: unknown = obj;
+	for (const key of path.split('.')) {
+		if (current === null || typeof current !== 'object' || !(key in current)) {
+			return false;
+		}
+		current = (current as Record<string, unknown>)[key];
+	}
+	return true;
+}
 
 type AnimeImageData = Awaited<ReturnType<typeof s.fetchAnimeImages>>;
 type AnimeImageStore = ReturnType<typeof localStore<AnimeImageData>>;
@@ -34,13 +45,9 @@ export async function updateAnimeImagesStore(data?: string[] | number[]) {
 		'expDate'
 	];
 
-	const expiredOrIncompleteIds = _.map(
-		_.filter(
-			existingImages,
-			(img) => img.expDate < now || !_.every(REQUIRED_IMAGE_PATHS, (path) => _.has(img, path))
-		),
-		'id'
-	);
+	const expiredOrIncompleteIds = existingImages
+		.filter((img) => img.expDate < now || !REQUIRED_IMAGE_PATHS.every((path) => hasPath(img, path)))
+		.map((img) => img.id);
 
 	let newIdsToFetch: number[] = [];
 	if (data) {
@@ -55,17 +62,20 @@ export async function updateAnimeImagesStore(data?: string[] | number[]) {
 		}
 	}
 
-	const allIdsToFetch = _.uniq([...expiredOrIncompleteIds, ...newIdsToFetch]);
+	const allIdsToFetch = Array.from(new Set([...expiredOrIncompleteIds, ...newIdsToFetch]));
 
 	if (allIdsToFetch.length === 0) {
 		return;
 	}
 
-	const imagesChunkResult = await Promise.all(
-		_.chunk(allIdsToFetch, 50).map((chunk) => s.fetchAnimeImages(chunk))
-	);
+	const chunks: number[][] = [];
+	for (let i = 0; i < allIdsToFetch.length; i += 50) {
+		chunks.push(allIdsToFetch.slice(i, i + 50));
+	}
 
-	const fetchedImages = _.flatten(imagesChunkResult);
+	const imagesChunkResult = await Promise.all(chunks.map((chunk) => s.fetchAnimeImages(chunk)));
+
+	const fetchedImages = imagesChunkResult.flat();
 
 	localStore.update((currentImages) => {
 		const fetchedImageIds = new Set(fetchedImages.map((img) => img.id));

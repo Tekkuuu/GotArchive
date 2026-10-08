@@ -26,9 +26,10 @@ export const load: LayoutServerLoad = async () => {
 			.select({
 				animeId: schema.animeSeason.animeId,
 				totalEpisodes: sum(schema.animeSeason.episodes).mapWith(Number).as('totalEpisodes'),
-				totalEpisodesWatched: sum(schema.animeSeason.episodeProgress)
-					.mapWith(Number)
-					.as('totalEpisodesWatched')
+				totalEpisodesWatched:
+					sql<number>`sum(${schema.animeSeason.episodeProgress} - cardinality(${schema.animeSeason.skippedEpisodes}))`
+						.mapWith(Number)
+						.as('totalEpisodesWatched')
 			})
 			.from(schema.animeSeason)
 			.groupBy(schema.animeSeason.animeId)

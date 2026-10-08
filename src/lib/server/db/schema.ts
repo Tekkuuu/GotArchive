@@ -18,7 +18,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-// Custom types
 export const typeSeason = pgEnum('typeSeason', ['WINTER', 'SPRING', 'SUMMER', 'FALL']);
 export const typeFormat = pgEnum('typeFormat', [
 	'TV',
@@ -38,7 +37,6 @@ export const typeScheduleEntry = pgEnum('typeScheduleEntry', [
 	'misc'
 ]);
 
-// Better Auth schema and types
 export const bauthSchema = pgSchema('bauth');
 export const typeUserRole = pgEnum('typeUserRole', ['user', 'moderator', 'admin']);
 
@@ -47,11 +45,24 @@ export const genre = pgTable('genre', {
 	name: varchar('name').notNull().unique()
 });
 
-export const platform = pgTable('platform', {
-	platformId: uuid('platform_id').primaryKey().defaultRandom(),
-	name: varchar('name').notNull(),
-	url: varchar('url').notNull()
-});
+export const platform = pgTable(
+	'platform',
+	{
+		platformId: uuid('platform_id').primaryKey().defaultRandom(),
+		name: varchar('name').notNull(),
+		url: varchar('url').notNull(),
+		/** Full `<svg>` markup pasted from simple-icons; rendered as-is when present. */
+		iconSvg: text('icon_svg'),
+		/** Brand colour as `#rrggbb`; applied via `color` so the SVG inherits it. */
+		iconColor: varchar('icon_color', { length: 7 })
+	},
+	(table) => [
+		check(
+			'check_icon_color_format',
+			sql`${table.iconColor} IS NULL OR ${table.iconColor} ~ '^#[0-9a-fA-F]{6}$'`
+		)
+	]
+);
 
 export const anime = pgTable(
 	'anime',
@@ -82,7 +93,13 @@ export const animeSeason = pgTable(
 		season: typeSeason('season'),
 		year: smallint('year'),
 		episodes: integer('episodes'),
-		episodeProgress: integer('episode_progress').default(0).notNull()
+		episodeProgress: integer('episode_progress').default(0).notNull(),
+		// Episode numbers deliberately passed over (e.g. fillers). Stored as a set;
+		// displayed/edited as a compact range string ("1-3,5,50-55").
+		skippedEpisodes: smallint('skipped_episodes')
+			.array()
+			.notNull()
+			.default(sql`'{}'::smallint[]`)
 	},
 	(table) => [
 		unique('unique_anime_season').on(table.animeId, table.sequence),
@@ -109,6 +126,9 @@ export const animeSeasonMetadata = pgTable(
 			columns: [table.animeSeasonId],
 			foreignColumns: [animeSeason.animeSeasonId]
 		}).onDelete('cascade'),
+		// Metadata is consumed as 1:1 per season (see the leftJoins in the anime
+		// loaders), so enforce exactly one metadata row per season.
+		unique('unique_metadata_season').on(table.animeSeasonId),
 		unique('unique_anilist_mal_combo').on(table.anilistId, table.malId)
 	]
 );
@@ -180,8 +200,6 @@ export const scheduleSlot = pgTable(
 		time: time('time'), // Optional - can be null for partial slot definitions
 		type: typeScheduleEntry('type'), // Optional - can be null for partial slot definitions
 		animeId: uuid('anime_id'), // Optional - starting anime for anime-type slots
-		startingSequence: smallint('starting_sequence'), // Optional - starting season sequence (e.g., 2 for S2)
-		startingEpisode: smallint('starting_episode'), // Optional - starting episode number in that season
 		title: varchar('title'), // Optional - for non-anime slots or title override
 		description: text('description'), // Optional - for non-anime slots
 		logoUrl: varchar('logo_url'), // Optional - can be null
@@ -269,7 +287,7 @@ export const scheduleSlotPlatform = pgTable(
 			name: 'platform_fk',
 			columns: [table.platformId],
 			foreignColumns: [platform.platformId]
-		})
+		}).onDelete('restrict')
 	]
 );
 
@@ -290,11 +308,10 @@ export const scheduleEntryPlatform = pgTable(
 			name: 'platform_fk',
 			columns: [table.platformId],
 			foreignColumns: [platform.platformId]
-		})
+		}).onDelete('restrict')
 	]
 );
 
-// Better Auth tables
 export const bauthUser = bauthSchema.table('user', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull(),

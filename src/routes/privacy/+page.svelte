@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Shield, Eye, Cookie, Lock, Database, Mail, Calendar } from 'lucide-svelte';
+	import { Shield, Eye, Cookie, Lock, Mail, Calendar } from 'lucide-svelte';
 </script>
 
 <svelte:head>
@@ -11,19 +11,20 @@
 </svelte:head>
 
 <div class="container mx-auto max-w-3xl p-2 md:p-4">
-	<h1 class="text-2xl md:text-3xl font-bold text-center mb-2 md:mb-4">Privacy Policy</h1>
+	<h1 class="mb-2 text-center text-2xl font-bold md:mb-4 md:text-3xl">Privacy Policy</h1>
 
 	<div class="flex flex-col gap-2">
 		<!-- Introduction -->
 		<div class="card bg-base-200 shadow-md">
 			<div class="card-body p-4 md:p-6">
-				<h2 class="card-title text-lg md:text-xl flex items-center gap-2">
+				<h2 class="card-title flex items-center gap-2 text-lg md:text-xl">
 					<Shield class="h-5 w-5" />
 					Your Privacy Matters
 				</h2>
 				<div class="space-y-2 text-sm md:text-base">
 					<p>
-            Currently we don't collect any personal data from users. We only collect error reports with browser and device info attached.
+						Currently we don't collect any personal data from users. We only collect error reports
+						with browser and device info attached.
 					</p>
 				</div>
 			</div>
@@ -32,7 +33,7 @@
 		<!-- No Personal Data Required -->
 		<div class="card bg-base-200 shadow-md">
 			<div class="card-body p-4 md:p-6">
-				<h2 class="card-title text-lg md:text-xl flex items-center gap-2">
+				<h2 class="card-title flex items-center gap-2 text-lg md:text-xl">
 					<Eye class="h-5 w-5" />
 					No Personal Data Required
 				</h2>
@@ -42,24 +43,10 @@
 			</div>
 		</div>
 
-		<!-- Error & Crash Reporting -->
-		<div class="card bg-base-200 shadow-md">
-			<div class="card-body p-4 md:p-6">
-				<h2 class="card-title text-lg md:text-xl flex items-center gap-2">
-					<Database class="h-5 w-5" />
-					Error and Crash Reporting
-				</h2>
-				<p class="text-sm md:text-base">
-					We use Logwell (self-hosted) to collect anonymous error and crash reports to help us
-					fix bugs and improve the site. All logs are stored on <a href="https://railway.com/" class="link link-primary" target="_blank" rel="noopener noreferrer">Railway</a> servers in the EU.
-				</p>
-			</div>
-		</div>
-
 		<!-- Cookies & Storage -->
 		<div class="card bg-base-200 shadow-md">
 			<div class="card-body p-4 md:p-6">
-				<h2 class="card-title text-lg md:text-xl flex items-center gap-2">
+				<h2 class="card-title flex items-center gap-2 text-lg md:text-xl">
 					<Cookie class="h-5 w-5" />
 					Cookies & Browser Storage
 				</h2>
@@ -82,11 +69,11 @@
 		<!-- Data Access & Security -->
 		<div class="card bg-base-200 shadow-md">
 			<div class="card-body p-4 md:p-6">
-				<h2 class="card-title text-lg md:text-xl flex items-center gap-2">
+				<h2 class="card-title flex items-center gap-2 text-lg md:text-xl">
 					<Lock class="h-5 w-5" />
 					Data Access & Security
 				</h2>
-				<ul class="list-disc list-inside space-y-2 text-sm md:text-base">
+				<ul class="list-inside list-disc space-y-2 text-sm md:text-base">
 					<li>We do not use third-party analytics or ads.</li>
 					<li>We do not share your data with anyone.</li>
 					<li>
@@ -100,7 +87,7 @@
 		<!-- Questions -->
 		<div class="card bg-base-200 shadow-md">
 			<div class="card-body p-4 md:p-6">
-				<h2 class="card-title text-lg md:text-xl flex items-center gap-2">
+				<h2 class="card-title flex items-center gap-2 text-lg md:text-xl">
 					<Mail class="h-5 w-5" />
 					Questions?
 				</h2>
@@ -108,7 +95,7 @@
 					If you have any privacy questions or want your data deleted, feel free to reach out via
 					email:
 				</p>
-				<div class="flex items-center gap-2 mt-1">
+				<div class="mt-1 flex items-center gap-2">
 					<a href="mailto:tekku.dev@proton.me" class="link link-primary text-sm md:text-base">
 						tekku.dev@proton.me
 					</a>
@@ -119,7 +106,7 @@
 		<!-- Last Updated -->
 		<div class="card bg-base-200 shadow-md">
 			<div class="card-body p-4 md:p-6">
-				<h2 class="card-title text-lg md:text-xl flex items-center gap-2">
+				<h2 class="card-title flex items-center gap-2 text-lg md:text-xl">
 					<Calendar class="h-5 w-5" />
 					Last Updated
 				</h2>

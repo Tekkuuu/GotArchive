@@ -6,18 +6,21 @@
 	const state = notificationState;
 </script>
 
-<div class="fixed left-2 top-2 gap-2 z-50 flex flex-col w-80">
+<div
+	class="pointer-events-none fixed top-2 left-2 z-[60] flex w-80 max-w-[calc(100vw-1rem)] flex-col gap-2"
+	aria-live="polite"
+>
 	{#each state.popupNotifications as notification (notification.id)}
-		<button
-			class="hover:cursor-pointer tooltip tooltip-bottom"
-			data-tip="Dismiss"
+		<div
+			class="pointer-events-auto"
+			role="group"
 			transition:fly={{ x: -300, duration: 300 }}
-			onclick={() => {
-				state.activePopups.delete(notification.id);
-				state.markAsRead(notification.id);
-			}}
+			onmouseenter={() => state.pauseDismiss(notification.id)}
+			onmouseleave={() => state.resumeDismiss(notification.id)}
+			onfocusin={() => state.pauseDismiss(notification.id)}
+			onfocusout={() => state.resumeDismiss(notification.id)}
 		>
-			<NotificationPopupItem {notification} />
-		</button>
+			<NotificationPopupItem {notification} ondismiss={() => state.dismiss(notification.id)} />
+		</div>
 	{/each}
 </div>

@@ -21,7 +21,6 @@ export const load: PageServerLoad = async ({ url }) => {
 		week = parsed.week;
 		datecode = datecodeParam;
 	} else {
-		// Default to current week
 		const now = new Date();
 		year = getISOWeekYear(now);
 		week = getISOWeek(now);

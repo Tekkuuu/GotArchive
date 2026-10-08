@@ -30,8 +30,3 @@ export type CoverImage = {
 	bannerImage: string | null;
 	expDate: Date;
 };
-
-export type AnimeSeasonBulk = Array<{
-	anime: Anime;
-	seasons: AnimeSeason[];
-}>;

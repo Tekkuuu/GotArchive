@@ -1,7 +1,12 @@
 <script lang="ts">
 	import type { Notification } from './types';
-	import { CircleAlert, CircleCheck, CircleX, Info, Trash2 } from 'lucide-svelte';
+	import {
+		getNotificationIcon,
+		getNotificationColor,
+		type NotificationColor
+	} from './notificationColor';
 	import { notificationState } from './notification-state.svelte';
+	import { CircleAlert, CircleCheck, CircleX, Info, Trash2 } from 'lucide-svelte';
 	import { formatDistanceToNow } from 'date-fns';
 
 	interface Props {
@@ -11,88 +16,55 @@
 
 	let { notification, showDelete = false }: Props = $props();
 
-	const getBorderColor = () => {
-		if (notification.type === 'promise') {
-			if (notification.promise?.status === 'resolved') return 'border-success';
-			if (notification.promise?.status === 'rejected') return 'border-error';
-			return 'border-info';
-		}
-		switch (notification.type) {
-			case 'success':
-				return 'border-success';
-			case 'error':
-				return 'border-error';
-			case 'warning':
-				return 'border-warning';
-			case 'info':
-				return 'border-info';
-			default:
-				return 'border-base-content/20';
-		}
+	const iconColorClass: Record<NotificationColor, string> = {
+		success: 'bg-success/15 text-success',
+		error: 'bg-error/15 text-error',
+		warning: 'bg-warning/15 text-warning',
+		info: 'bg-info/15 text-info'
 	};
 
-	const getIconColor = () => {
-		if (notification.type === 'promise') {
-			if (notification.promise?.status === 'resolved') return 'text-success';
-			if (notification.promise?.status === 'rejected') return 'text-error';
-			return 'text-info';
-		}
-		switch (notification.type) {
-			case 'success':
-				return 'text-success';
-			case 'error':
-				return 'text-error';
-			case 'warning':
-				return 'text-warning';
-			case 'info':
-				return 'text-info';
-			default:
-				return 'text-base-content';
-		}
-	};
-
-	const getIcon = () => {
-		if (notification.type === 'promise') {
-			if (notification.promise?.status === 'pending') return 'loading';
-			if (notification.promise?.status === 'resolved') return 'success';
-			if (notification.promise?.status === 'rejected') return 'error';
-		}
-		return notification.type;
-	};
-
-	const icon = $derived(getIcon());
+	const icon = $derived(getNotificationIcon(notification));
+	const color = $derived(getNotificationColor(notification));
 	const formattedTime = $derived(formatDistanceToNow(notification.timestamp, { addSuffix: true }));
-	const isRead = $derived(notification.read);
 </script>
 
-<div
-	class="flex items-center gap-2 p-2 border-l-2 {getBorderColor()} rounded-r transition-colors {isRead
-		? 'bg-base-100 opacity-60'
-		: 'bg-base-200'}"
->
-	<div class="flex items-center {getIconColor()}">
+<div class="flex items-start gap-2 rounded-lg p-2 {notification.read ? '' : 'bg-base-200'}">
+	<span
+		class="flex size-8 shrink-0 items-center justify-center rounded-full {iconColorClass[color]}"
+		aria-hidden="true"
+	>
 		{#if icon === 'success'}
-			<CircleCheck class="size-5" />
+			<CircleCheck class="size-4" />
 		{:else if icon === 'error'}
-			<CircleX class="size-5" />
+			<CircleX class="size-4" />
 		{:else if icon === 'warning'}
-			<CircleAlert class="size-5" />
+			<CircleAlert class="size-4" />
 		{:else if icon === 'info'}
-			<Info class="size-5" />
-		{:else if icon === 'loading'}
-			<span class="loading loading-spinner loading-sm"></span>
+			<Info class="size-4" />
+		{:else}
+			<span class="loading loading-spinner loading-xs"></span>
 		{/if}
-	</div>
-	<div class="flex-1 min-w-0">
-		<p class="text-sm truncate {isRead ? '' : 'font-semibold'}">{notification.message}</p>
-		<p class="text-xs opacity-60">{formattedTime}</p>
-	</div>
-	{#if !isRead}
-		<span class="size-2 rounded-full bg-primary shrink-0"></span>
+	</span>
+
+	<button
+		type="button"
+		class="min-w-0 flex-1 text-left {notification.read ? 'cursor-default' : 'cursor-pointer'}"
+		onclick={() => notificationState.markAsRead(notification.id)}
+	>
+		<p class="text-sm leading-snug {notification.read ? 'text-base-content/70' : 'font-medium'}">
+			{notification.message}
+		</p>
+		<p class="text-base-content/50 mt-1 text-xs">{formattedTime}</p>
+	</button>
+
+	{#if !notification.read}
+		<span class="status status-primary self-center" aria-label="Unread"></span>
 	{/if}
+
 	{#if showDelete}
 		<button
-			class="btn btn-ghost btn-xs"
+			type="button"
+			class="btn btn-ghost btn-circle hover:bg-error/15 hover:text-error shrink-0 self-center"
 			onclick={() => notificationState.delete(notification.id)}
 			aria-label="Delete notification"
 		>

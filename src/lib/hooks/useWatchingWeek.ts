@@ -1,23 +1,17 @@
 import { schema, db } from '$lib/server/db';
 import { eq, and } from 'drizzle-orm';
-import _ from 'lodash';
+import { groupBy, uniq } from 'lodash-es';
 import { parseEpisodeList } from '$lib/util/schedule/episodeProgressParser';
+import { parseDatecode } from '$lib/server/schedule/queries';
+import { AppError, ERROR_CODES } from '$lib/errors';
 
 export async function useWatchingWeek(datecode: string) {
-	if (datecode.length < 6) {
-		throw new Error('Invalid datecode');
+	const parsed = parseDatecode(datecode);
+	if (!parsed) {
+		throw new AppError(ERROR_CODES.schedule.DATECODE_INVALID, { context: { datecode } });
 	}
 
-	const year = Number(datecode.substring(0, 4));
-	const week = Number(datecode.substring(4));
-
-	if (!Number.isFinite(year) || !Number.isFinite(week)) {
-		throw new Error('Invalid datecode');
-	}
-
-	if (year < 1900 || year > new Date().getFullYear() + 10 || week < 0 || week > 53) {
-		throw new Error('Invalid datecode');
-	}
+	const { year, week } = parsed;
 
 	const watchingRaw = await db
 		.select({
@@ -62,7 +56,7 @@ export async function useWatchingWeek(datecode: string) {
 			schema.animeSeason.animeSeasonId
 		);
 
-	const grouped = _.groupBy(watchingRaw, 'animeSeasonId');
+	const grouped = groupBy(watchingRaw, 'animeSeasonId');
 
 	const watching = Object.values(grouped).map((entries) => {
 		const first = entries[0];
@@ -72,7 +66,7 @@ export async function useWatchingWeek(datecode: string) {
 			const episodes = parseEpisodeList(entry.episodes);
 			allEpisodes.push(...episodes);
 		}
-		const uniqueEpisodes = _.uniq(allEpisodes).sort((a, b) => a - b);
+		const uniqueEpisodes = uniq(allEpisodes).sort((a, b) => a - b);
 
 		return {
 			animeSeasonId: first.animeSeasonId,

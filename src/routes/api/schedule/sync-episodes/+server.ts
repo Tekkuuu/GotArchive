@@ -1,27 +1,56 @@
 import { type RequestHandler, json, error } from '@sveltejs/kit';
 import { logger } from '$lib/server/logger';
 import { db, schema, eq, and, inArray } from '$lib/server/db';
-import _ from 'lodash';
 import { addDays, format, startOfDay } from 'date-fns';
 import { parseEpisodeList } from '$lib/util/schedule/episodeProgressParser';
 import { env } from '$env/dynamic/private';
+import { z } from 'zod/v4';
+import { timingSafeEqual } from 'node:crypto';
+
+/** Constant-time comparison of the cron secret to avoid a timing oracle. */
+function secretsMatch(provided: string | null, expected: string): boolean {
+	if (!provided) return false;
+
+	const a = Buffer.from(provided);
+	const b = Buffer.from(expected);
+	// timingSafeEqual requires equal lengths; guard without leaking length publicly.
+	if (a.length !== b.length) return false;
+
+	return timingSafeEqual(a, b);
+}
+
+const SyncBodySchema = z.object({
+	date: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
+		.refine((value) => !Number.isNaN(Date.parse(value)), 'date must be a real calendar date')
+		.optional()
+});
 
 export const POST: RequestHandler = async ({ request }) => {
-	const SCHEDULE_SYNC_EPISODES = env.VITE_SCHEDULE_SYNC_EPISODES;
+	const SCHEDULE_SYNC_EPISODES = env.SCHEDULE_SYNC_EPISODES;
 	const xScheduleSyncEpisodes = request.headers.get('x-schedule-sync-episodes');
 
 	if (!SCHEDULE_SYNC_EPISODES) {
-		logger.error('VITE_SCHEDULE_SYNC_EPISODES environment variable is not set');
+		logger.error('SCHEDULE_SYNC_EPISODES environment variable is not set');
 		return error(500, 'Server error');
 	}
 
-	if (xScheduleSyncEpisodes !== SCHEDULE_SYNC_EPISODES) {
+	if (!secretsMatch(xScheduleSyncEpisodes, SCHEDULE_SYNC_EPISODES)) {
 		logger.warn('Unauthorized attempt to sync schedule episodes');
 		return error(401, 'Unauthorized');
 	}
 
-	const body = await request.json().catch(() => ({}));
-	const { date } = body as { date?: string };
+	const parsed = SyncBodySchema.safeParse(await request.json().catch(() => ({})));
+
+	if (!parsed.success) {
+		logger.warn('Rejected schedule sync with invalid body', {
+			issues: parsed.error.issues
+		});
+		return error(400, 'Invalid request body');
+	}
+
+	const { date } = parsed.data;
 
 	const now = new Date();
 	const today = format(startOfDay(now), 'yyyy-MM-dd');
@@ -55,7 +84,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ success: true, message: `No schedule entries found for date ${sync}` });
 	}
 
-	const groupedBySeason = _.groupBy(entries, (entry) => entry.season.animeSeasonId);
+	const groupedBySeason = Object.groupBy(entries, (entry) => entry.season.animeSeasonId);
 	const uniqueSeasons = new Set(Object.keys(groupedBySeason));
 
 	const animeSeasons = await db
@@ -65,11 +94,15 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	await db.transaction(async (tx) => {
 		for (const [k, v] of Object.entries(groupedBySeason)) {
-			const episodes = v.map((entry) => parseEpisodeList(entry.season.episodes));
-			const maxEp = Math.max(...episodes.flat());
+			const flat = (v ?? [])
+				.flatMap((entry) => parseEpisodeList(entry.season.episodes))
+				.filter((n) => Number.isFinite(n));
+			if (flat.length === 0) continue;
+
+			const maxEp = Math.max(...flat);
 			const progress = animeSeasons.find((season) => season.animeSeasonId === k)?.episodeProgress;
 
-			if (maxEp > 0 && progress !== undefined && progress < maxEp) {
+			if (progress !== undefined && progress < maxEp) {
 				await tx
 					.update(schema.animeSeason)
 					.set({ episodeProgress: maxEp })

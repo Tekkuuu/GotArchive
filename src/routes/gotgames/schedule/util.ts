@@ -1,8 +1,11 @@
-import { format } from 'date-fns';
 import type { ScheduleEntryData, ScheduleAnimeSeasonInfo } from '$lib/api/schedule/datecode';
 
+export { formatTime } from '$lib/util/scheduleEntry';
+
 /**
- * Map platform names to shorter display names
+ * Maps platform to display name.
+ * @param platformName - Raw name.
+ * @returns Short name.
  */
 export function getPlatformDisplayName(platformName: string): string {
 	if (platformName.toLowerCase().includes('youtube')) {
@@ -16,35 +19,20 @@ export function getPlatformDisplayName(platformName: string): string {
 	} else if (platformName.toLowerCase().includes('kick')) {
 		return 'Kick';
 	} else {
-		return platformName; // Default to original name if no match
+		return platformName;
 	}
 }
 
 /**
- * Format time string to HH:mm format or return "No time"
- */
-export function formatTime(timeStr: string | null): string {
-	if (!timeStr) return 'No time';
-	try {
-		return format(new Date(`1970-01-01T${timeStr}`), 'HH:mm');
-	} catch {
-		return timeStr;
-	}
-}
-
-/**
- * Get logo URL with 3-tier fallback:
- * 1. Entry's direct logoUrl
- * 2. First anime season's anime logoUrl
- * 3. null (will show empty space)
+ * Resolves logo URL.
+ * @param entry - Schedule entry.
+ * @returns URL or null.
  */
 export function getLogoUrl(entry: ScheduleEntryData): string | null {
-	// First priority: entry's direct logo
 	if (entry.logoUrl) {
 		return entry.logoUrl;
 	}
 
-	// Second priority: anime's logo (from first anime season)
 	if (entry.animeSeasons && entry.animeSeasons.length > 0) {
 		const firstAnime = entry.animeSeasons[0];
 		if (firstAnime.anime.logoUrl) {
@@ -52,13 +40,13 @@ export function getLogoUrl(entry: ScheduleEntryData): string | null {
 		}
 	}
 
-	// No logo found
 	return null;
 }
 
 /**
- * Format anime season info for display
- * Returns title and episodes string like "Frieren E1-4"
+ * Formats season display.
+ * @param animeSeason - Season info.
+ * @returns Title + episodes.
  */
 export function formatAnimeSeasonDisplay(animeSeason: ScheduleAnimeSeasonInfo): string {
 	const title =

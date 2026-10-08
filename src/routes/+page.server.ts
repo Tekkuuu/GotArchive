@@ -1,44 +1,28 @@
 import type { PageServerLoad } from './$types';
-import { db, schema } from '$lib/server/db';
 import { useWatchingWeek } from '$lib/hooks';
-import { getISOWeek } from 'date-fns';
-import { sql } from 'drizzle-orm';
+import { getScheduleByWeek } from '$lib/server/schedule/queries';
+import { formatWeekDateLabels, formatWeekDates } from '$lib/util/dateUtils';
+import { format, getISOWeek } from 'date-fns';
 import { logger } from '$lib/server/logger';
+import type { ScheduleEntryData } from '$lib/api/schedule/datecode';
 
 export const load: PageServerLoad = async () => {
-	let totalAnime: number = 0;
-	let totalEpisodesWatched: number = 0;
 	let watching: Awaited<ReturnType<typeof useWatchingWeek>> = [];
+	let weekDates = '';
+	let weekStartLabel = '';
+	let weekEndLabel = '';
+	let upcoming: ScheduleEntryData[] = [];
 	const errors: string[] = [];
 
-	try {
-		const anime = await db.select().from(schema.anime);
-		totalAnime = anime.length;
-	} catch (err) {
-		logger.error('Failed to fetch total anime count', {
-			source: 'homePage',
-			error: err instanceof Error ? err.message : String(err)
-		});
-		errors.push('Failed to load anime statistics');
-	}
+	const now = new Date();
+	const year = now.getFullYear();
+	const week = getISOWeek(now);
+	weekDates = formatWeekDates(year, week);
+	const labels = formatWeekDateLabels(year, week);
+	weekStartLabel = labels.start;
+	weekEndLabel = labels.end;
 
 	try {
-		const [result] = await db
-			.select({ total: sql<number>`sum(${schema.animeSeason.episodeProgress})` })
-			.from(schema.animeSeason);
-		totalEpisodesWatched = result?.total ?? 0;
-	} catch (err) {
-		logger.error('Failed to fetch total episodes watched', {
-			source: 'homePage',
-			error: err instanceof Error ? err.message : String(err)
-		});
-		errors.push('Failed to load episode statistics');
-	}
-
-	try {
-		const date = new Date();
-		const year = date.getFullYear();
-		const week = getISOWeek(date);
 		const datecode = `${year}${week < 10 ? '0' + week.toString() : week}`;
 		watching = await useWatchingWeek(datecode);
 	} catch (err) {
@@ -49,5 +33,20 @@ export const load: PageServerLoad = async () => {
 		errors.push('Failed to load weekly schedule');
 	}
 
-	return { totalAnime, totalEpisodesWatched, watching, errors };
+	try {
+		const schedule = await getScheduleByWeek(year, week);
+		const today = format(now, 'yyyy-MM-dd');
+		upcoming = (schedule?.entries ?? [])
+			.filter((entry) => !entry.isCancelled && entry.date >= today)
+			.sort((a, b) => `${a.date}${a.time ?? ''}`.localeCompare(`${b.date}${b.time ?? ''}`))
+			.slice(0, 3);
+	} catch (err) {
+		logger.error('Failed to fetch upcoming entries', {
+			source: 'homePage',
+			error: err instanceof Error ? err.message : String(err)
+		});
+		errors.push('Failed to load upcoming streams');
+	}
+
+	return { watching, weekDates, weekStartLabel, weekEndLabel, upcoming, errors };
 };

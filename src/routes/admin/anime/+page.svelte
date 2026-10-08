@@ -1,54 +1,87 @@
 <script lang="ts">
 	import Fuse from 'fuse.js';
+	import { errorMessage } from '$lib/errors';
+	import { getAnimeTitle, filterSearch, type SearchField } from '$lib/util';
 	import { Pencil, Trash2, Plus, ExternalLink, ImageOff } from 'lucide-svelte';
 	import { modalUtils } from '$lib/components/util';
 	import { notification } from '$lib/components/ui/toaster';
 	import type { PageProps } from './$types';
 	import { getAnimeImagesStore } from '$lib/stores';
 	import { AddAnime, EditAnime, AddAnimeSeason } from '$lib/components/anime';
-	import { superForm } from 'sveltekit-superforms';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
-  import { DeleteAnimeFormSchema } from '$lib/schemas/anime';
-  import { updateAnimeImagesStore } from '$lib/stores';
+	import SearchHelpPopover from '$lib/components/ui/SearchHelpPopover.svelte';
+	import { deleteAnime } from '$lib/remote/anime.remote';
+	import { updateAnimeImagesStore } from '$lib/stores';
+	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { logError } from '$lib/client/logger';
 
-  type Anime = typeof data.anime[number];
+	type Anime = (typeof data.anime)[number];
 
 	let { data }: PageProps = $props();
 	let images = getAnimeImagesStore();
 
 	let searchQuery: string = $state('');
 
-  // svelte-ignore state_referenced_locally
-  const { form: deleteForm, enhance: deleteEnhance, submit: deleteSubmit } = superForm(data.deleteAnimeForm, {
-    dataType: 'json',
-    validators: zod4Client(DeleteAnimeFormSchema),
-    validationMethod: 'onsubmit',
-    multipleSubmits: 'prevent',
-    onResult: ({ result }) => {
-      if (result.type === 'success') {
-        notification.success('Anime deleted successfully');
-      } else if (result.type === 'failure') {
-        notification.error(result.data!.text || 'Failed to delete anime');
-      } else if (result.type === 'error') {
-        notification.error('An unexpected error occurred while deleting the anime');
-      }
-    },
-  });
-
 	const fuse = $derived(
 		new Fuse(data.anime, {
-			keys: ['series.titleNative', 'series.titleRomaji', 'series.titleEnglish', 'series.shortTitle'],
-			threshold: 0.3,
-			includeScore: true
+			keys: [
+				'series.titleNative',
+				'series.titleRomaji',
+				'series.titleEnglish',
+				'series.shortTitle'
+			],
+			threshold: 0.3
 		})
 	);
 
-	let filteredAnime = $derived.by(() => {
-		if (!searchQuery) return data.anime;
-		return fuse.search(searchQuery).map((r) => r.item);
+	const platformNames = $derived(
+		new Map(data.platforms.map((platform) => [platform.platformId, platform.name]))
+	);
+
+	// Field vocabulary for `field:value` search terms. `-field:value` negates.
+	const searchFields = $derived.by<Record<string, SearchField<Anime>>>(() => ({
+		links: { type: 'number', get: (anime) => anime.links.length },
+		platform: {
+			type: 'text',
+			get: (anime) => anime.links.map((link) => platformNames.get(link.platformId) ?? '')
+		},
+		linkurl: { type: 'text', get: (anime) => anime.links.map((link) => link.url) },
+		note: { type: 'text', get: (anime) => anime.links.map((link) => link.note ?? '') },
+		genre: { type: 'text', get: (anime) => anime.genres.map((genre) => genre.name) },
+		seasons: { type: 'number', get: (anime) => anime.seasons.length },
+		format: { type: 'text', get: (anime) => anime.seasons.map((season) => season.format) },
+		year: {
+			type: 'number',
+			get: (anime) => anime.seasons.map((season) => season.year).filter((year) => year != null)
+		},
+		episodes: {
+			type: 'number',
+			get: (anime) => anime.seasons.map((season) => season.episodes).filter((e) => e != null)
+		},
+		anilist: {
+			type: 'number',
+			get: (anime) => anime.seasons.map((season) => season.anilistId).filter((id) => id != null)
+		},
+		mal: {
+			type: 'number',
+			get: (anime) => anime.seasons.map((season) => season.malId).filter((id) => id != null)
+		}
+	}));
+
+	// Reading `fuse` in the body makes the cache reset when the data changes.
+	const fuzzyMatch = $derived.by(() => {
+		const activeFuse = fuse;
+		const cache = new Map<string, Set<Anime>>();
+		return (anime: Anime, value: string) => {
+			let matches = cache.get(value);
+			if (!matches) {
+				matches = new Set(activeFuse.search(value).map((result) => result.item));
+				cache.set(value, matches);
+			}
+			return matches.has(anime);
+		};
 	});
+
+	let filteredAnime = $derived(filterSearch(data.anime, searchQuery, searchFields, fuzzyMatch));
 
 	function getAnimeImage(anilistId: number | null) {
 		if (!anilistId) return null;
@@ -56,19 +89,21 @@
 	}
 
 	function getTitle(anime: Anime['series']): string {
-		return anime.titleEnglish ?? anime.titleRomaji ?? anime.titleNative ?? 'Untitled';
+		return getAnimeTitle(anime, 'Untitled');
 	}
 
-	let editingAnime: (Anime['series'] & { genres: Anime['genres'], links: Anime['links'] }) | undefined = $state(undefined);
+	let editingAnime:
+		(Anime['series'] & { genres: Anime['genres']; links: Anime['links'] }) | undefined =
+		$state(undefined);
 
-  function openEditModal(anime: typeof data.anime[number]) {
-    editingAnime = {
-      ...anime.series,
-      genres: anime.genres,
-      links: anime.links
-    };
-    modalUtils.openModal('edit-anime-modal');
-  }
+	function openEditModal(anime: (typeof data.anime)[number]) {
+		editingAnime = {
+			...anime.series,
+			genres: anime.genres,
+			links: anime.links
+		};
+		modalUtils.openModal('edit-anime-modal');
+	}
 
 	async function handleDelete(animeId: string) {
 		const confirmed = confirm(
@@ -81,35 +116,33 @@
 		);
 		if (!confirmedAgain) return;
 
-    $deleteForm.animeId = animeId;
-    deleteSubmit();
+		try {
+			await deleteAnime({ animeId });
+			notification.success('Anime deleted successfully');
+			invalidateAll();
+		} catch (e) {
+			notification.error(errorMessage(e, 'Failed to delete anime'));
+		}
 	}
 
-  onMount(() => {
-    updateAnimeImagesStore(
-      data.anime.map(
-        (a) => a.seasons.sort(
-          (a, b) => a.sequence - b.sequence
-        )[0].anilistId
-      ).filter((x) => x != null)).catch(
-      (error) => {
-        logError('Failed to update anime images store', { error: String(error) });
-      }
-    );
-  });
+	onMount(() => {
+		updateAnimeImagesStore(
+			data.anime
+				.map((a) => a.seasons.slice().sort((a, b) => a.sequence - b.sequence)[0]?.anilistId)
+				.filter((x) => x != null)
+		).catch((error) => {
+			console.error('Failed to update anime images store', { error: String(error) });
+		});
+	});
 </script>
 
 <svelte:head>
 	<title>Admin | Anime | G.O.T Archive</title>
 </svelte:head>
 
-<form class="hidden" use:deleteEnhance method="POST" action="?/deleteAnime">
-  <input type="hidden" name="animeId" value={$deleteForm.animeId} />
-</form>
-
 <div class="container mx-auto max-w-6xl p-4">
 	<!-- Page Header -->
-	<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+	<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
 			<h1 class="text-3xl font-bold">Anime</h1>
 			<p class="text-base-content/70 mt-1">Manage your anime library</p>
@@ -128,35 +161,49 @@
 
 	<!-- Search -->
 	<div class="mb-6">
-		<input
-			type="text"
-			placeholder="Search anime..."
+		<SearchHelpPopover
 			bind:value={searchQuery}
-			class="input input-bordered w-full"
+			placeholder="Search anime... (e.g. links:0 -platform:youtube)"
+			fields={Object.keys(searchFields)}
+			operators={[
+				{ token: '-', meaning: 'negate a term' },
+				{ token: '"..."', meaning: 'quoted phrase' },
+				{ token: '>', meaning: 'greater than' },
+				{ token: '>=', meaning: 'greater or equal' },
+				{ token: '<', meaning: 'less than' },
+				{ token: '<=', meaning: 'less or equal' },
+				{ token: '* ?', meaning: 'wildcards in text' }
+			]}
 		/>
+		<p class="text-base-content/60 mt-2 text-xs">
+			<span class="text-base-content font-medium">{filteredAnime.length}</span>
+			of
+			<span class="text-base-content font-medium">{data.anime.length}</span>
+			series
+		</p>
 	</div>
 
 	<!-- Anime List -->
 	<div class="list bg-base-200 rounded-box shadow">
 		{#each filteredAnime as anime (anime.series.animeId)}
 			{@const image = getAnimeImage(anime.seasons[0]?.anilistId)}
-			<div class="list-row items-center py-3 gap-2">
+			<div class="list-row items-center gap-2 py-3">
 				{#if image}
 					<div class="hidden md:block">
 						<div class="avatar">
-							<div class="w-12 h-12 rounded">
+							<div class="h-12 w-12 rounded">
 								<img src={image.coverImage.medium} alt={getTitle(anime.series)} />
 							</div>
 						</div>
 					</div>
 				{:else}
-					<ImageOff class="size-12 hidden md:block opacity-30" />
+					<ImageOff class="hidden size-12 opacity-30 md:block" />
 				{/if}
 
-				<div class="flex-1 min-w-0">
-					<div class="font-medium truncate">{getTitle(anime.series)}</div>
-					<div class="flex items-center gap-2 mt-1">
-						<span class="text-xs text-base-content/50">
+				<div class="min-w-0 flex-1">
+					<div class="truncate font-medium">{getTitle(anime.series)}</div>
+					<div class="mt-1 flex items-center gap-2">
+						<span class="text-base-content/50 text-xs">
 							{anime.seasons.length} season{anime.seasons.length !== 1 ? 's' : ''}
 						</span>
 					</div>
@@ -175,40 +222,23 @@
 						<Pencil class="h-4 w-4" />
 					</button>
 
-          <button
-            class="btn btn-ghost btn-sm text-error"
-            title="Delete"
-            onclick={() => handleDelete(anime.series.animeId)}
-          >
-            <Trash2 class="h-4 w-4" />
-          </button>
+					<button
+						class="btn btn-ghost btn-sm text-error"
+						title="Delete"
+						onclick={() => handleDelete(anime.series.animeId)}
+					>
+						<Trash2 class="h-4 w-4" />
+					</button>
 				</div>
 			</div>
 		{:else}
-			<div class="p-8 text-center text-base-content/60">No anime found</div>
+			<div class="text-base-content/60 p-8 text-center">No anime found</div>
 		{/each}
 	</div>
 </div>
 
-<AddAnime
-	id="add-anime-modal"
-	sForm={data.addAnimeForm}
-	platforms={data.platforms}
-	genres={data.genres}
-	action="?/createAnime"
-/>
+<AddAnime id="add-anime-modal" platforms={data.platforms} genres={data.genres} />
 
-<EditAnime
-  id="edit-anime-modal"
-  sForm={data.editAnimeForm}
-  prefill={editingAnime}
-  platforms={data.platforms}
-  action="?/updateAnime"
-/>
+<EditAnime id="edit-anime-modal" prefill={editingAnime} platforms={data.platforms} />
 
-<AddAnimeSeason
-	id="add-season-modal"
-	sForm={data.addSeasonForm}
-	anime={data.anime.map(a => a.series)}
-	action="?/createSeason"
-/>
+<AddAnimeSeason id="add-season-modal" anime={data.anime.map((a) => a.series)} />

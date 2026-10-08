@@ -1,4 +1,8 @@
 export { getAnimeImagesStore, updateAnimeImagesStore } from './animeImages.svelte';
-export { getDarkModeStore } from './darkMode.svelte';
 export { getThemeStore, AVAILABLE_THEMES, type Theme } from './theme.svelte';
-export { getCookieConsentStore, COOKIE_CONSENT_VERSION } from './cookieConsent.svelte';
+export {
+	getTimeZoneStore,
+	resolveTimeZone,
+	setTimeZone,
+	TIME_ZONE_STORAGE_KEY
+} from './timezone.svelte';

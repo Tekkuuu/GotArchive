@@ -1,0 +1,1 @@
+ALTER TABLE "anime_season" ADD COLUMN "skipped_episodes" smallint[] DEFAULT '{}'::smallint[] NOT NULL;

@@ -1,6 +1,9 @@
 import { schema, db, eq, and, sql, asc } from '$lib/server/db';
 import { formatWeekRange } from '$lib/util/dateUtils';
-import { parseISO, addWeeks, subWeeks, getISOWeek, getISOWeekYear } from 'date-fns';
+import { sanitizeHexColor, sanitizeIconSvg, sanitizeNote } from '$lib/server/util/sanitizeHtml';
+import { bbcodeToHtml } from '$lib/util/bbcode';
+import { AppError, ERROR_CODES } from '$lib/errors';
+import { parseISO, isValid, addWeeks, subWeeks, getISOWeek, getISOWeekYear } from 'date-fns';
 import { isoWeekDateRange } from '$lib/api/schedule/timezone';
 import type {
 	ScheduleData,
@@ -9,16 +12,8 @@ import type {
 	SchedulePlatformInfo
 } from '$lib/api/schedule/datecode';
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Build the two CTEs and fetch formatted entries for a known schedule ID.
- * This is the core query shared by all callers.
- */
+/** Fetches entries for schedule id. @param scheduleId - Schedule id. @returns Entries. */
 async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntryData[]> {
-	// CTE: anime seasons per entry
 	const entryAnime = db.$with('entry_anime').as(
 		db
 			.select({
@@ -78,7 +73,6 @@ async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntr
 			.groupBy(schema.scheduleEntry.scheduleEntryId)
 	);
 
-	// CTE: platforms per entry
 	const entryPlatforms = db.$with('entry_platforms').as(
 		db
 			.select({
@@ -87,11 +81,15 @@ async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntr
 					platformId: string;
 					name: string;
 					url: string;
+					iconSvg: string | null;
+					iconColor: string | null;
 				}> | null>`json_agg(
           json_build_object(
             'platformId', ${schema.platform.platformId},
             'name', ${schema.platform.name},
-            'url', ${schema.platform.url}
+            'url', ${schema.platform.url},
+            'iconSvg', ${schema.platform.iconSvg},
+            'iconColor', ${schema.platform.iconColor}
           )
           ORDER BY ${schema.platform.name}
         ) FILTER (WHERE ${schema.platform.platformId} IS NOT NULL)`.as('platforms')
@@ -109,7 +107,6 @@ async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntr
 			.groupBy(schema.scheduleEntry.scheduleEntryId)
 	);
 
-	// Combine
 	const rows = await db
 		.with(entryAnime, entryPlatforms)
 		.select({
@@ -129,8 +126,12 @@ async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntr
 	return rows.map((entryData) => {
 		const entry = entryData.entry;
 		const date = parseISO(entry.date);
+		if (!isValid(date)) {
+			throw new AppError(ERROR_CODES.schedule.INVALID_DATE, {
+				context: { scheduleEntryId: entry.scheduleEntryId, date: entry.date }
+			});
+		}
 		const dayOfWeek = date.getDay();
-		// Adjust day: Sunday (0) becomes 6, Monday (1) becomes 0
 		const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
 
 		const animeSeasons: ScheduleAnimeSeasonInfo[] =
@@ -159,7 +160,9 @@ async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntr
 			entryData.platforms?.map((p) => ({
 				platformId: p.platformId,
 				name: p.name,
-				url: p.url
+				url: p.url,
+				iconSvg: sanitizeIconSvg(p.iconSvg),
+				iconColor: sanitizeHexColor(p.iconColor)
 			})) || [];
 
 		return {
@@ -181,9 +184,10 @@ async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntr
 }
 
 /**
- * Look up the schedule for a given year/week and return its entries.
- * Returns an empty array when no non-preview schedule exists for that week.
- * Used to fetch adjacent-week entries for timezone boundary handling.
+ * Fetches entries by ISO week.
+ * @param year - Year.
+ * @param week - ISO week.
+ * @returns Entries.
  */
 async function fetchEntriesByWeek(year: number, week: number): Promise<ScheduleEntryData[]> {
 	const [scheduleData] = await db
@@ -202,16 +206,11 @@ async function fetchEntriesByWeek(year: number, week: number): Promise<ScheduleE
 	return fetchEntriesForSchedule(scheduleData.scheduleId);
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 /**
- * Fetch and format a schedule by year + ISO week number.
- * Returns `null` when no non-preview schedule exists for that week.
- *
- * Also fetches entries from the immediately adjacent weeks so that
- * timezone-aware views can include entries that shift into this week.
+ * Fetches schedule by ISO week.
+ * @param year - Year.
+ * @param week - ISO week.
+ * @returns Schedule or null.
  */
 export async function getScheduleByWeek(year: number, week: number): Promise<ScheduleData | null> {
 	const [scheduleData] = await db
@@ -230,7 +229,6 @@ export async function getScheduleByWeek(year: number, week: number): Promise<Sch
 		return null;
 	}
 
-	// Compute adjacent week year/week numbers via date-fns (handles year boundaries)
 	const anchorDate = new Date(Date.UTC(year, 0, 4));
 	const anchorDowISO = (anchorDate.getUTCDay() + 6) % 7;
 	const week1Mon = new Date(anchorDate.getTime() - anchorDowISO * 86_400_000);
@@ -250,7 +248,7 @@ export async function getScheduleByWeek(year: number, week: number): Promise<Sch
 			scheduleId: scheduleData.scheduleId,
 			year: scheduleData.year,
 			week: scheduleData.week,
-			note: scheduleData.note,
+			note: sanitizeNote(bbcodeToHtml(scheduleData.note)),
 			preview: scheduleData.preview
 		},
 		weekRange: formatWeekRange(scheduleData.year, scheduleData.week),
@@ -260,10 +258,7 @@ export async function getScheduleByWeek(year: number, week: number): Promise<Sch
 	};
 }
 
-/**
- * Parse a YYYYWW datecode string into { year, week }.
- * Returns `null` if the format is invalid.
- */
+/** Parses YYYYWW datecode. @param datecode - Datecode. @returns Year/week or null. */
 export function parseDatecode(datecode: string): { year: number; week: number } | null {
 	if (!datecode || datecode.length !== 6) return null;
 	const year = parseInt(datecode.slice(0, 4));

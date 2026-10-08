@@ -1,63 +1,53 @@
 <script lang="ts">
 	import type { Notification } from './types';
-	import { CircleAlert, CircleCheck, CircleX, Info } from 'lucide-svelte';
+	import {
+		getNotificationIcon,
+		getNotificationColor,
+		type NotificationColor
+	} from './notificationColor';
+	import { CircleAlert, CircleCheck, CircleX, Info, X } from 'lucide-svelte';
 
 	interface Props {
 		notification: Notification;
+		ondismiss?: () => void;
 	}
 
-	let { notification }: Props = $props();
+	let { notification, ondismiss }: Props = $props();
 
-	const getAlertClass = () => {
-		if (notification.type === 'promise') {
-			if (notification.promise?.status === 'resolved') {
-				return 'alert-success';
-			} else if (notification.promise?.status === 'rejected') {
-				return 'alert-error';
-			}
-			return 'alert-info';
-		}
-		switch (notification.type) {
-			case 'success':
-				return 'alert-success';
-			case 'error':
-				return 'alert-error';
-			case 'warning':
-				return 'alert-warning';
-			case 'info':
-				return 'alert-info';
-			default:
-				return 'alert-info';
-		}
+	const alertClassByColor: Record<NotificationColor, string> = {
+		success: 'alert-success',
+		error: 'alert-error',
+		warning: 'alert-warning',
+		info: 'alert-info'
 	};
 
-	const getIcon = () => {
-		if (notification.type === 'promise') {
-			if (notification.promise?.status === 'pending') {
-				return 'loading';
-			} else if (notification.promise?.status === 'resolved') {
-				return 'success';
-			} else if (notification.promise?.status === 'rejected') {
-				return 'error';
-			}
-		}
-		return notification.type;
-	};
-
-	const icon = $derived(getIcon());
+	const icon = $derived(getNotificationIcon(notification));
+	const alertClass = $derived(alertClassByColor[getNotificationColor(notification)]);
 </script>
 
-<div class="alert {getAlertClass()} shadow-lg">
-	{#if icon === 'success'}
-		<CircleCheck class="size-5" />
-	{:else if icon === 'error'}
-		<CircleX class="size-5" />
-	{:else if icon === 'warning'}
-		<CircleAlert class="size-5" />
-	{:else if icon === 'info'}
-		<Info class="size-5" />
-	{:else if icon === 'loading'}
-		<span class="loading loading-spinner loading-sm"></span>
+<div class="alert {alertClass} items-center gap-2 px-3 py-2 shadow-lg">
+	<span class="shrink-0">
+		{#if icon === 'success'}
+			<CircleCheck class="size-5" />
+		{:else if icon === 'error'}
+			<CircleX class="size-5" />
+		{:else if icon === 'warning'}
+			<CircleAlert class="size-5" />
+		{:else if icon === 'info'}
+			<Info class="size-5" />
+		{:else}
+			<span class="loading loading-spinner loading-sm"></span>
+		{/if}
+	</span>
+	<span class="min-w-0 text-sm break-words">{notification.message}</span>
+	{#if ondismiss}
+		<button
+			type="button"
+			class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-black/15"
+			aria-label="Dismiss notification"
+			onclick={ondismiss}
+		>
+			<X class="size-4" />
+		</button>
 	{/if}
-	<span class="text-sm">{notification.message}</span>
 </div>

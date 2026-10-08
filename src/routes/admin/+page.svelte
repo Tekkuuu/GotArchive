@@ -6,26 +6,26 @@
 			category: 'Manage',
 			icon: Cog,
 			routes: [
-				{ 
-					name: 'Anime', 
-					href: '/admin/anime', 
+				{
+					name: 'Anime',
+					href: '/admin/anime',
 					description: 'Manager anime series and seasons',
 					icon: Film
 				},
-				{ 
-					name: 'Schedule', 
-					href: '/admin/schedule', 
+				{
+					name: 'Schedule',
+					href: '/admin/schedule',
 					description: 'Manage schedules',
 					icon: Calendar
 				},
-				{ 
-					name: 'Schedule Slots', 
-					href: '/admin/schedule/slots', 
+				{
+					name: 'Schedule Slots',
+					href: '/admin/schedule/slots',
 					description: 'Manage schedule slots',
 					icon: Clock
 				}
 			]
-		},
+		}
 	];
 </script>
 
@@ -36,7 +36,7 @@
 <div class="container mx-auto max-w-6xl p-4">
 	<!-- Page Header -->
 	<div class="mb-6">
-		<h1 class="text-3xl font-bold text-center">Admin Dashboard</h1>
+		<h1 class="text-center text-3xl font-bold">Admin Dashboard</h1>
 		<p class="text-base-content/70 mt-2 text-center">
 			Manage content and settings for G.O.T Archive
 		</p>
@@ -48,7 +48,7 @@
 			<div class="card bg-base-200 shadow-xl">
 				<div class="card-body">
 					<h2 class="card-title">
-            <section.icon class="size-5" />
+						<section.icon class="size-5" />
 						{section.category}
 					</h2>
 					<div class="flex flex-col gap-3">
@@ -61,7 +61,7 @@
 										</div>
 										<div class="flex-1">
 											<h3 class="font-semibold">{route.name}</h3>
-											<p class="text-sm text-base-content/70 mt-1">
+											<p class="text-base-content/70 mt-1 text-sm">
 												{route.description}
 											</p>
 										</div>

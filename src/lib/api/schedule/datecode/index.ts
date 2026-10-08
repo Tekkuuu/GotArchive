@@ -1,6 +1,4 @@
-/**
- * Re-export all schedule datecode API types
- */
+/** Schedule datecode API types. */
 export type {
 	ScheduleAnimeInfo,
 	ScheduleAnimeSeasonInfo,
@@ -13,16 +11,15 @@ export type {
 	ScheduleApiResponse
 } from './types';
 
-/**
- * Re-export timezone utilities so consumers only need one import path:
- *   import { parseTzParam, applyTimezone, … } from '$lib/api/schedule/datecode'
- */
+/** Timezone re-exports. */
 export {
-	NAMED_TZ_OFFSETS,
-	DEFAULT_TZ_LABEL,
-	DEFAULT_TZ_OFFSET_MINUTES,
+	DEFAULT_TIME_ZONE,
+	TIME_ZONE_OPTIONS,
 	parseTzParam,
 	tzLabel,
+	tzAbbreviation,
+	browserTimeZone,
+	resolveDisplayZone,
 	isoWeekDateRange,
 	applyTimezone,
 	groupEntriesByWeekday

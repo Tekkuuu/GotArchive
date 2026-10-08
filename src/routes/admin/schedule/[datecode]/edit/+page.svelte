@@ -1,84 +1,54 @@
 <script lang="ts">
-	import { superForm } from 'sveltekit-superforms';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import type { PageProps } from './$types';
-	import {
-		Calendar,
-		Clock,
-		Film,
-		Info,
-		Save,
-		Trash2,
-		Plus,
-		Edit,
-		X,
-		Eye,
-		EyeOff
-	} from 'lucide-svelte';
-	import { format, parseISO } from 'date-fns';
-	import { AddScheduleEntry, EditScheduleEntry, type EditScheduleEntryData, type NewScheduleEntryData } from '$lib/components/schedule/new';
-	import { modalUtils } from '$lib/components/util';
-	import { enhance as defaultEnhance } from '$app/forms';
+	import { errorMessage } from '$lib/errors';
+	import { DAY_NAMES, entryTypeBadge } from '$lib/schemas';
+	import { formatTime } from '$lib/util/scheduleEntry';
+	import { formatIsoWeekLine } from '$lib/util/dateUtils';
+	import { AlertCircle, ArrowLeft, Clock, Edit, Info, Plus, Trash2 } from 'lucide-svelte';
+	import { parseISO } from 'date-fns';
 	import { invalidateAll } from '$app/navigation';
+	import { tick } from 'svelte';
+	import {
+		AddScheduleEntry,
+		EditScheduleEntry,
+		type EditScheduleEntryData,
+		type NewScheduleEntryData
+	} from '$lib/components/schedule/new';
+	import { modalUtils } from '$lib/components/util';
 	import { notification } from '$lib/components/ui/toaster';
-	import { AddScheduleEntrySchema, EditScheduleEntrySchema, EditScheduleSchema } from '$lib/schemas';
-	import ToggleCancelledButton from '$lib/components/schedule/ToggleCancelledButton.svelte';
+	import {
+		addScheduleEntry,
+		deleteScheduleEntry,
+		toggleCancelled,
+		togglePreview,
+		updateScheduleEntry,
+		updateScheduleMetadata
+	} from '$lib/remote/schedule.remote';
+	import { NoteStyler } from '$lib/components/ui/notestyler';
 
 	let { data }: PageProps = $props();
 
-	// svelte-ignore state_referenced_locally
-	let { form: scheduleForm, enhance: scheduleEnhance, submit: scheduleSubmit } = superForm(data.scheduleForm, {
-		dataType: 'json',
-    validators: zod4Client(EditScheduleSchema),
-		validationMethod: 'onsubmit',
-		multipleSubmits: 'prevent',
-		onResult: async ({ result }) => {
-      if (result.type === 'success') {
-				notification.success('Schedule updated');
-			} else if (result.type === 'failure') {
-				notification.error(result.data?.error || 'Failed to update');
-			} else if (result.type === 'error') {
-        console.error('Error updating schedule:', result.error);
-        notification.error('An unexpected error occurred');
-			}
-		}
-	});
+	type EntryDraft = EditScheduleEntryData & { scheduleEntryId: string };
 
 	// svelte-ignore state_referenced_locally
-	const { form: addEntryForm, enhance: addEntryEnhance, submit: submitAddEntry } = superForm(data.addEntryForm, {
-		dataType: 'json',
-		validators: zod4Client(AddScheduleEntrySchema),
-		validationMethod: 'onsubmit',
-		multipleSubmits: 'prevent',
-		onResult: async ({ result }) => {
-			if (result.type === 'success') {
-        notification.success('Entry added');
-			} else if (result.type === 'failure') {
-				notification.error(result.data?.error || 'Failed to add entry');
-			}
-		}
-	});
+	let note = $state(data.schedule.note ?? '');
+	// svelte-ignore state_referenced_locally
+	let preview = $state(data.schedule.preview);
+	// svelte-ignore state_referenced_locally
+	let savedNote = $state(data.schedule.note ?? '');
+	let isSavingNote = $state(false);
+	let isTogglingPublish = $state(false);
 
-  // svelte-ignore state_referenced_locally
-  const { form: editEntryForm, enhance: editEntryEnhance, submit: submitEditEntry } = superForm(data.editEntryForm,
-  {
-    dataType: 'json',
-    validators: zod4Client(EditScheduleEntrySchema),
-    validationMethod: 'onsubmit',
-    multipleSubmits: 'prevent',
-    onResult: async ({ result }) => {
-      if (result.type === 'success') {
-        notification.success('Entry updated');
-      } else if (result.type === 'failure') {
-        notification.error(result.data?.error || 'Failed to update entry');
-      }
-    }
-  });
+	const isNoteDirty = $derived(note !== savedNote);
+	const totalEntries = $derived(data.entries.length);
 
-	// Track which entry is being edited
-	let editingEntry = $state<any | null>(null);
+	const weekDates = $derived(formatIsoWeekLine(data.schedule.year, data.schedule.week));
 
-	// Group entries by weekday
+	let editingEntry = $state<EntryDraft | null>(null);
+
+	// Remount key.
+	let editModalKey = $state(0);
+
 	const entriesByWeekday = $derived.by(() => {
 		const groups = new Map<
 			number,
@@ -97,13 +67,12 @@
 				}
 				groups.get(adjustedDay)!.push({ entry: entryData, index });
 			} catch {
-				// Invalid date, skip
+				// Skip invalid date.
 			}
 		});
 
-		// Sort entries within each day by time
-		groups.forEach((entries) => {
-			entries.sort((a, b) => {
+		groups.forEach((dayEntries) => {
+			dayEntries.sort((a, b) => {
 				const timeA = a.entry.entry.time || '';
 				const timeB = b.entry.entry.time || '';
 				return timeA.localeCompare(timeB);
@@ -113,17 +82,9 @@
 		return groups;
 	});
 
-	const weekdayNames = [
-		'Monday',
-		'Tuesday',
-		'Wednesday',
-		'Thursday',
-		'Friday',
-		'Saturday',
-		'Sunday'
-	];
+	const weekdayNames = DAY_NAMES;
 
-	function openEditModal(entryData: typeof data.entries[number]) {
+	async function openEditModal(entryData: (typeof data.entries)[number]) {
 		const entry = entryData.entry;
 		editingEntry = {
 			scheduleEntryId: entry.scheduleEntryId,
@@ -139,42 +100,113 @@
 			anime: entryData.animeSeasons,
 			platforms: entryData.platforms
 		};
+		editModalKey++;
+		await tick();
 		modalUtils.openModal('edit-schedule-entry-modal');
 	}
 
-	function handleAddEntry(newEntry: NewScheduleEntryData) {
-		$addEntryForm = {
-			type: newEntry.type,
-			date: newEntry.date,
-			time: newEntry.time,
-			note: newEntry.note,
-			logoUrl: newEntry.logoUrl,
-			title: newEntry.title,
-			description: newEntry.description,
-			cancelledText: newEntry.cancelledText,
-			isCancelled: newEntry.isCancelled,
-			anime: newEntry.anime,
-			platforms: newEntry.platforms,
-			slotId: null
-		};
-		submitAddEntry();
+	async function saveNote() {
+		if (!isNoteDirty || isSavingNote) return;
+		isSavingNote = true;
+		try {
+			await updateScheduleMetadata({
+				scheduleId: data.schedule.scheduleId,
+				note: note || null,
+				preview
+			});
+			savedNote = note;
+			notification.success('Note saved');
+			await invalidateAll();
+		} catch (e) {
+			notification.error(errorMessage(e, 'Failed to save note'));
+		} finally {
+			isSavingNote = false;
+		}
 	}
 
-	function handleEditSave(updatedData: EditScheduleEntryData) {
+	async function handleTogglePublish() {
+		if (isTogglingPublish) return;
+		const next = !preview;
+		if (
+			!window.confirm(
+				`Are you sure you want to ${preview ? 'publish' : 'unpublish'} this schedule?`
+			)
+		) {
+			return;
+		}
+		isTogglingPublish = true;
+		try {
+			await togglePreview({ scheduleId: data.schedule.scheduleId, preview: next });
+			preview = next;
+			notification.success(next ? 'Schedule unpublished' : 'Schedule published');
+			await invalidateAll();
+		} catch (e) {
+			notification.error(errorMessage(e, 'Failed to update visibility'));
+		} finally {
+			isTogglingPublish = false;
+		}
+	}
+
+	async function handleAddEntry(newEntry: NewScheduleEntryData) {
+		try {
+			await addScheduleEntry({ scheduleId: data.schedule.scheduleId, ...newEntry });
+			notification.success('Entry added');
+			await invalidateAll();
+		} catch (e) {
+			notification.error(errorMessage(e, 'Failed to add entry'));
+		}
+	}
+
+	async function handleEditSave(updatedData: EditScheduleEntryData) {
 		if (!editingEntry) return;
-		$editEntryForm = {
-			scheduleEntryId: editingEntry.scheduleEntryId,
-			time: updatedData.time,
-			note: updatedData.note,
-			logoUrl: updatedData.logoUrl,
-			title: updatedData.title,
-			description: updatedData.description,
-			cancelledText: updatedData.cancelledText,
-			isCancelled: updatedData.isCancelled,
-			anime: updatedData.anime,
-			platforms: updatedData.platforms
-		};
-		submitEditEntry();
+
+		try {
+			await updateScheduleEntry({
+				scheduleEntryId: editingEntry.scheduleEntryId,
+				date: updatedData.date,
+				time: updatedData.time,
+				note: updatedData.note,
+				logoUrl: updatedData.logoUrl,
+				title: updatedData.title,
+				description: updatedData.description,
+				cancelledText: updatedData.cancelledText,
+				isCancelled: updatedData.isCancelled,
+				anime: updatedData.anime,
+				platforms: updatedData.platforms
+			});
+			notification.success('Entry updated');
+			await invalidateAll();
+		} catch (e) {
+			notification.error(errorMessage(e, 'Failed to update entry'));
+		}
+	}
+
+	async function handleDeleteEntry(scheduleEntryId: string) {
+		if (!window.confirm('Are you sure you want to delete this entry?')) return;
+
+		try {
+			await deleteScheduleEntry({ scheduleEntryId });
+			notification.success('Entry deleted');
+			await invalidateAll();
+		} catch (e) {
+			notification.error(errorMessage(e, 'Failed to delete entry'));
+		}
+	}
+
+	async function handleToggleCancelled(scheduleEntryId: string, isCancelled: boolean) {
+		if (
+			!window.confirm(`Are you sure you want to ${isCancelled ? 'uncancel' : 'cancel'} this entry?`)
+		) {
+			return;
+		}
+
+		try {
+			await toggleCancelled({ scheduleEntryId, isCancelled: !isCancelled });
+			notification.success(isCancelled ? 'Entry uncancelled' : 'Entry cancelled');
+			await invalidateAll();
+		} catch {
+			notification.error('Failed to update entry');
+		}
 	}
 
 	function getSeasonInfo(seasonId: string | null) {
@@ -190,25 +222,8 @@
 			: null;
 	}
 
-	function formatTime(timeStr: string | null): string {
-		if (!timeStr) return 'No time';
-		try {
-			return format(new Date(`1970-01-01T${timeStr}`), 'HH:mm');
-		} catch {
-			return timeStr;
-		}
-	}
-
 	function getTypeColor(type: string): string {
-		const colors: Record<string, string> = {
-			anime: 'badge-primary',
-			hololive: 'badge-secondary',
-			game: 'badge-accent',
-			event: 'badge-info',
-			sponsored: 'badge-warning',
-			misc: 'badge-ghost'
-		};
-		return colors[type] || 'badge-ghost';
+		return entryTypeBadge(type);
 	}
 
 	function formatAnimeInfo(
@@ -230,140 +245,118 @@
 	<title>Edit Schedule | G.O.T Archive</title>
 </svelte:head>
 
-<!-- Hidden superForms for programmatic add/edit entry submissions -->
-<form method="POST" action="?/addEntry" use:addEntryEnhance class="hidden"></form>
-<form method="POST" action="?/updateEntry" use:editEntryEnhance class="hidden"></form>
-
-<div class="container mx-auto max-w-7xl p-2 md:p-4">
-	<!-- Page Header -->
-	<div class="mb-4">
-		<h1 class="text-2xl md:text-3xl font-bold text-center">Edit Schedule</h1>
-		<p class="text-base-content/70 mt-2 text-center">
-			Year {data.schedule.year}, Week {data.schedule.week}
+<div class="container mx-auto max-w-7xl space-y-4 p-2 md:p-4">
+	<!-- Header -->
+	<div>
+		<h1 class="text-center text-2xl font-bold md:text-3xl">Edit Schedule</h1>
+		<p class="text-base-content/70 mt-1 text-center">
+			{weekDates}, week {data.schedule.week}
 		</p>
 	</div>
 
-	<!-- Schedule Card -->
-	<form method="POST" action="?/updateSchedule" use:scheduleEnhance class="mb-4">
-		<div class="card bg-base-200 shadow-md">
-			<div class="card-body p-4">
-				<h2 class="card-title text-lg mb-2">
-					<Calendar class="h-5 w-5" />
-					Schedule Info
-				</h2>
-
-				<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-					<label class="input w-full">
-						<span class="label">Year</span>
-						<input
-							bind:value={data.schedule.year}
-							class="w-full"
-              disabled
-						/>
-					</label>
-					<label class="input w-full">
-						<span class="label">Week</span>
-						<input
-							bind:value={data.schedule.week}
-							class="w-full"
-              disabled
-						/>
-					</label>
-					<label class="textarea w-full sm:col-span-2">
-            <span class="label">Note</span>
-						<textarea
-							bind:value={() => $scheduleForm.note || '', (v) => ($scheduleForm.note = v === '' ? null : v)}
-							class="w-full"
-						></textarea>
-					</label>
-				</div>
-
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="btn btn-success grow"
-            onclick={() => {
-              $scheduleForm.scheduleId = data.schedule.scheduleId;
-              scheduleSubmit();
-            }}
-          >
-            <Save class="h-4 w-4" />
-            Save Metadata
-          </button>
-          <button
-            type="button"
-            class={["btn", $scheduleForm.preview ? 'btn-success' : 'btn-error']}
-            onclick={() => $scheduleForm.preview = !$scheduleForm.preview}
-          >
-            {#if $scheduleForm.preview}
-              <Eye />
-            {:else}
-              <EyeOff />
-            {/if}
-            Preview
-          </button>
-        </div>
+	<!-- Publication -->
+	<section class="card bg-base-200 shadow-md">
+		<div class="card-body flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+			<div>
+				<h2 class="card-title text-lg">Visibility</h2>
+				<p class="text-base-content/70 text-sm">
+					{preview ? 'Hidden from public' : 'Publicly visible'}
+				</p>
 			</div>
+			<button
+				type="button"
+				class={['btn shrink-0', preview ? 'btn-success' : 'btn-warning']}
+				disabled={isTogglingPublish}
+				onclick={handleTogglePublish}
+			>
+				{#if isTogglingPublish}
+					<span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+					Saving&hellip;
+				{:else if preview}
+					Publish
+				{:else}
+					Unpublish
+				{/if}
+			</button>
 		</div>
-	</form>
+	</section>
 
-	<!-- Entries by Weekday -->
-	<div class="card bg-base-200 shadow-md">
-		<div class="card-body p-4">
-			<div class="flex items-center justify-between mb-2">
+	<!-- Note -->
+	<section class="card bg-base-200 shadow-md">
+		<div class="card-body p-4 sm:p-5">
+			<h2 class="card-title mb-3 text-lg">Note</h2>
+			<NoteStyler bind:content={note} week={data.schedule.week} year={data.schedule.year} />
+			<button
+				type="button"
+				class="btn btn-success mt-3 w-full"
+				disabled={!isNoteDirty || isSavingNote}
+				onclick={saveNote}
+			>
+				{#if isSavingNote}
+					<span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+					Saving&hellip;
+				{:else}
+					Save Note
+				{/if}
+			</button>
+		</div>
+	</section>
+
+	<!-- Entries -->
+	<section class="card bg-base-200 shadow-md">
+		<div class="card-body p-4 sm:p-5">
+			<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
 				<h2 class="card-title text-lg">
-					<Film />
 					Schedule Entries
+					<span class="badge badge-ghost">{totalEntries}</span>
 				</h2>
-				<div class="flex items-center gap-2">
-					<button
-						type="button"
-						class="btn btn-primary"
-						onclick={() => modalUtils.openModal('add-schedule-entry-modal')}
-					>
-						<Plus />
-						Add Entry
-					</button>
-				</div>
+				<button
+					type="button"
+					class="btn btn-primary btn-sm"
+					onclick={() => modalUtils.openModal('add-schedule-entry-modal')}
+				>
+					<Plus class="size-4" />
+					Add Entry
+				</button>
 			</div>
 
 			{#if data.entries.length === 0}
 				<div
-					class="border border-dashed rounded-box p-4 border-base-content/20 bg-base-300/30 text-base-content/60 gap-2 flex items-center"
+					class="rounded-box border-base-content/20 bg-base-300/30 text-base-content/60 flex items-center gap-2 border border-dashed p-4"
 				>
-					<Info class="h-5 w-5" />
+					<Info class="size-5 shrink-0" />
 					<span>No entries in this schedule. Add entries to get started.</span>
 				</div>
 			{:else}
-				<!-- Weekday Accordions -->
+				<!-- Days -->
 				<div class="space-y-2">
 					{#each Array.from(entriesByWeekday.entries()).sort((a, b) => a[0] - b[0]) as [dayIndex, dayEntries]}
 						<div class="card bg-base-100">
-							<div class="card-body gap-0 p-0 group">
+							<div class="card-body group gap-0 p-0">
 								<div
 									class={[
-										'transition-color duration-150 rounded-box rounded-b-none p-2 flex justify-between items-center',
+										'transition-color rounded-box flex items-center justify-between rounded-b-none p-2 duration-150',
 										'bg-primary/15 text-base-content',
 										'group-hover:bg-primary group-hover:text-primary-content'
 									]}
 								>
-									<span class="font-bold text-xl">{weekdayNames[dayIndex]}</span>
+									<span class="text-xl font-bold">{weekdayNames[dayIndex]}</span>
 									<div class="badge badge-ghost">{dayEntries.length} entrie(s)</div>
 								</div>
 								<ul class="list rounded-box rounded-t-none">
 									{#each dayEntries as { entry: entryData }}
 										{@const entry = entryData.entry}
 										<li
-											class="list-row items-center justify-center hover:bg-base-300 rounded-none last:rounded-box last:rounded-t-none relative"
+											class="list-row hover:bg-base-300 last:rounded-box relative items-center justify-center rounded-none last:rounded-t-none"
 										>
-											<!-- Entry Summary -->
+											<!-- Summary -->
 											<div class="flex items-center gap-2">
-												<Clock />
+												<Clock class="size-4" />
 												<span>{formatTime(entry.time)}</span>
 											</div>
 											<div class="badge {getTypeColor(entry.type)}">{entry.type}</div>
 											{#if entryData.animeSeasons && entryData.animeSeasons.length > 0}
-												<div class="flex flex-col gap-0 list-col-grow">
+												<div class="list-col-grow flex flex-col gap-0">
 													{#each formatAnimeInfo(entryData.animeSeasons) as animeInfo}
 														<span class="text-sm font-medium">
 															{animeInfo.seasonTitle}
@@ -372,17 +365,22 @@
 													{/each}
 												</div>
 											{:else if entry.title}
-												<span class="text-sm list-col-grow font-medium truncate">{entry.title}</span>
+												<span class="list-col-grow truncate text-sm font-medium">{entry.title}</span
+												>
 											{/if}
 											<div class="flex gap-2">
-												<!-- Toggle Cancelled -->
-												<ToggleCancelledButton
-													sForm={data.toggleCancelledForm}
-													scheduleEntryId={entry.scheduleEntryId}
-													isCancelled={entry.isCancelled}
-												/>
+												<button
+													type="button"
+													class="btn btn-sm btn-square {entry.isCancelled
+														? 'btn-warning'
+														: 'btn-ghost'}"
+													title={entry.isCancelled ? 'Uncancel' : 'Cancel'}
+													onclick={() =>
+														handleToggleCancelled(entry.scheduleEntryId, entry.isCancelled)}
+												>
+													<AlertCircle class="size-4" />
+												</button>
 
-												<!-- Edit -->
 												<button
 													type="button"
 													class="btn btn-sm btn-square btn-neutral"
@@ -391,34 +389,13 @@
 													<Edit class="size-4" />
 												</button>
 
-												<!-- Delete -->
-												<form
-													method="POST"
-													action="?/deleteEntry"
-													use:defaultEnhance={() => {
-														return async ({ result, update }) => {
-															await update();
-															await invalidateAll();
-															if (result.type === 'success') {
-																notification.success('Entry deleted');
-															} else if (result.type === 'error' || result.type === 'failure') {
-																notification.error('Failed to delete entry');
-															}
-														};
-													}}
+												<button
+													type="button"
+													class="btn btn-sm btn-square btn-error"
+													onclick={() => handleDeleteEntry(entry.scheduleEntryId)}
 												>
-													<input type="hidden" name="scheduleEntryId" value={entry.scheduleEntryId} />
-													<button
-														type="button"
-														class="btn btn-sm btn-square btn-error"
-														onclick={(e) => {
-															if (!window.confirm('Are you sure you want to delete this entry?')) return;
-															e.currentTarget.closest('form')?.requestSubmit();
-														}}
-													>
-														<Trash2 class="size-4" />
-													</button>
-												</form>
+													<Trash2 class="size-4" />
+												</button>
 											</div>
 										</li>
 									{/each}
@@ -429,16 +406,16 @@
 				</div>
 			{/if}
 		</div>
-	</div>
+	</section>
 
-	<!-- Back Button -->
-	<a href="/admin/schedule" class="btn btn-ghost w-full mt-4">
-		<X class="h-4 w-4" />
+	<!-- Back -->
+	<a href="/admin/schedule" class="btn btn-primary w-full">
+		<ArrowLeft class="size-4" />
 		Back to Schedules
 	</a>
 </div>
 
-<!-- Add Entry Modal -->
+<!-- Add -->
 <AddScheduleEntry
 	id="add-schedule-entry-modal"
 	availableSeasons={data.animeSeasons}
@@ -448,11 +425,13 @@
 	week={data.schedule.week}
 />
 
-<!-- Edit Entry Modal -->
-<EditScheduleEntry
-	id="edit-schedule-entry-modal"
-	availableSeasons={data.animeSeasons}
-	availablePlatforms={data.platforms}
-	entryData={editingEntry}
-	onSave={handleEditSave}
-/>
+<!-- Edit -->
+{#key editModalKey}
+	<EditScheduleEntry
+		id="edit-schedule-entry-modal"
+		availableSeasons={data.animeSeasons}
+		availablePlatforms={data.platforms}
+		entryData={editingEntry}
+		onSave={handleEditSave}
+	/>
+{/key}

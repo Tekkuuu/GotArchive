@@ -16,6 +16,3 @@ export type Notification = {
 		errorMessage?: string;
 	};
 };
-
-// Legacy type for backwards compatibility
-export type Toast = Notification;

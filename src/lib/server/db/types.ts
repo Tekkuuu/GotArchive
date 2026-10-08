@@ -1,6 +1,5 @@
 import * as schema from './schema';
 
-// Table type exports for convenient use throughout the app
 export type Anime = typeof schema.anime.$inferSelect;
 export type AnimeInsert = typeof schema.anime.$inferInsert;
 

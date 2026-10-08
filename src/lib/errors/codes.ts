@@ -4,17 +4,7 @@ export interface ErrorCode {
 	readonly httpStatus: number;
 }
 
-/**
- * Centralised error code catalog.
- *
- * Code prefix → domain:
- *   DB____  Raw database / Drizzle failures
- *   SCH___  Schedule domain (schedules, entries, slots, datecodes)
- *   ANI___  AniList API communication
- *   FORM__  Form processing & submission
- *   AUTH__  Authentication & authorisation
- *   GEN___  Generic / unclassified fallback
- */
+/** Error code catalog. Prefix = domain. */
 export const ERROR_CODES = {
 	// ------------------------------------------------------------------ //
 	// DB — Raw database failures (Drizzle / PostgreSQL level)             //
@@ -121,6 +111,13 @@ export const ERROR_CODES = {
 			code: 'SCH009',
 			message: 'No schedule entries could be generated for this week.',
 			httpStatus: 422
+		},
+
+		/** A stored entry date could not be parsed as a valid calendar date. */
+		INVALID_DATE: {
+			code: 'SCH010',
+			message: 'A schedule entry has an invalid date.',
+			httpStatus: 500
 		}
 	},
 

@@ -11,7 +11,7 @@
 >
 	<h1 class="text-9xl font-bold max-sm:text-6xl">Error</h1>
 	<p class="mt-4">{page.error?.message || 'An unexpected error has occured.'}</p>
-	<p class="mt-2">The issue has been reported and will be investigated.</p>
+	<p class="mt-2">If this keeps happening, feel free to report it on Discord.</p>
 	<p class="mt-2">Sorry for the inconvenience.</p>
 	<p class="mt-4">Error Code: <code>{page.error?.status || page.status}</code></p>
 </div>

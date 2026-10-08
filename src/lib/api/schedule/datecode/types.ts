@@ -1,9 +1,6 @@
 import type { IsoWeekDateRange } from '../timezone';
 
-/**
- * API Types for Schedule Datecode Endpoint
- * Used by /api/schedule/[datecode] and public schedule page
- */
+/** Schedule datecode API types. */
 
 export interface ScheduleAnimeInfo {
 	animeId: string;
@@ -32,6 +29,8 @@ export interface SchedulePlatformInfo {
 	platformId: string;
 	name: string;
 	url: string;
+	iconSvg: string | null;
+	iconColor: string | null;
 }
 
 export interface ScheduleEntryData {

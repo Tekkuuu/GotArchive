@@ -2,8 +2,17 @@
 	import { Info, Save, Lock, Trash2 } from 'lucide-svelte';
 	import { sineInOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
+	import { format, getISOWeek, getISOWeekYear, parseISO } from 'date-fns';
+	import { getWeekdays } from '../util';
 	import { modalUtils } from '$lib/components/util';
 	import type { AnimeSeason, Platform } from '$lib/server/db';
+	import {
+		uniqueAnime as buildUniqueAnime,
+		filteredSeasons as filterSeasons,
+		addSeasonSelection,
+		removeSeasonSelection,
+		getSeasonInfo as findSeasonInfo
+	} from '$lib/util/scheduleEntry';
 
 	interface Props {
 		id: string;
@@ -29,38 +38,39 @@
 
 	let { id, availableSeasons, availablePlatforms, entryData, onSave }: Props = $props();
 
-	// Local editable state
-	let time = $state('');
-	let title = $state('');
-	let description = $state('');
-	let logoUrl = $state('');
-	let note = $state('');
-	let cancelledText = $state('');
-	let isCancelled = $state(false);
-	let animeSeasons = $state<Array<{ animeSeasonId: string; episodes: string }>>([]);
-	
-	// Platform selection
-	let selectedPlatforms = $state<string[]>([]);
+	// Remount-initialised state; no $effect sync.
+	// svelte-ignore state_referenced_locally
+	let date = $state(entryData?.date ?? '');
+	// svelte-ignore state_referenced_locally
+	let time = $state(entryData?.time ?? '');
+	// svelte-ignore state_referenced_locally
+	let title = $state(entryData?.title ?? '');
+	// svelte-ignore state_referenced_locally
+	let description = $state(entryData?.description ?? '');
+	// svelte-ignore state_referenced_locally
+	let logoUrl = $state(entryData?.logoUrl ?? '');
+	// svelte-ignore state_referenced_locally
+	let note = $state(entryData?.note ?? '');
+	// svelte-ignore state_referenced_locally
+	let cancelledText = $state(entryData?.cancelledText ?? '');
+	// svelte-ignore state_referenced_locally
+	let isCancelled = $state(entryData?.isCancelled ?? false);
+	// svelte-ignore state_referenced_locally
+	let animeSeasons = $state<Array<{ animeSeasonId: string; episodes: string }>>(
+		entryData?.anime ? [...entryData.anime] : []
+	);
 
-	// For adding new anime seasons
+	// svelte-ignore state_referenced_locally
+	let selectedPlatforms = $state<string[]>(entryData?.platforms ? [...entryData.platforms] : []);
+
 	let animeInputValue = $state('');
 	let selectedAnimeId = $state<string | null>(null);
 
-	// Update local state when entryData changes
-	$effect(() => {
-		if (entryData) {
-			time = entryData.time || '';
-			title = entryData.title || '';
-			description = entryData.description || '';
-			logoUrl = entryData.logoUrl || '';
-			note = entryData.note || '';
-			cancelledText = entryData.cancelledText || '';
-			isCancelled = entryData.isCancelled;
-			animeSeasons = entryData.anime ? [...entryData.anime] : [];
-			selectedPlatforms = entryData.platforms ? [...entryData.platforms] : [];
-			animeInputValue = '';
-			selectedAnimeId = null;
-		}
+	// Fixed-week days; date stays inside week.
+	const weekdays = $derived.by(() => {
+		if (!entryData?.date) return [];
+		const anchor = parseISO(entryData.date);
+		return getWeekdays(getISOWeekYear(anchor), getISOWeek(anchor));
 	});
 
 	function handleSave() {
@@ -68,6 +78,7 @@
 
 		onSave({
 			...entryData,
+			date,
 			time: time || null,
 			title: title || null,
 			description: description || null,
@@ -82,110 +93,89 @@
 		modalUtils.closeModal(id);
 	}
 
-	// Get unique anime list from seasons
-	const uniqueAnime = $derived.by(() => {
-		if (!availableSeasons) return [];
-		const animeMap = new Map<string, { animeId: string; title: string }>();
+	const uniqueAnime = $derived.by(() => buildUniqueAnime(availableSeasons));
 
-		availableSeasons.forEach((season) => {
-			if (!animeMap.has(season.animeId)) {
-				animeMap.set(season.animeId, {
-					animeId: season.animeId,
-					title: season.titleEnglish || season.titleRomaji || season.titleNative || 'Unknown'
-				});
-			}
-		});
-
-		return Array.from(animeMap.values()).sort((a, b) => a.title.localeCompare(b.title));
-	});
-
-	// Filter seasons by selected anime
-	const filteredSeasons = $derived(
-		selectedAnimeId ? availableSeasons?.filter((s) => s.animeId === selectedAnimeId) || [] : []
-	);
+	const filteredSeasons = $derived(filterSeasons(availableSeasons, selectedAnimeId));
 
 	function addAnimeSeason(seasonId: string) {
-		if (!animeSeasons.some((s) => s.animeSeasonId === seasonId)) {
-			animeSeasons = [...animeSeasons, { animeSeasonId: seasonId, episodes: '1' }];
-		}
+		animeSeasons = addSeasonSelection(animeSeasons, seasonId);
 	}
 
 	function removeAnimeSeason(seasonId: string) {
-		animeSeasons = animeSeasons.filter((s) => s.animeSeasonId !== seasonId);
+		animeSeasons = removeSeasonSelection(animeSeasons, seasonId);
 	}
 
 	function getSeasonInfo(seasonId: string) {
-		return availableSeasons?.find((s) => s.animeSeasonId === seasonId);
+		return findSeasonInfo(availableSeasons, seasonId);
 	}
 </script>
 
 <dialog class="modal" {id}>
-	<div class="modal-box container bg-base-200">
+	<div class="modal-box bg-base-200 container">
 		<div class="space-y-4">
 			{#if entryData}
-				<!-- Uneditable Data Display -->
+				<!-- Locked -->
 				<div class="card">
 					<div class="card-body bg-base-100 rounded-box">
 						<div class="flex items-center gap-2">
 							<Lock class="size-4" />
 							<h3 class="text-sm font-semibold">Locked Properties</h3>
 						</div>
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-							<div class="flex gap-2 p-2 bg-base-200 rounded-field">
-								<span class="font-bold">Type</span>
-								<span class="capitalize">{entryData.type}</span>
-							</div>
-							<div class="flex gap-2 p-2 bg-base-200 rounded-field">
-								<span class="font-bold">Date</span>
-								<span class="capitalize">{entryData.date}</span>
-							</div>
+						<div class="bg-base-200 rounded-field flex gap-2 p-2">
+							<span class="font-bold">Type</span>
+							<span class="capitalize">{entryData.type}</span>
 						</div>
-						<div class="text-xs text-base-content/50 flex items-center">
-							<Info class="h-3 w-3" />
-							<span>These properties cannot be changed after creation</span>
+						<div class="text-base-content/50 flex items-center text-xs">
+							<Info class="size-4" />
+							<span>This property cannot be changed after creation</span>
 						</div>
 					</div>
 				</div>
 
-				<!-- Basic Info Card -->
+				<!-- Basic -->
 				<div class="card bg-base-300">
 					<div class="card-body p-4">
 						<h3 class="font-bold">Basic Information</h3>
-						<label class="w-full input">
-              <span class="label">Time</span>
+						<div class="flex flex-col gap-2">
+							<span class="label">Day</span>
+							<div class="flex grid-cols-7 flex-col gap-2 md:grid">
+								{#each weekdays as weekday}
+									<button
+										type="button"
+										class={[
+											'btn-neutral btn',
+											format(weekday, 'yyyy-MM-dd') === date ? 'btn-success' : ''
+										]}
+										onclick={() => (date = format(weekday, 'yyyy-MM-dd'))}
+									>
+										{format(weekday, 'EEEE')}
+									</button>
+								{/each}
+							</div>
+						</div>
+						<label class="input mt-2 w-full">
+							<span class="label">Time</span>
 							<input type="time" bind:value={time} class="w-full" />
 						</label>
 					</div>
 				</div>
 
-				<!-- Content Details Card -->
+				<!-- Content -->
 				<div class="card bg-base-300">
 					<div class="card-body p-4">
 						<h3 class="font-bold">Content Details</h3>
 						<div class="grid grid-cols-1 gap-2">
-							<label class="w-full input">
-                <span class="label">Title</span>
-								<input
-									type="text"
-									bind:value={title}
-									class="w-full"
-								/>
+							<label class="input w-full">
+								<span class="label">Title</span>
+								<input type="text" bind:value={title} class="w-full" />
 							</label>
-							<label class="w-full input">
-                <span class="label">Description</span>
-								<input
-									type="text"
-									bind:value={description}
-									class="w-full"
-								/>
+							<label class="input w-full">
+								<span class="label">Description</span>
+								<input type="text" bind:value={description} class="w-full" />
 							</label>
-							<label class="w-full input">
-                <span class="label">Logo URL</span>
-								<input
-									type="url"
-									bind:value={logoUrl}
-									class="w-full"
-								/>
+							<label class="input w-full">
+								<span class="label">Logo URL</span>
+								<input type="url" bind:value={logoUrl} class="w-full" />
 							</label>
 							{#if logoUrl}
 								<img
@@ -199,7 +189,7 @@
 					</div>
 				</div>
 
-				<!-- Anime Episodes Card (if anime type) -->
+				<!-- Episodes -->
 				{#if entryData.type === 'anime'}
 					<div class="card bg-base-300">
 						<div class="card-body">
@@ -209,7 +199,7 @@
 								<div class="space-y-2">
 									{#each animeSeasons as animeSeason}
 										{@const seasonInfo = getSeasonInfo(animeSeason.animeSeasonId)}
-										<div class="flex items-center gap-2 p-2 bg-base-100 rounded-box">
+										<div class="bg-base-100 rounded-box flex items-center gap-2 p-2">
 											<div class="flex-1">
 												<div class="text-sm font-medium">
 													{seasonInfo?.shortTitle ||
@@ -220,8 +210,8 @@
 													<div class="text-xs opacity-70">{seasonInfo.episodes} episodes total</div>
 												{/if}
 											</div>
-                      <label class="tooltip" data-tip="Format examples: '1', '1-4', '1,3', '1,4-6'">
-                        <input
+											<label class="tooltip" data-tip="Format examples: '1', '1-4', '1,3', '1,4-6'">
+												<input
 													type="text"
 													bind:value={animeSeason.episodes}
 													placeholder="1-4,6"
@@ -233,7 +223,7 @@
 												class="btn btn-square btn-error"
 												onclick={() => removeAnimeSeason(animeSeason.animeSeasonId)}
 											>
-												<Trash2 />
+												<Trash2 class="size-4" />
 											</button>
 										</div>
 									{/each}
@@ -241,14 +231,14 @@
 							{/if}
 
 							<div class="divider my-2 text-xs">Add More Seasons</div>
-							<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-								<label class="w-full input">
+							<div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+								<label class="input w-full">
 									<datalist id="anime-list-edit">
 										{#each uniqueAnime as anime}
 											<option value={anime.title}></option>
 										{/each}
 									</datalist>
-                  <span class="label">Select Anime</span>
+									<span class="label">Select Anime</span>
 									<input
 										type="text"
 										list="anime-list-edit"
@@ -263,33 +253,33 @@
 										class="w-full"
 									/>
 								</label>
-                <label class="w-full select">
-                  <span class="label">Season</span>
-                  <select
-                    class="w-full"
-                    disabled={selectedAnimeId == null}
-                    onchange={(e) => {
-                      const seasonId = e.currentTarget.value;
-                      if (seasonId) {
-                        addAnimeSeason(seasonId);
-                        e.currentTarget.value = '';
-                      }
-                    }}
-                  >
-                    <option value="">Select a season to add...</option>
-                    {#each filteredSeasons as season}
-                      <option value={season.animeSeasonId}>
-                        {season.shortTitle || season.titleEnglish || season.titleRomaji}
-                      </option>
-                    {/each}
-                  </select>
-                </label>
+								<label class="select w-full">
+									<span class="label">Season</span>
+									<select
+										class="w-full"
+										disabled={selectedAnimeId == null}
+										onchange={(e) => {
+											const seasonId = e.currentTarget.value;
+											if (seasonId) {
+												addAnimeSeason(seasonId);
+												e.currentTarget.value = '';
+											}
+										}}
+									>
+										<option value="">Select a season to add...</option>
+										{#each filteredSeasons as season}
+											<option value={season.animeSeasonId}>
+												{season.shortTitle || season.titleEnglish || season.titleRomaji}
+											</option>
+										{/each}
+									</select>
+								</label>
 							</div>
 						</div>
 					</div>
 				{/if}
 
-				<!-- Platforms Card -->
+				<!-- Platforms -->
 				<div class="card bg-base-300">
 					<div class="card-body p-4">
 						<h3 class="font-bold">Platforms</h3>
@@ -298,10 +288,14 @@
 								{@const isSelected = selectedPlatforms.includes(platform.platformId)}
 								<button
 									type="button"
-									class="badge badge-lg transition-colors {isSelected ? 'badge-primary' : 'badge-ghost'}"
+									class="badge badge-lg transition-colors {isSelected
+										? 'badge-primary'
+										: 'badge-ghost'}"
 									onclick={() => {
 										if (isSelected) {
-											selectedPlatforms = selectedPlatforms.filter(id => id !== platform.platformId);
+											selectedPlatforms = selectedPlatforms.filter(
+												(id) => id !== platform.platformId
+											);
 										} else {
 											selectedPlatforms = [...selectedPlatforms, platform.platformId];
 										}
@@ -312,47 +306,35 @@
 							{/each}
 						</div>
 						{#if (availablePlatforms ?? []).length === 0}
-							<div class="text-sm text-base-content/60">No platforms available</div>
+							<div class="text-base-content/60 text-sm">No platforms available</div>
 						{/if}
 					</div>
 				</div>
 
-				<!-- Additional Options Card -->
+				<!-- Options -->
 				<div class="card bg-base-300">
 					<div class="card-body p-4">
 						<h3 class="font-bold">Additional Options</h3>
 						<div class="grid grid-cols-1 gap-2">
-							<label class="w-full input">
-                <span class="label">Note</span>
-								<input
-									type="text"
-									bind:value={note}
-									class="w-full"
-								/>
+							<label class="input w-full">
+								<span class="label">Note</span>
+								<input type="text" bind:value={note} class="w-full" />
 							</label>
-							<label class="w-full input">
-                <span class="label">Cancelled Text</span>
-								<input
-									type="text"
-									bind:value={cancelledText}
-									class="w-full"
-								/>
+							<label class="input w-full">
+								<span class="label">Cancelled Text</span>
+								<input type="text" bind:value={cancelledText} class="w-full" />
 							</label>
 						</div>
 					</div>
 				</div>
 
-				<!-- Form Actions -->
+				<!-- Actions -->
 				<div class="flex gap-2">
 					<button type="button" class="btn btn-success flex-1" onclick={handleSave}>
-						<Save class="h-4 w-4" />
+						<Save class="size-4" />
 						Save Changes
 					</button>
-					<button
-						type="button"
-						class="btn btn-error"
-						onclick={() => modalUtils.closeModal(id)}
-					>
+					<button type="button" class="btn btn-error" onclick={() => modalUtils.closeModal(id)}>
 						Cancel
 					</button>
 				</div>

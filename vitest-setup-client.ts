@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
-// required for svelte5 + jsdom as jsdom does not support matchMedia
+// jsdom lacks matchMedia.
 Object.defineProperty(window, 'matchMedia', {
 	writable: true,
 	enumerable: true,
@@ -15,4 +15,4 @@ Object.defineProperty(window, 'matchMedia', {
 	}))
 });
 
-// add more mocks here if you need them
+// add more mocks as needed.

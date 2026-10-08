@@ -1,20 +1,18 @@
-import _ from 'lodash';
+import { uniq } from 'lodash-es';
 
 /**
- * Parses episode range from description string and returns array of episode numbers.
- * Supports formats like "1-4", "5", "1,3,5", "1-3,5".
- * Returns sorted unique array of episode numbers.
+ * Parses episode ranges.
+ * @param s - Range string e.g. "1-4,5".
+ * @returns Sorted ids.
  */
 export function parseEpisodeList(description: string | null): number[] {
 	if (!description) return [];
 
 	const episodes: number[] = [];
 
-	// Split by comma for multiple ranges
 	const ranges = description.split(',').map((s) => s.trim());
 
 	for (const range of ranges) {
-		// Check for hyphen range like "1-4"
 		const hyphenIndex = range.indexOf('-');
 		if (hyphenIndex !== -1) {
 			const start = parseInt(range.substring(0, hyphenIndex).trim());
@@ -25,7 +23,6 @@ export function parseEpisodeList(description: string | null): number[] {
 				}
 			}
 		} else {
-			// Single episode
 			const episode = parseInt(range.trim());
 			if (!isNaN(episode)) {
 				episodes.push(episode);
@@ -33,5 +30,33 @@ export function parseEpisodeList(description: string | null): number[] {
 		}
 	}
 
-	return _.uniq(episodes).sort((a, b) => a - b);
+	return uniq(episodes).sort((a, b) => a - b);
+}
+
+/**
+ * Formats ids to range string.
+ * @param ids - Episode ids.
+ * @returns Range string.
+ */
+export function formatEpisodeList(episodes: number[] | null | undefined): string {
+	if (!episodes || episodes.length === 0) return '';
+
+	const sorted = uniq(episodes).sort((a, b) => a - b);
+	const ranges: string[] = [];
+	let start = sorted[0];
+	let prev = sorted[0];
+
+	for (let i = 1; i < sorted.length; i++) {
+		const current = sorted[i];
+		if (current === prev + 1) {
+			prev = current;
+			continue;
+		}
+		ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+		start = current;
+		prev = current;
+	}
+	ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+
+	return ranges.join(',');
 }

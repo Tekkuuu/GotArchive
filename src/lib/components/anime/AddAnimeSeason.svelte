@@ -1,81 +1,66 @@
 <script lang="ts">
 	import { anilistServices as s } from '$lib/anilist';
-	import { AppError } from '$lib/errors';
+	import { AppError, errorMessage } from '$lib/errors';
+	import { getAnimeTitle } from '$lib/util';
 	import { notification } from '$lib/components/ui/toaster';
 	import { modalUtils } from '$lib/components/util';
 	import { invalidateAll } from '$app/navigation';
 	import { Book, Search } from 'lucide-svelte';
-	import { superForm } from 'sveltekit-superforms';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
-	import { NewSeasonFormSchema, seasonEnum, formatEnum } from '$lib/schemas';
-	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import { createSeason } from '$lib/remote/anime.remote';
+	import { seasonEnum, formatEnum } from '$lib/schemas';
 	import type { Anime } from '$lib/server/db';
 
 	interface Props {
 		id: string;
-		sForm: SuperValidated<Infer<typeof NewSeasonFormSchema>>;
 		anime: Anime[];
-		action: string;
 		/** When set, pre-selects and locks the parent anime. */
 		lockedAnimeId?: string;
 	}
 
-	let { id, sForm, anime, action, lockedAnimeId }: Props = $props();
+	let { id, anime, lockedAnimeId }: Props = $props();
 
-	// svelte-ignore state_referenced_locally
-		let { form, enhance, errors } = superForm(sForm, {
-		dataType: 'json',
-		validators: zod4Client(NewSeasonFormSchema),
-		validationMethod: 'onsubmit',
-		multipleSubmits: 'prevent',
-		onResult: ({ result }) => {
-			if (result.type === 'success') {
-				notification.success('Anime season created successfully');
-				modalUtils.closeModal(id);
-				invalidateAll();
-			} else if (result.type === 'error' || result.type === 'failure') {
-				notification.error('Failed to create anime season');
-			}
-		}
-	});
+	// Fixed id for input-datalist link.
+	const datalistId = $derived(`anime-datalist-${id}`);
 
-	let anilistId: number = $state(0);
-	let isLoading: boolean = $state(false);
-	let animeInputValue: string = $state('');
+	// Parent lookup stays local.
+	let animeId = $state('');
+	let animeInputValue = $state('');
+	let anilistFetchId = $state(0);
+	let isLoading = $state(false);
 
 	function getTitle(a: Anime): string {
-		return a.titleEnglish ?? a.titleRomaji ?? a.titleNative ?? 'Untitled';
+		return getAnimeTitle(a, 'Untitled');
 	}
 
-	// Pre-select locked anime on mount / when lockedAnimeId changes
+	// Preselect locked anime.
 	$effect(() => {
 		if (lockedAnimeId) {
-			$form.animeId = lockedAnimeId;
+			animeId = lockedAnimeId;
 			const locked = anime.find((a) => a.animeId === lockedAnimeId);
 			if (locked) animeInputValue = getTitle(locked);
 		}
 	});
 
-	async function fillForm(anilistIdVal: number) {
+	async function fillForm(mediaId: number) {
 		isLoading = true;
 		try {
-			const response = await s.fetchAnimeSeason(anilistIdVal);
+			const response = await s.fetchAnimeSeason(mediaId);
 
-			$form.titleNative = response.title.native;
-			$form.titleRomaji = response.title.romaji;
-			$form.titleEnglish = response.title.english;
-			$form.format = response.format;
-			$form.season = response.season;
-			$form.year = response.seasonYear;
-			$form.episodes = response.episodes;
-			$form.anilistId = response.id;
-			$form.malId = response.idMal;
+			createSeason.fields.set({
+				titleNative: response.title.native,
+				titleRomaji: response.title.romaji ?? undefined,
+				titleEnglish: response.title.english ?? undefined,
+				format: response.format,
+				season: response.season ?? undefined,
+				year: response.seasonYear ?? undefined,
+				episodes: response.episodes ?? undefined,
+				anilistId: response.id ?? undefined,
+				malId: response.idMal ?? undefined
+			});
 
 			notification.success('Anime season data fetched successfully', 1000);
 		} catch (e: unknown) {
-			if (e instanceof AppError) {
-				notification.error(e.message, 5000);
-			} else if (e instanceof Error) {
+			if (e instanceof AppError || e instanceof Error) {
 				notification.error(e.message, 5000);
 			} else {
 				notification.error('An unexpected error occurred while fetching season details.', 5000);
@@ -88,13 +73,13 @@
 
 <dialog class="modal" {id}>
 	<div class="modal-box w-11/12 max-w-4xl">
-		<h3 class="font-bold text-xl mb-4">Add New Anime Season</h3>
+		<h3 class="mb-4 text-xl font-bold">Add New Anime Season</h3>
 
-		<!-- AniList Fetch -->
+		<!-- Fetch -->
 		<div class="card bg-base-300 mb-4">
 			<div class="card-body p-4">
-				<h4 class="card-title text-base mb-2">
-					<Search class="h-4 w-4" />
+				<h4 class="card-title mb-2 text-base">
+					<Search class="size-4" />
 					Fetch from AniList
 				</h4>
 				<fieldset class="fieldset">
@@ -104,7 +89,7 @@
 							type="number"
 							required
 							min={1}
-							bind:value={anilistId}
+							bind:value={anilistFetchId}
 							placeholder="e.g., 21"
 							class="input join-item flex-1"
 							disabled={isLoading}
@@ -113,13 +98,13 @@
 							type="button"
 							class="btn btn-primary join-item"
 							class:btn-disabled={isLoading}
-							onclick={() => fillForm(anilistId)}
+							onclick={() => fillForm(anilistFetchId)}
 						>
 							{#if isLoading}
 								<span class="loading loading-spinner loading-sm"></span>
 								Fetching...
 							{:else}
-								<Search class="h-4 w-4" />
+								<Search class="size-4" />
 								Fetch Data
 							{/if}
 						</button>
@@ -131,51 +116,73 @@
 			</div>
 		</div>
 
-		<!-- Main Form -->
-		<form method="POST" {action} use:enhance class="space-y-4">
+		<!-- Form -->
+		<form
+			{...createSeason.enhance(async (form) => {
+				try {
+					const success = await form.submit();
+					if (success && form.result?.success) {
+						notification.success('Anime season created successfully');
+						modalUtils.closeModal(id);
+						invalidateAll();
+					} else if (!success) {
+						notification.error('Failed to create anime season. Check the form for errors.');
+					}
+				} catch (e) {
+					notification.error(errorMessage(e, 'Failed to create anime season'));
+				}
+			})}
+			class="space-y-4"
+		>
+			<input type="hidden" name="animeId" value={animeId} />
+
 			<fieldset class="fieldset bg-base-300 rounded-box p-4">
 				<legend class="fieldset-legend">
-					<Book class="h-4 w-4" />
+					<Book class="size-4" />
 					Season Details
 				</legend>
 
 				<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-					<!-- Parent Anime -->
+					<!-- Parent -->
 					<div class="md:col-span-2">
 						<fieldset class="fieldset">
-							<legend class="fieldset-legend">
-								Parent Anime
-							</legend>
+							<legend class="fieldset-legend">Parent Anime</legend>
 
-						{#if lockedAnimeId}
-							{@const locked = anime.find((a) => a.animeId === lockedAnimeId)}
-                <label class="input w-full">
-                  <span class="label">Parent anime</span>
-                  <input type="text" value={locked ? getTitle(locked) : ""} disabled class="w-full" />
-                </label>
-						{:else}
-							{@const datalistId = crypto.randomUUID()}
-                <label class="input w-full">
-                  <span class="label">Parent anime</span>
-                  <datalist id={datalistId}>
-                    {#each anime as a}
-                      <option value={getTitle(a)}></option>
-                    {/each}
-                  </datalist>
-                  <input
-                    type="text"
-                    list={datalistId}
-                    bind:value={animeInputValue}
-                    oninput={(e) => {
-                      $form.animeId =
-                        anime.find((a) => getTitle(a) === e.currentTarget.value)?.animeId ?? '';
-                    }}
-                  />
-                </label>
-						{/if}
+							{#if lockedAnimeId}
+								{@const locked = anime.find((a) => a.animeId === lockedAnimeId)}
+								<label class="input w-full">
+									<span class="label">Parent anime</span>
+									<input
+										type="text"
+										value={locked ? getTitle(locked) : ''}
+										disabled
+										class="w-full"
+									/>
+								</label>
+							{:else}
+								<label class="input w-full">
+									<span class="label">Parent anime</span>
+									<datalist id={datalistId}>
+										{#each anime as a}
+											<option value={getTitle(a)}></option>
+										{/each}
+									</datalist>
+									<input
+										type="text"
+										list={datalistId}
+										bind:value={animeInputValue}
+										oninput={(e) => {
+											animeId =
+												anime.find((a) => getTitle(a) === e.currentTarget.value)?.animeId ?? '';
+										}}
+									/>
+								</label>
+							{/if}
 
-							{#if $errors.animeId}
-								<p class="text-error text-xs mt-1">{$errors.animeId}</p>
+							{#if createSeason.fields.animeId.issues()?.[0]}
+								<p class="text-error mt-1 text-xs">
+									{createSeason.fields.animeId.issues()?.[0]?.message}
+								</p>
 							{/if}
 						</fieldset>
 					</div>
@@ -183,19 +190,18 @@
 					<label class="input w-full">
 						<span class="label">Sequence</span>
 						<input
-							type="number"
-							bind:value={$form.sequence}
+							{...createSeason.fields.sequence.as('number')}
 							placeholder="Season number (e.g., 1)"
 							min={1}
 						/>
 					</label>
-					{#if $errors.sequence}
-						<p class="text-error text-xs">{$errors.sequence}</p>
+					{#if createSeason.fields.sequence.issues()?.[0]}
+						<p class="text-error text-xs">{createSeason.fields.sequence.issues()?.[0]?.message}</p>
 					{/if}
 
 					<label class="select w-full">
 						<span class="label">Format</span>
-						<select bind:value={$form.format}>
+						<select {...createSeason.fields.format.as('select')}>
 							{#each formatEnum.options as format}
 								<option value={format}>{format}</option>
 							{/each}
@@ -206,58 +212,38 @@
 						<label class="input w-full">
 							<span class="label">Title (Native)</span>
 							<input
-								type="text"
-								bind:value={$form.titleNative}
+								{...createSeason.fields.titleNative.as('text')}
 								placeholder="Original title in native language"
 							/>
 						</label>
-						{#if $errors.titleNative}
-							<p class="text-error text-xs mt-1">{$errors.titleNative}</p>
+						{#if createSeason.fields.titleNative.issues()?.[0]}
+							<p class="text-error mt-1 text-xs">
+								{createSeason.fields.titleNative.issues()?.[0]?.message}
+							</p>
 						{/if}
 					</div>
 
 					<label class="input w-full">
 						<span class="label">Title (Romaji)</span>
-						<input
-							type="text"
-							bind:value={
-								() => $form.titleRomaji || '',
-								(v) => ($form.titleRomaji = v === '' ? null : v)
-							}
-							placeholder="Romanized title"
-						/>
+						<input {...createSeason.fields.titleRomaji.as('text')} placeholder="Romanized title" />
 					</label>
 
 					<label class="input w-full">
 						<span class="label">Title (English)</span>
-						<input
-							type="text"
-							bind:value={
-								() => $form.titleEnglish || '',
-								(v) => ($form.titleEnglish = v === '' ? null : v)
-							}
-							placeholder="English title"
-						/>
+						<input {...createSeason.fields.titleEnglish.as('text')} placeholder="English title" />
 					</label>
 
 					<label class="input w-full">
 						<span class="label">Short Title</span>
-						<input
-							type="text"
-							bind:value={
-								() => $form.shortTitle || '',
-								(v) => ($form.shortTitle = v === '' ? null : v)
-							}
-							placeholder="Abbreviated title"
-						/>
+						<input {...createSeason.fields.shortTitle.as('text')} placeholder="Abbreviated title" />
 					</label>
 
 					<label class="select w-full">
 						<span class="label">Season</span>
-						<select bind:value={$form.season}>
-							<option value={null}>N/A</option>
-							{#each seasonEnum.options as s}
-                <option value={s}>{s}</option>
+						<select {...createSeason.fields.season.as('select')}>
+							<option value="">N/A</option>
+							{#each seasonEnum.options as season}
+								<option value={season}>{season}</option>
 							{/each}
 						</select>
 					</label>
@@ -265,11 +251,7 @@
 					<label class="input w-full">
 						<span class="label">Year</span>
 						<input
-							type="number"
-							bind:value={
-								() => $form.year || '',
-								(v) => ($form.year = v === '' ? null : Number(v))
-							}
+							{...createSeason.fields.year.as('number')}
 							min={1900}
 							max={2100}
 							placeholder="Release year"
@@ -279,17 +261,23 @@
 					<label class="input w-full">
 						<span class="label">Episodes</span>
 						<input
-							type="number"
-							bind:value={
-								() => $form.episodes || '',
-								(v) => ($form.episodes = v === '' ? null : Number(v))
-							}
+							{...createSeason.fields.episodes.as('number')}
 							min={1}
 							placeholder="Total episode count"
 						/>
 					</label>
 
-					<!-- Metadata -->
+					<div class="md:col-span-2">
+						<label class="input w-full">
+							<span class="label">Skipped Episodes (Optional)</span>
+							<input
+								{...createSeason.fields.skippedEpisodes.as('text')}
+								placeholder="e.g. 6-8,13 (fillers)"
+							/>
+						</label>
+					</div>
+
+					<!-- Meta -->
 					<div class="md:col-span-2">
 						<div class="divider my-1">Metadata</div>
 					</div>
@@ -297,11 +285,7 @@
 					<label class="input w-full">
 						<span class="label">AniList ID</span>
 						<input
-							type="number"
-							bind:value={
-								() => $form.anilistId || '',
-								(v) => ($form.anilistId = v === '' ? null : Number(v))
-							}
+							{...createSeason.fields.anilistId.as('number')}
 							placeholder="AniList media ID"
 							min={1}
 						/>
@@ -310,11 +294,7 @@
 					<label class="input w-full">
 						<span class="label">MAL ID</span>
 						<input
-							type="number"
-							bind:value={
-								() => $form.malId || '',
-								(v) => ($form.malId = v === '' ? null : Number(v))
-							}
+							{...createSeason.fields.malId.as('number')}
 							placeholder="MyAnimeList ID"
 							min={1}
 						/>
@@ -324,11 +304,7 @@
 						<label class="input w-full">
 							<span class="label">Note (Optional)</span>
 							<input
-								type="text"
-								bind:value={
-									() => $form.note || '',
-									(v) => ($form.note = v === '' ? null : v)
-								}
+								{...createSeason.fields.note.as('text')}
 								placeholder="Additional information"
 							/>
 						</label>
@@ -339,7 +315,7 @@
 			<div class="modal-action">
 				<button type="button" class="btn" onclick={() => modalUtils.closeModal(id)}>Cancel</button>
 				<button type="submit" class="btn btn-success">
-					<Book class="h-4 w-4" />
+					<Book class="size-4" />
 					Create Season
 				</button>
 			</div>

@@ -50,8 +50,7 @@ export const ScheduleEntrySchema = z.object({
 
 export const ScheduleSchema = z.object({
 	schedule: ScheduleDataSchema,
-	entries: z.array(ScheduleEntrySchema),
-	slotsToReset: z.array(z.uuid()).default([])
+	entries: z.array(ScheduleEntrySchema)
 });
 
 const platform = z.object({
@@ -63,8 +62,6 @@ export const AddScheduleSlotSchema = z.object({
 	time: z.string().min(1).nullable(),
 	type: entryTypeEnum.nullable(),
 	animeId: z.uuid().nullable(),
-	startingSequence: z.number().int().positive().nullable().default(null),
-	startingEpisode: z.number().int().positive().nullable().default(null),
 	title: z.string().min(1).nullable(),
 	description: z.string().nullable(),
 	logoUrl: z.url().nullable(),
@@ -87,7 +84,6 @@ export const AddScheduleEntrySchema = ScheduleEntrySchema;
 
 export const EditScheduleEntrySchema = ScheduleEntrySchema.omit({
 	type: true,
-	date: true,
 	slotId: true
 }).extend({
 	scheduleEntryId: z.uuid()

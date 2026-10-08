@@ -1,9 +1,8 @@
 import type { HandleClientError } from '@sveltejs/kit';
-import { logger } from '$lib/client/logger';
 
 export const handleError: HandleClientError = ({ event, error }) => {
-	logger.error('Unhandled error in client', {
+	console.error('[client] Unhandled error', {
 		pathname: event.url.pathname,
-		error
+		error: error instanceof Error ? { name: error.name, message: error.message } : String(error)
 	});
 };

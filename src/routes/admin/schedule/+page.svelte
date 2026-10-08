@@ -1,68 +1,51 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { Calendar, Edit, Eye, EyeOff, Trash2, Plus, Info } from 'lucide-svelte';
+	import { errorMessage } from '$lib/errors';
+	import { Calendar, Edit, EyeOff, Globe, Info, Plus, Trash2 } from 'lucide-svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { DeleteScheduleSchema, TogglePreviewSchema } from '$lib/schemas';
-	import { superForm } from 'sveltekit-superforms';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { deleteSchedule, togglePreview } from '$lib/remote/schedule.remote';
 	import { notification } from '$lib/components/ui/toaster';
+	import { bbcodeToText } from '$lib/util/bbcode';
 
 	let { data }: PageProps = $props();
-
-	// svelte-ignore state_referenced_locally
-	const { form: deleteForm, enhance: deleteEnhance, submit: deleteSubmit } = superForm(data.deleteForm, {
-		dataType: 'json',
-		validators: zod4Client(DeleteScheduleSchema),
-		validationMethod: 'onsubmit',
-		multipleSubmits: 'prevent',
-		onResult: async ({ result }) => {
-			if (result.type === 'success' || result.type === 'redirect') {
-				notification.success('Schedule deleted successfully');
-				await invalidateAll();
-			} else if (result.type === 'failure') {
-				notification.error(result.data?.error || 'Failed to delete schedule');
-			}
-		}
-	});
-
-	// svelte-ignore state_referenced_locally
-	const { form: toggleForm, enhance: toggleEnhance, submit: toggleSubmit } = superForm(data.togglePreviewForm, {
-		dataType: 'json',
-		validators: zod4Client(TogglePreviewSchema),
-		validationMethod: 'onsubmit',
-		multipleSubmits: 'prevent',
-		onResult: async ({ result }) => {
-			if (result.type === 'success') {
-				notification.success('Schedule visibility updated');
-				await invalidateAll();
-			} else if (result.type === 'failure') {
-				notification.error('Failed to update schedule visibility');
-			}
-		}
-	});
 
 	function formatDatecode(year: number, week: number): string {
 		return `${year}${week.toString().padStart(2, '0')}`;
 	}
 
-	function handleTogglePreview(scheduleId: string, currentPreview: boolean) {
-		if (!window.confirm(`Are you sure you want to ${currentPreview ? 'publish' : 'hide'} this schedule?`)) {
+	async function handleTogglePreview(scheduleId: string, currentPreview: boolean) {
+		if (
+			!window.confirm(
+				`Are you sure you want to ${currentPreview ? 'publish' : 'unpublish'} this schedule?`
+			)
+		) {
 			return;
 		}
-		$toggleForm.scheduleId = scheduleId;
-		$toggleForm.preview = !currentPreview;
-    toggleSubmit();
+
+		try {
+			await togglePreview({ scheduleId, preview: !currentPreview });
+			notification.success('Schedule visibility updated');
+			await invalidateAll();
+		} catch (e) {
+			notification.error(errorMessage(e, 'Failed to update schedule visibility'));
+		}
 	}
 
-	function handleDelete(scheduleId: string, year: number, week: number) {
+	async function handleDelete(scheduleId: string, year: number, week: number) {
 		if (!window.confirm(`Are you sure you want to delete the schedule for ${year} Week ${week}?`)) {
 			return;
 		}
 		if (!window.confirm('This action cannot be undone. Are you really sure?')) {
 			return;
 		}
-		$deleteForm.scheduleId = scheduleId;
-    deleteSubmit();
+
+		try {
+			await deleteSchedule({ scheduleId });
+			notification.success('Schedule deleted successfully');
+			await invalidateAll();
+		} catch (e) {
+			notification.error(errorMessage(e, 'Failed to delete schedule'));
+		}
 	}
 </script>
 
@@ -70,50 +53,27 @@
 	<title>Schedules | G.O.T Archive</title>
 </svelte:head>
 
-<form
-	id="delete-form"
-	method="POST"
-	action="?/deleteSchedule"
-	use:deleteEnhance
-	class="hidden"
->
-  <input type="hidden" bind:value={$deleteForm.scheduleId} />
-</form>
-
-<form
-	id="toggle-preview-form"
-	method="POST"
-	action="?/togglePreview"
-	use:toggleEnhance
-	class="hidden"
->
-  <input type="hidden" bind:value={$toggleForm.scheduleId} />
-  <input type="hidden" bind:value={$toggleForm.preview} />
-</form>
-
 <div class="container mx-auto max-w-7xl p-2 md:p-4">
-	<!-- Page Header -->
+	<!-- Header -->
 	<div class="mb-4">
-		<h1 class="text-2xl md:text-3xl font-bold text-center">Schedules</h1>
-		<p class="text-base-content/70 mt-2 text-center">
-			Manage weekly anime schedules
-		</p>
+		<h1 class="text-center text-2xl font-bold md:text-3xl">Schedules</h1>
+		<p class="text-base-content/70 mt-2 text-center">Manage weekly anime schedules</p>
 	</div>
 
-	<!-- Create New Button -->
-	<a href="/admin/schedule/new" class="btn btn-primary w-full mb-4">
-		<Plus class="h-4 w-4" />
+	<!-- Create -->
+	<a href="/admin/schedule/new" class="btn btn-primary mb-4 w-full">
+		<Plus class="size-4" />
 		Create New Schedule
 	</a>
 
-	<!-- Schedules List -->
+	<!-- List -->
 	{#if data.schedules.length === 0}
 		<div class="card bg-base-200 shadow-md">
 			<div class="card-body p-4">
 				<div
-					class="border border-dashed rounded-box p-4 border-base-content/20 bg-base-300/30 text-base-content/60 gap-2 flex items-center"
+					class="rounded-box border-base-content/20 bg-base-300/30 text-base-content/60 flex items-center gap-2 border border-dashed p-4"
 				>
-					<Info class="h-5 w-5" />
+					<Info class="size-5" />
 					<span>No schedules yet. Create your first schedule to get started.</span>
 				</div>
 			</div>
@@ -121,8 +81,8 @@
 	{:else}
 		<div class="card bg-base-200 shadow-md">
 			<div class="card-body p-4">
-				<h2 class="card-title text-lg mb-2">
-					<Calendar class="h-5 w-5" />
+				<h2 class="card-title mb-2 text-lg">
+					<Calendar class="size-5" />
 					All Schedules
 				</h2>
 
@@ -131,26 +91,27 @@
 						{@const datecode = formatDatecode(schedule.year, schedule.week)}
 
 						<div class="list-row items-center">
-							<!-- Schedule Info -->
 							<div class="flex items-center gap-2">
-								<span class="font-bold text-lg">{schedule.year}</span>
-								<span class="text-base-content/60">W{schedule.week.toString().padStart(2, '0')}</span>
+								<span class="text-lg font-bold">{schedule.year}</span>
+								<span class="text-base-content/60"
+									>W{schedule.week.toString().padStart(2, '0')}</span
+								>
 							</div>
 
-							<span class="badge {schedule.preview ? 'badge-error' : 'badge-success'}">
+							<span class="badge {schedule.preview ? 'badge-warning' : 'badge-success'}">
 								{schedule.preview ? 'Draft' : 'Published'}
 							</span>
 
-							<!-- Note (if present) -->
 							{#if schedule.note}
-								<span class="text-sm text-base-content/70 truncate list-col-grow">{schedule.note}</span>
+								<span class="text-base-content/70 list-col-grow truncate text-sm"
+									>{bbcodeToText(schedule.note)}</span
+								>
 							{:else}
 								<span class="list-col-grow"></span>
 							{/if}
 
 							<!-- Actions -->
 							<div class="flex gap-2">
-								<!-- Edit -->
 								<a
 									href="/admin/schedule/{datecode}/edit"
 									class="btn btn-sm btn-square btn-neutral tooltip"
@@ -160,21 +121,21 @@
 									<Edit class="size-4" />
 								</a>
 
-								<!-- Toggle Preview -->
 								<button
 									type="button"
-									class="btn btn-sm btn-square tooltip {schedule.preview ? 'btn-ghost' : 'btn-success'}"
-									data-tip={schedule.preview ? 'Publish to public' : 'Hide from public'}
+									class="btn btn-sm btn-square tooltip {schedule.preview
+										? 'btn-success'
+										: 'btn-warning'}"
+									data-tip={schedule.preview ? 'Publish' : 'Unpublish'}
 									onclick={() => handleTogglePreview(schedule.scheduleId, schedule.preview)}
 								>
 									{#if schedule.preview}
-										<Eye class="size-4" />
+										<Globe class="size-4" />
 									{:else}
 										<EyeOff class="size-4" />
 									{/if}
 								</button>
 
-								<!-- Delete -->
 								<button
 									type="button"
 									class="btn btn-sm btn-square btn-error tooltip"

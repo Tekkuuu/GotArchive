@@ -30,5 +30,21 @@ export default ts.config(
 				parser: ts.parser
 			}
 		}
+	},
+	{
+		// Rune modules (`.svelte.ts` / `.svelte.js`) are plain TypeScript
+		files: ['**/*.svelte.ts', '**/*.svelte.js'],
+		languageOptions: {
+			parser: ts.parser
+		}
+	},
+	{
+		rules: {
+			// Rules added to eslint-plugin-svelte v3's recommended set.
+			// Turned off for now; adopting them is a separate cleanup.
+			'svelte/require-each-key': 'off',
+			'svelte/no-navigation-without-resolve': 'off',
+			'svelte/prefer-svelte-reactivity': 'off'
+		}
 	}
 );

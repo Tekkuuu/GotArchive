@@ -6,7 +6,6 @@ import { logger } from '$lib/server/logger';
 import { AppError } from '$lib/errors';
 
 export const handleError: HandleServerError = ({ error, event, status }) => {
-	// Build request context for structured logging
 	const requestContext = {
 		url: event.url.pathname,
 		method: event.request.method,
@@ -15,7 +14,6 @@ export const handleError: HandleServerError = ({ error, event, status }) => {
 		ip: event.getClientAddress()
 	};
 
-	// Handle expected application errors (AppError)
 	if (error instanceof AppError) {
 		logger.error('AppError caught in handleError', {
 			...requestContext,
@@ -27,7 +25,6 @@ export const handleError: HandleServerError = ({ error, event, status }) => {
 		};
 	}
 
-	// Handle unexpected JavaScript errors
 	if (error instanceof Error) {
 		logger.error('Unexpected error caught in handleError', {
 			...requestContext,
@@ -43,7 +40,6 @@ export const handleError: HandleServerError = ({ error, event, status }) => {
 		};
 	}
 
-	// Handle unknown error types (e.g., thrown primitives)
 	logger.error('Unknown error type caught in handleError', {
 		...requestContext,
 		error: typeof error === 'object' ? JSON.stringify(error) : String(error)
@@ -54,11 +50,14 @@ export const handleError: HandleServerError = ({ error, event, status }) => {
 	};
 };
 
-/**
- * Authentication handler - checks user permissions for admin routes
- */
+/** Guards admin routes. */
 export const authHandle: Handle = async ({ event, resolve }) => {
-	const user = (await auth.api.getSession(event.request))?.user;
+	const session = await auth.api.getSession({ headers: event.request.headers });
+
+	event.locals.session = session ?? null;
+	event.locals.user = session?.user ?? null;
+
+	const user = session?.user;
 
 	if (
 		event.url.pathname.startsWith('/admin') &&
@@ -74,6 +73,48 @@ export const authHandle: Handle = async ({ event, resolve }) => {
 	}
 
 	return await resolve(event);
+};
+
+/** Builds security headers. @returns Headers. */
+function buildSecurityHeaders(): Record<string, string> {
+	// The dev toolchain (Vite/SvelteKit HMR) uses eval; production must not.
+	const csp = [
+		"default-src 'self'",
+		dev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'",
+		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+		"font-src 'self' https://fonts.gstatic.com",
+		"img-src 'self' data: https:",
+		"connect-src 'self' https://graphql.anilist.co",
+		"object-src 'none'",
+		"base-uri 'self'",
+		"form-action 'self'",
+		"frame-ancestors 'none'"
+	].join('; ');
+
+	const headers: Record<string, string> = {
+		'Content-Security-Policy': csp,
+		'X-Frame-Options': 'DENY',
+		'X-Content-Type-Options': 'nosniff',
+		'Referrer-Policy': 'strict-origin-when-cross-origin',
+		'X-DNS-Prefetch-Control': 'off'
+	};
+
+	// HSTS only makes sense over HTTPS; skip it in local dev.
+	if (!dev) {
+		headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
+	}
+
+	return headers;
+}
+
+export const securityHeadersHandle: Handle = async ({ event, resolve }) => {
+	const response = await resolve(event);
+
+	for (const [name, value] of Object.entries(buildSecurityHeaders())) {
+		response.headers.set(name, value);
+	}
+
+	return response;
 };
 
 export const requestLogHandle: Handle = async ({ event, resolve }) => {
@@ -113,4 +154,4 @@ export const requestLogHandle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle: Handle = sequence(requestLogHandle, authHandle);
+export const handle: Handle = sequence(requestLogHandle, securityHeadersHandle, authHandle);

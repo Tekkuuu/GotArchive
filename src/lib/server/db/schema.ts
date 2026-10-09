@@ -362,3 +362,51 @@ export const bauthVerification = bauthSchema.table('verification', {
 	createdAt: timestamp('created_at').defaultNow(),
 	updatedAt: timestamp('updated_at').defaultNow()
 });
+
+// ---------------------------------------------------------------------------
+// Discord announcement integration
+// ---------------------------------------------------------------------------
+
+export const typeDiscordMention = pgEnum('typeDiscordMention', ['none', 'everyone', 'role']);
+
+/** Discord-specific tables, kept out of the public schedule schema. */
+export const discordSchema = pgSchema('discord');
+
+/** A Discord server channel a schedule can be announced to. */
+export const discordTarget = discordSchema.table(
+	'target',
+	{
+		targetId: uuid('target_id').primaryKey().defaultRandom(),
+		guildId: text('guild_id').notNull(),
+		channelId: text('channel_id').notNull(),
+		label: text('label').notNull(),
+		timeZone: text('time_zone').notNull().default('Europe/London'),
+		mentionType: typeDiscordMention('mention_type').notNull().default('none'),
+		mentionRoleId: text('mention_role_id'),
+		enabled: boolean('enabled').notNull().default(true),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		updatedAt: timestamp('updated_at').notNull().defaultNow()
+	},
+	(table) => [unique('unique_discord_guild_channel').on(table.guildId, table.channelId)]
+);
+
+/** Maps a schedule to the message posted in a given target (one per pair). */
+export const discordScheduleMessage = discordSchema.table(
+	'schedule_message',
+	{
+		scheduleMessageId: uuid('schedule_message_id').primaryKey().defaultRandom(),
+		scheduleId: uuid('schedule_id')
+			.notNull()
+			.references(() => schedule.scheduleId, { onDelete: 'cascade' }),
+		targetId: uuid('target_id')
+			.notNull()
+			.references(() => discordTarget.targetId, { onDelete: 'cascade' }),
+		messageId: text('message_id'),
+		pingMessageId: text('ping_message_id'),
+		lastSentAt: timestamp('last_sent_at'),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		updatedAt: timestamp('updated_at').notNull().defaultNow()
+	},
+	(table) => [unique('unique_schedule_target').on(table.scheduleId, table.targetId)]
+);
+

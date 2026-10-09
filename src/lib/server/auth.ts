@@ -20,6 +20,12 @@ if (!dev && !authBaseUrl) {
 }
 const resolvedBaseUrl = authBaseUrl || 'http://localhost:5173';
 
+const discordClientId = env.DISCORD_CLIENT_ID;
+const discordClientSecret = env.DISCORD_CLIENT_SECRET;
+
+/** Discord OAuth is optional; linking is hidden when its credentials are unset. */
+export const discordConfigured = Boolean(discordClientId && discordClientSecret);
+
 export const auth = betterAuth({
 	database: drizzleAdapter(db, {
 		provider: 'pg',
@@ -33,6 +39,28 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 		requireEmailVerification: false
+	},
+	socialProviders: discordConfigured
+		? {
+				discord: {
+					clientId: discordClientId as string,
+					clientSecret: discordClientSecret as string,
+					// Accounts are only created through the moderated registration
+					// flow; Discord is for linking an existing account, not sign-up.
+					disableSignUp: true
+				}
+			}
+		: {},
+	account: {
+		accountLinking: {
+			enabled: true,
+			trustedProviders: ['discord'],
+			// /account explicit linking is the only supported path; never
+			// auto-link an OAuth identity onto an existing local account.
+			disableImplicitLinking: true,
+			// Discord emails frequently differ from the site login email.
+			allowDifferentEmails: true
+		}
 	},
 	user: {
 		additionalFields: {

@@ -4,7 +4,7 @@
 	import { DAY_NAMES, entryTypeBadge } from '$lib/schemas';
 	import { formatTime } from '$lib/util/scheduleEntry';
 	import { formatIsoWeekLine } from '$lib/util/dateUtils';
-	import { AlertCircle, ArrowLeft, Clock, Edit, Info, Plus, Trash2 } from 'lucide-svelte';
+	import { AlertCircle, ArrowLeft, Edit, Info, Plus, Trash2 } from 'lucide-svelte';
 	import { parseISO } from 'date-fns';
 	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
@@ -24,6 +24,7 @@
 		updateScheduleEntry,
 		updateScheduleMetadata
 	} from '$lib/remote/schedule.remote';
+	import { sendScheduleUpdate } from '$lib/remote/discord.remote';
 	import { NoteStyler } from '$lib/components/ui/notestyler';
 
 	let { data }: PageProps = $props();
@@ -38,11 +39,15 @@
 	let savedNote = $state(data.schedule.note ?? '');
 	let isSavingNote = $state(false);
 	let isTogglingPublish = $state(false);
+	let sendingTargetId = $state<string | null>(null);
 
 	const isNoteDirty = $derived(note !== savedNote);
-	const totalEntries = $derived(data.entries.length);
 
 	const weekDates = $derived(formatIsoWeekLine(data.schedule.year, data.schedule.week));
+
+	const discordMessageByTarget = $derived(
+		new Map(data.discordMessages.map((message) => [message.targetId, message]))
+	);
 
 	let editingEntry = $state<EntryDraft | null>(null);
 
@@ -209,6 +214,19 @@
 		}
 	}
 
+	async function handleSendUpdate(targetId: string) {
+		sendingTargetId = targetId;
+		try {
+			await sendScheduleUpdate({ scheduleId: data.schedule.scheduleId, targetId });
+			notification.success('Discord update sent');
+			await invalidateAll();
+		} catch (e) {
+			notification.error(errorMessage(e, 'Failed to send Discord update'));
+		} finally {
+			sendingTargetId = null;
+		}
+	}
+
 	function getSeasonInfo(seasonId: string | null) {
 		if (!seasonId) return null;
 
@@ -254,9 +272,50 @@
 		</p>
 	</div>
 
+	<!-- Discord -->
+	{#if data.discordTargets.length > 0}
+		<section class="card bg-base-200 shadow-md">
+			<div class="card-body p-4">
+				<h2 class="card-title text-lg">Update Discord Schedule</h2>
+				<div class="flex flex-col gap-2">
+					{#each data.discordTargets as target (target.targetId)}
+						{@const sent = discordMessageByTarget.get(target.targetId)}
+						<div
+							class="rounded-box bg-base-300 flex flex-wrap items-center justify-between gap-2 p-4"
+						>
+							<div>
+								<div class="font-semibold">{target.label}</div>
+								<div class="text-base-content/70 text-xs">
+									{#if sent?.lastSentAt}
+										Last sent {new Date(sent.lastSentAt).toLocaleString()}
+									{:else}
+										Not sent yet
+									{/if}
+								</div>
+							</div>
+							<button
+								type="button"
+								class="btn btn-primary btn-sm"
+								disabled={sendingTargetId !== null}
+								onclick={() => handleSendUpdate(target.targetId)}
+							>
+								{#if sendingTargetId === target.targetId}
+									<span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+									Sending...
+								{:else}
+									Send Update
+								{/if}
+							</button>
+						</div>
+					{/each}
+				</div>
+			</div>
+		</section>
+	{/if}
+
 	<!-- Publication -->
 	<section class="card bg-base-200 shadow-md">
-		<div class="card-body flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+		<div class="card-body flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
 			<div>
 				<h2 class="card-title text-lg">Visibility</h2>
 				<p class="text-base-content/70 text-sm">
@@ -283,7 +342,7 @@
 
 	<!-- Note -->
 	<section class="card bg-base-200 shadow-md">
-		<div class="card-body p-4 sm:p-5">
+		<div class="card-body p-4">
 			<h2 class="card-title mb-3 text-lg">Note</h2>
 			<NoteStyler bind:content={note} week={data.schedule.week} year={data.schedule.year} />
 			<button
@@ -304,12 +363,9 @@
 
 	<!-- Entries -->
 	<section class="card bg-base-200 shadow-md">
-		<div class="card-body p-4 sm:p-5">
+		<div class="card-body p-4">
 			<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-				<h2 class="card-title text-lg">
-					Schedule Entries
-					<span class="badge badge-ghost">{totalEntries}</span>
-				</h2>
+				<h2 class="card-title text-lg">Schedule Entries</h2>
 				<button
 					type="button"
 					class="btn btn-primary btn-sm"
@@ -341,7 +397,6 @@
 									]}
 								>
 									<span class="text-xl font-bold">{weekdayNames[dayIndex]}</span>
-									<div class="badge badge-ghost">{dayEntries.length} entrie(s)</div>
 								</div>
 								<ul class="list rounded-box rounded-t-none">
 									{#each dayEntries as { entry: entryData }}
@@ -351,7 +406,6 @@
 										>
 											<!-- Summary -->
 											<div class="flex items-center gap-2">
-												<Clock class="size-4" />
 												<span>{formatTime(entry.time)}</span>
 											</div>
 											<div class="badge {getTypeColor(entry.type)}">{entry.type}</div>

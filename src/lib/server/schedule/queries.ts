@@ -12,8 +12,12 @@ import type {
 	SchedulePlatformInfo
 } from '$lib/api/schedule/datecode';
 
-/** Fetches entries for schedule id. @param scheduleId - Schedule id. @returns Entries. */
-async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntryData[]> {
+/**
+ * Fetches entries for schedule id.
+ * @param scheduleId - Schedule id.
+ * @returns Entries.
+ */
+export async function fetchEntriesForSchedule(scheduleId: string): Promise<ScheduleEntryData[]> {
 	const entryAnime = db.$with('entry_anime').as(
 		db
 			.select({

@@ -12,7 +12,8 @@
 		ShieldUser,
 		FileText,
 		Lock,
-		Bell
+		Bell,
+		UserRound
 	} from 'lucide-svelte';
 	import { NotificationCenter, NotificationPopup, notification } from '$lib/components/ui/toaster';
 	import MobileDock from '$lib/components/ui/navbar/MobileDock.svelte';
@@ -57,7 +58,12 @@
 		{ label: 'Privacy', route: '/privacy', icon: Lock },
 		{ label: 'Terms', route: '/tos', icon: FileText },
 		{ label: 'Theme', action: 'theme' as const, icon: Palette },
-		...($session.data ? [{ label: 'Logout', action: 'logout' as const, icon: LogOut }] : [])
+		...($session.data
+			? [
+					{ label: 'Account', route: '/account', icon: UserRound },
+					{ label: 'Logout', action: 'logout' as const, icon: LogOut }
+				]
+			: [])
 	]);
 
 	/** Routes that render the socials corner; admin/auth screens are excluded. */
@@ -163,6 +169,13 @@
 			{/if}
 
 			{#if $session.data}
+				<a
+					href="/account"
+					class={`btn btn-ghost tooltip tooltip-bottom ${page.route.id === '/account' ? 'btn-secondary' : ''}`}
+					data-tip="Account"
+				>
+					<UserRound class="h-5 w-5" />
+				</a>
 				<button
 					class="btn btn-ghost tooltip tooltip-bottom"
 					data-tip="Logout"

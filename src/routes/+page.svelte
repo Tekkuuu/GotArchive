@@ -91,9 +91,7 @@
 			{data.weekStartLabel.split(' ').reverse().join(' ')}
 		</span>
 		<div class=" relative flex shrink-0 flex-col items-center gap-2">
-			<h1
-				class="text-4xl font-extrabold tracking-tight text-white mix-blend-difference md:text-5xl"
-			>
+			<h1 class="text-4xl font-extrabold tracking-tight mix-blend-difference md:text-5xl">
 				G.O.T Archive
 			</h1>
 			<p class="text-base-content/60 text-sm md:text-base lg:hidden">{data.weekDates}</p>
@@ -131,19 +129,11 @@
 		<section class="flex flex-col items-center justify-center gap-2">
 			<ul class="list bg-base-200 rounded-box w-full max-w-2xl shadow-md">
 				{#each upcoming as entry (entry.scheduleEntryId)}
-					<li class="list-row items-center gap-3">
-						<div class="flex w-24 flex-col items-start">
-							<span class="text-primary text-sm font-extrabold uppercase">{entry.weekday}</span>
-							<span class="text-base-content/80 flex items-center gap-1 text-sm font-bold">
-								<Clock class="size-3.5" />
-								{entry.time}
-								<span class="text-primary">{entry.code}</span>
-							</span>
-						</div>
-						<div class="min-w-0 flex-1">
-							<div class="truncate font-medium">{entry.title}</div>
-							<div class="text-base-content/50 text-xs capitalize">{entry.type}</div>
-						</div>
+					<li class="list-row grid-cols-[auto_auto_auto_1fr] items-center gap-2">
+						<span class="text-primary font-extrabold uppercase">{entry.weekday}</span>
+						{entry.time}
+						<span class="text-primary uppercase">{entry.code}</span>
+						<div class="truncate">{entry.title}</div>
 					</li>
 				{/each}
 			</ul>

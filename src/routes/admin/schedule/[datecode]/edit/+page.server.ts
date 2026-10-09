@@ -86,10 +86,23 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	const platforms = await db.select().from(schema.platform).orderBy(asc(schema.platform.name));
 
+	const discordTargets = await db
+		.select()
+		.from(schema.discordTarget)
+		.where(eq(schema.discordTarget.enabled, true))
+		.orderBy(asc(schema.discordTarget.label));
+
+	const discordMessages = await db
+		.select()
+		.from(schema.discordScheduleMessage)
+		.where(eq(schema.discordScheduleMessage.scheduleId, scheduleData.scheduleId));
+
 	return {
 		schedule: scheduleData,
 		entries,
 		animeSeasons,
-		platforms
+		platforms,
+		discordTargets,
+		discordMessages
 	};
 };

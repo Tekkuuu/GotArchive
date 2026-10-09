@@ -5,16 +5,16 @@ import { addDays, format, startOfDay } from 'date-fns';
 import { parseEpisodeList } from '$lib/util/schedule/episodeProgressParser';
 import { env } from '$env/dynamic/private';
 import { z } from 'zod/v4';
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, createHash } from 'node:crypto';
 
 /** Constant-time comparison of the cron secret to avoid a timing oracle. */
 function secretsMatch(provided: string | null, expected: string): boolean {
-	if (!provided) return false;
+	if (!provided || !expected) return false;
 
-	const a = Buffer.from(provided);
-	const b = Buffer.from(expected);
-	// timingSafeEqual requires equal lengths; guard without leaking length publicly.
-	if (a.length !== b.length) return false;
+	// Hash both sides so the comparison is always 32 bytes; comparing raw
+	// buffers of different lengths would early-return and leak the length.
+	const a = createHash('sha256').update(provided).digest();
+	const b = createHash('sha256').update(expected).digest();
 
 	return timingSafeEqual(a, b);
 }
@@ -33,12 +33,12 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	if (!SCHEDULE_SYNC_EPISODES) {
 		logger.error('SCHEDULE_SYNC_EPISODES environment variable is not set');
-		return error(500, 'Server error');
+		throw error(500, 'Server error');
 	}
 
 	if (!secretsMatch(xScheduleSyncEpisodes, SCHEDULE_SYNC_EPISODES)) {
 		logger.warn('Unauthorized attempt to sync schedule episodes');
-		return error(401, 'Unauthorized');
+		throw error(401, 'Unauthorized');
 	}
 
 	const parsed = SyncBodySchema.safeParse(await request.json().catch(() => ({})));
@@ -47,7 +47,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.warn('Rejected schedule sync with invalid body', {
 			issues: parsed.error.issues
 		});
-		return error(400, 'Invalid request body');
+		throw error(400, 'Invalid request body');
 	}
 
 	const { date } = parsed.data;
@@ -58,7 +58,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	if (sync >= today) {
 		logger.warn(`Rejected sync attempt for non-past date: ${sync}`);
-		return error(400, 'date must be before today');
+		throw error(400, 'date must be before today');
 	}
 
 	const entries = await db

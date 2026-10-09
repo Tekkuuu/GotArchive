@@ -85,6 +85,13 @@
       "when": 1791109926458,
       "tag": "0011_platform-icon",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791554061241,
+      "tag": "0012_cute_paladin",
+      "breakpoints": true
     }
   ]
 }
